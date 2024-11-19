@@ -1,0 +1,12 @@
+Plan          Done          Delta   What
+13.11.2024.   17.11.2024.   - 4     repozitorij sa početnom strukturom
+20.11.2024.   19.11.2024.     1     Implementirati čitanje/upisivanje  u JPEG datoteku te prikazivanje slike na ekranu.
+27.11.2024.                         
+04.12.2024.                         čitanje JPEG formata i stvaranje potrebnih struktura
+11.12.2024.                         
+18.12.2024.                         paralalizacija color space konverzije, DCT, kvantizacije
+25.12.2024.                         paralelizacija huffmana
+01.01.2025.                         
+08.01.2025.                         ispitivanje
+15.01.2025.                         
+19.01.2025.                         Kraj

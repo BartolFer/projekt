@@ -2,7 +2,7 @@
 	"C_Cpp.default.defines": [
 		"depend(...)=",
 		"self=(*this)",
-		"VSCODE_ONLY="
+		"VSCODE_ONLY=",
 	],
 	"files.associations": {
 		"array": "cpp",

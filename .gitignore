@@ -1,3 +1,7 @@
 Build/
 Temp/
 gcm.cache/
+*.exe
+RgbDisplay/OpenGlDep/
+RgbDisplay/test.rgb
+RgbDisplay/V.cpp

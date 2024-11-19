@@ -1,0 +1,7 @@
+^Esc:: ExitApp
+
+^SC029:: {
+	MouseGetPos(&x, &y)
+	color := PixelGetColor(x, y, )
+	MsgBox(color)
+}
