@@ -2,6 +2,7 @@
 	"C_Cpp.default.defines": [
 		"depend(...)=",
 		"self=(*this)",
+		"record=struct __attribute__((packed))",
 		"VSCODE_ONLY=",
 	],
 	"files.associations": {

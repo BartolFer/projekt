@@ -1,6 +1,10 @@
 #include "./OpenGlDep/glad/include/glad/glad.h"
 #include "./OpenGlDep/glfw-3.4.bin.WIN64/include/GLFW/glfw3.h"
 #include <iostream>
+#include <chrono>
+#include <thread>
+
+#include "../Src/MetaData.hpp"
 
 // Vertex Shader Source
 const char* vertexShaderSource = R"(
@@ -51,6 +55,10 @@ void checkCompileErrors(GLuint shader, std::string type) {
 	}
 }
 
+std :: ostream& operator<<(std :: ostream& stream, const MetaData& meta_data) {
+	return stream << "Image(" << meta_data.width << " x " << meta_data.height << ")";
+}
+
 int main(int const argc, char const* const argv[]) {
 	std :: cout << "Starting" << std :: endl;
 	if (argc < 2) {
@@ -58,24 +66,55 @@ int main(int const argc, char const* const argv[]) {
 		return EXIT_FAILURE;
 	}
 	char const* const image_path = argv[1];
+	FILE* image = fopen(image_path, "rb");
+	if (image == nullptr) {
+		std :: cerr << "Image <" << image_path << "> doesn't exist" << std :: endl;
+		return EXIT_FAILURE;
+	}
+	MetaData meta_data{ 0, 0, 3, };
+	if (fread(&meta_data, sizeof(meta_data), 1, image) != 1) {
+		std :: cerr << "Input file doesn't have metadata" << std :: endl;
+		return EXIT_FAILURE;
+	}
+	std :: cout << meta_data << std :: endl;
+	uint8_t* data = new uint8_t[meta_data.width * meta_data.height * 3 + 12];
+	if (fread(data, sizeof(data[0]), meta_data.width * meta_data.height * 3 + 12, image) < meta_data.width * meta_data.height * 3) {
+		std :: cerr << "Input file doesn't have enogh bytes" << std :: endl;
+		return EXIT_FAILURE;
+	}
+	fclose(image);
+	// flip image horizontally
+	for (int i = 0; i < meta_data.height / 2; ++i) {
+		for (int j = 0; j < meta_data.width; ++j) {
+			int i_flip = meta_data.height - i - 1;
+			int index1 = (i      * meta_data.width + j) * 3;
+			int index2 = (i_flip * meta_data.width + j) * 3;
+			// printf("%d %d: #%02x%02x%02x <-> #%02x%02x%02x\n", i, i_flip, data[index1 + 0], data[index1 + 1], data[index1 + 2], data[index2 + 0], data[index2 + 1], data[index2 + 2]);
+			std :: swap(data[index1 + 0], data[index2 + 0]);
+			std :: swap(data[index1 + 1], data[index2 + 1]);
+			std :: swap(data[index1 + 2], data[index2 + 2]);
+		}
+	}
+	// for (int i = 0; i < meta_data.width * meta_data.height; ++i) {
+	// 	printf("#%02x%02x%02x\n", data[3*i + 0], data[3*i + 1], data[3*i + 2]);
+	// }
+
+	std :: this_thread :: sleep_for(std :: chrono :: seconds(1));
+
 	// Initialize GLFW
-	std :: cout << "Here 0" << std :: endl;
 	glfwInit();
-	std :: cout << "Here 1" << std :: endl;
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	std :: cout << "Here 2" << std :: endl;
 	// Create a GLFW window
-	GLFWwindow* window = glfwCreateWindow(800, 600, "Texture Example", NULL, NULL);
-	std :: cout << "Here 3" << std :: endl;
+	
+	GLFWwindow* window = glfwCreateWindow(std :: max(meta_data.width, 100), std :: max(meta_data.height, 100), "Texture Example", NULL, NULL);
 	if (window == NULL) {
 		std::cerr << "Failed to create GLFW window" << std::endl;
 		glfwTerminate();
 		return -1;
 	}
-	std :: cout << "Here 4" << std :: endl;
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -108,10 +147,10 @@ int main(int const argc, char const* const argv[]) {
 	// Vertex data
 	float vertices[] = {
 		// positions		// texture coords
-		0.5f,  0.5f, 0.0f,  1.0f, 1.0f,
-		0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
-	   -0.5f, -0.5f, 0.0f,  0.0f, 0.0f,
-	   -0.5f,  0.5f, 0.0f,  0.0f, 1.0f
+		1.0f,  1.0f, 0.0f,  1.0f, 1.0f,
+		1.0f, -1.0f, 0.0f,  1.0f, 0.0f,
+	   -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
+	   -1.0f,  1.0f, 0.0f,  0.0f, 1.0f
 	};
 	unsigned int indices[] = {
 		0, 1, 3,
@@ -147,35 +186,6 @@ int main(int const argc, char const* const argv[]) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-	FILE* image = fopen(image_path, "rb");
-	if (image == nullptr) {
-		std :: cerr << "Image <" << image_path << "> doesn't exist" << std :: endl;
-		return EXIT_FAILURE;
-	}
-	struct { int width=0, height=0, nrChannels=3; } meta_data;
-	fread(&meta_data, sizeof(meta_data), 1, image);
-	std :: cout << meta_data.width << " x " << meta_data.height << std :: endl;
-	if (meta_data.width != 2 || meta_data.height != 2) {
-		return 17;
-	}
-	uint8_t* data = new uint8_t[meta_data.width * meta_data.height * 3 + 12];
-	fread(data, sizeof(data[0]), meta_data.width * meta_data.height * 3 + 12, image);
-	// flip image horizontally
-	for (int i = 0; i < meta_data.height / 2; ++i) {
-		for (int j = 0; j < meta_data.width; ++j) {
-			int i_flip = meta_data.height - i - 1;
-			int index1 = (i      * meta_data.width + j) * 3;
-			int index2 = (i_flip * meta_data.width + j) * 3;
-			// printf("%d %d: #%02x%02x%02x <-> #%02x%02x%02x\n", i, i_flip, data[index1 + 0], data[index1 + 1], data[index1 + 2], data[index2 + 0], data[index2 + 1], data[index2 + 2]);
-			std :: swap(data[index1 + 0], data[index2 + 0]);
-			std :: swap(data[index1 + 1], data[index2 + 1]);
-			std :: swap(data[index1 + 2], data[index2 + 2]);
-		}
-	}
-	// for (int i = 0; i < meta_data.width * meta_data.height; ++i) {
-	// 	printf("#%02x%02x%02x\n", data[3*i + 0], data[3*i + 1], data[3*i + 2]);
-	// }
 	
 	// stbi_set_flip_vertically_on_load(true);
 	// unsigned char* data = stbi_load("path/to/your/image.jpg", &width, &height, &nrChannels, 0);

@@ -1,6 +1,6 @@
 CFLAGS = 
 CPPFLAGS = 
-CXXFLAGS = "-Dself=(*this)" "-Ddepend(...)="
+CXXFLAGS = "-Dself=(*this)" "-Ddepend(...)=" "-Drecord=struct __attribute__((packed))"
 LDFLAGS = 
 
 .DEFAULT_GOAL = all
