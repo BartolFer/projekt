@@ -1,5 +1,5 @@
 CFLAGS = 
-CPPFLAGS = 
+CPPFLAGS = "-DTESTING"
 CXXFLAGS = "-Dself=(*this)" "-Ddepend(...)=" "-Drecord=struct __attribute__((packed))"
 LDFLAGS = 
 

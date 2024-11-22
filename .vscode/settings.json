@@ -3,6 +3,7 @@
 		"depend(...)=",
 		"self=(*this)",
 		"record=struct __attribute__((packed))",
+		"TESTING",
 		"VSCODE_ONLY=",
 	],
 	"files.associations": {
