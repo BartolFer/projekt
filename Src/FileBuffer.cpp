@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <cstdint>
 #include <fstream>
+#include <filesystem>
 
 #ifdef VSCODE_ONLY
 	#include "./Test.cpp"
@@ -16,33 +17,47 @@ export module FileBuffer;
 #endif
 
 namespace BJpeg {
-	void freadExactlly(void* dst, size_t elm_size, size_t count, FILE* file) {
+	size_t freadExactlly(void* dst, size_t elm_size, size_t count, FILE* file) {
 		size_t amount_read = 0;
 		while (amount_read < count) {
 			amount_read += fread(dst, elm_size, count, file);
+			if (feof(file)) { break; }
 		}
+		return amount_read;
 	}
+	
+	#ifdef TESTING
+		class MyTest;
+	#endif
 
 	export struct InputFileBuffer {
 		unsigned const half_block_size;
 		InputFileBuffer(unsigned const half_block_size_pow, std :: string&& path) 
-			: half_block_size(1 << half_block_size_pow), mask(2 * half_block_size - 1), buffer(new uint8_t[2 * half_block_size]), file(fopen(path.c_str(), "rb")) {}
-		uint8_t& operator [](int offset) {
-			unsigned index = (self.head + offset) & self.mask;
+			: half_block_size(1 << half_block_size_pow), mask(2 * half_block_size - 1), buffer(new uint8_t[2 * half_block_size]), file_size(std :: filesystem :: file_size(path)), file(fopen(path.c_str(), "rb")) {
+		}
+		uint8_t const& operator [](int offset) {
+			if (offset >= self.file_size) { throw EOF; /* TODO */ }
+			if (offset >= self.tail) { self.load(); }
+			unsigned index = offset & self.mask;
 			return self.buffer[index];
 		}
 		void load() {
 			self.head ^= self.half_block_size;
-			freadExactlly(self.buffer + self.head, 1, self.half_block_size, self.file);
+			self.tail += freadExactlly(self.buffer + self.head, 1, self.half_block_size, self.file);
 		}
 		~InputFileBuffer() {
 			delete[] self.buffer;
 			fclose(self.file);
 		}
-		unsigned head = 0; // 0 or half_size
+		#ifdef TESTING
+			friend class MyTest;
+		#endif
 	private:
+		unsigned head = 0; // 0 or half_size
+		size_t tail = 0;
 		unsigned const mask;
 		uint8_t* const buffer;
+		size_t file_size;
 		// std :: ifstream file;
 		FILE* const file;
 	};
@@ -71,13 +86,14 @@ namespace BJpeg {
 			}
 			bool test() {
 				InputFileBuffer buffer(half_block_size_pow, std :: string(path));
+				int index = 0;
 				for (auto data : blocks) { 
 					buffer.load();
-					for (int i = 0; i < (1 << half_block_size_pow); ++i) { 
-						if (buffer[i] != data) {
-							fprintf(stderr, "Failed because 0x%X != 0x%X [%d]\n", buffer[i], data, i);
+					for (int i = 0; i < (1 << half_block_size_pow); ++i, ++index) { 
+						if (buffer[index] != data) {
+							fprintf(stderr, "Failed because 0x%X != 0x%X [%d]\n", buffer[index], data, i);
 							for (int i = 0; i < 2*(1 << half_block_size_pow); ++i) { 
-								fprintf(stderr, "%02X ", buffer[i]);
+								fprintf(stderr, "%02X ", buffer[index]);
 							}
 							fprintf(stderr, "\n h = %d", buffer.head);
 							return false;
