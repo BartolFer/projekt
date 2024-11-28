@@ -1,3 +1,4 @@
+depend("../FileBuffer.cpp", "../Markers.hpp")
 module;
 
 #ifdef VSCODE_ONLY
