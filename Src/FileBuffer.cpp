@@ -30,6 +30,10 @@ namespace BJpeg {
 		class MyTest;
 	#endif
 
+	// TODO EOF detection?
+	// (at the moment, if someone tries to get data past the end, they will get some garbage value that was already in the buffer!
+	// out-of-bounds access is not possible!)
+	// we could leave it to the decoder (e.g. to check EOF before each entropy coded segment)
 	export struct InputFileBuffer {
 		unsigned const half_block_size;
 		InputFileBuffer(unsigned const half_block_size_pow, std :: string&& path) 
