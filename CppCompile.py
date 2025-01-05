@@ -41,7 +41,10 @@ def analizeSrc(file_path, src_folder) -> tuple[str]:
 		if i is not None: index = i;
 	pass
 	deps = eval("depend(" + src[left : index], {"depend": lambda *a: a});
-	return tuple(map(lambda d: os.path.relpath(folder + "/" + d, src_folder).replace("\\", "/"), deps));
+	# prefix = os.path.dirname()
+	result = tuple(map(lambda d: os.path.relpath(folder + "/" + d, src_folder).replace("\\", "/"), deps));
+	# print(file_path, src_folder, folder, deps, result);
+	return result;
 pass
 
 def tryParseString(src: str, index: int) -> int | None:
@@ -88,7 +91,10 @@ copyFolderStructure("./Src/", "./Build/Objects/");
 dependancies = analizeSrcFolder("./Src/");
 
 for (src, deps) in dependancies.items():
-	for d in deps: assert d in dependancies.keys(), f"<{d}> does not exist";
+	for d in deps: 
+		if d.endswith(".hpp"): continue;
+		assert d in dependancies.keys(), f"<{src}>: <{d}> does not exist";
+	pass
 pass
 
 import contextlib, contextvars;
@@ -102,7 +108,7 @@ with open("./Build/Makefile", "w") as mk:
 			s_path = "./Src/" + src;
 			dep_paths = " ".join(map(getOName, deps));
 			print(f"{o_path}: {s_path} {dep_paths}");
-			print(f"\t@g++ $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<");
+			print(f"\tg++ $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<");
 		pass
 	pass
 pass

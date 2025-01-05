@@ -1,6 +1,7 @@
 module;
 
 #include <string.h>
+#include <cstdint>
 
 #ifdef VSCODE_ONLY
 	#include "../FileBuffer.cpp"
@@ -16,7 +17,7 @@ export module Decode.Huffman;
 namespace BJpeg {
 	export struct ValueAndLength {
 		uint16_t length;
-		uint8_t value;
+		uint16_t value;
 	};
 	export struct HuffmanTree {
 		void reset() {
@@ -45,7 +46,9 @@ namespace BJpeg {
 			}
 		}
 		
+	#ifndef DEBUG
 	private:
+	#endif
 		uint16_t _last_assigned_index = 0;
 	
 		// might be possible with u8 by using offsets (but i couldn't be bothered to verify that)

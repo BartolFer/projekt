@@ -3,45 +3,8 @@
 
 namespace BJpeg {
 	namespace Marker {
-		// Start Of Frame markers, non-differential, Huffman coding
-		
-		// Baseline DCT
-		constexpr inline uint8_t SOF0 = 0xC0; 
-		// Extended sequential DCT
-		constexpr inline uint8_t SOF1 = 0xC1; 
-		// Progressive DCT
-		constexpr inline uint8_t SOF2 = 0xC2; 
-		// Lossless (sequential)
-		constexpr inline uint8_t SOF3 = 0xC3; 
-		
-		// Start Of Frame markers, differential, Huffman coding
-		
-		// Differential sequential DCT
-		constexpr inline uint8_t SOF5 = 0xC5; 
-		// Differential progressive DCT
-		constexpr inline uint8_t SOF6 = 0xC6; 
-		// Differential lossless (sequential)
-		constexpr inline uint8_t SOF7 = 0xC7; 
-		
-		// Start Of Frame markers, non-differential, arithmetic coding
-		
-		// Reserved for JPEG extensions
-		constexpr inline uint8_t JPG = 0xC8; 
-		// Extended sequential DCT
-		constexpr inline uint8_t SOF9 = 0xC9; 
-		// Progressive DCT
-		constexpr inline uint8_t SOF10 = 0xCA; 
-		// Lossless (sequential)
-		constexpr inline uint8_t SOF11 = 0xCB; 
-
-		// Start Of Frame markers, differential, arithmetic coding
-		
-		// Differential sequential DCT
-		constexpr inline uint8_t SOF13 = 0xCD; 
-		// Differential progressive DCT
-		constexpr inline uint8_t SOF14 = 0xCE; 
-		// Differential lossless (sequential)
-		constexpr inline uint8_t SOF15 = 0xCF; 
+		// Start Of Frame markers
+		constexpr inline bool isSOF(uint8_t marker) { return 0xC0 <= marker && marker <= 0xCF && marker != 0xC4 && marker != 0xCC && marker != 0xC8; }
 		
 		// other
 		
@@ -77,6 +40,8 @@ namespace BJpeg {
 		// APPn Reserved for application segments 
 		constexpr inline bool isAPP(uint8_t app) { return 0xE0 <= app && app <= 0xEF; }
 		
+		// Reserved for JPEG extensions
+		constexpr inline uint8_t JPG = 0xC8; 
 		// JPGn Reserved for JPEG extensions
 		constexpr inline uint8_t JPGn(uint8_t n) { return 0xF0 + n; }
 		// JPGn Reserved for JPEG extensions

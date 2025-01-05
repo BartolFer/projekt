@@ -1,12 +1,15 @@
 depend("./Test.cpp")
 module;
 
-#include <iostream>
+
+#include <stdio.h>
+#include <string>
 #include <cstdint>
-#include <fstream>
+// #include <fstream>
 #include <filesystem>
 
 #ifdef VSCODE_ONLY
+	#pragma once
 	#include "./Test.cpp"
 #endif
 
