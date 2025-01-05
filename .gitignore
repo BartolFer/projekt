@@ -5,3 +5,4 @@ gcm.cache/
 RgbDisplay/OpenGlDep/
 RgbDisplay/test.rgb
 RgbDisplay/V.cpp
+Src/**/*.hpp
