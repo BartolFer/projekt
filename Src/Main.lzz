@@ -1,0 +1,19 @@
+
+#ifndef VSCODE_ONLY
+	#hdr
+		#pragma once
+	#end
+	#src
+		#include <iostream>
+		#include "./Decode/Decoder.hpp"
+	#end
+	#include "./Decode/Decoder.lzz"
+#else
+	#include <iostream>
+	#include "./Decode/Decoder.hpp"
+#endif
+
+
+int main() {
+	f();
+}

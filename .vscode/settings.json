@@ -74,4 +74,14 @@
 		"${workspaceFolder}/Src/m/a.cpp",
 		"${workspaceFolder}/Src/Main.cpp"
 	],
+	"emeraldwalk.runonsave": {
+		"commands": [
+			{
+				"autoShowOutputPanel": "error",
+				"showElapsed": false,
+				"cmd": "python lzz.py lzz",
+				"match": "\\.lzz$",
+			},
+		]
+	}
 }
