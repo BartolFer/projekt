@@ -23,13 +23,17 @@ def analizeSrcFolder(src_folder) -> dict[str, list[str]]:
 	pass
 	return result;
 pass
-dep_re = re.compile(r'\s*#\s*include\s*"([^"]+\.lzz)"');
+dep_re = re.compile(r'\s*#\s*include\s*"([^"]+)\.hpp"');
 def analizeSrc(file_path, src_folder) -> tuple[str]:
 	with open(file_path) as file: src = file.read();
 	folder = os.path.dirname(file_path);
+	true_name = os.path.relpath(file_path, "./Src/").replace("\\", "/");
 	return [
-		os.path.relpath(folder + "/" + m.group(1), src_folder).replace("\\", "/")
-		for m in re.finditer(dep_re, src)
+		d for d in {
+			os.path.relpath(folder + "/" + m.group(1), src_folder).replace("\\", "/") + ".lzz"
+			for m in re.finditer(dep_re, src)
+		}
+		if d != true_name
 	];
 pass
 
@@ -72,13 +76,14 @@ with open("./Build/Makefile", "w") as mk:
 			i_path = getIName(src);
 			l_path = "./Src/" + src;
 			dep_paths = " ".join(map(getOName, deps));
-			print(f"{i_path}: {l_path} {dep_paths}");
-			print(f"\t@lzz -hx hpp $(CPPFLAGS) -o ./Build/Sources/{base} {l_path}");
+			idep_paths = " ".join("./Src/" + d for d in deps);
+			print(f"{o_path}: {l_path} {dep_paths}");
+			print(f"\t@lzz -e -hx hpp $(CPPFLAGS) -o ./Build/Sources/{base} {l_path}");
 			print(f"\t@python ./CopyFile.py {h_path} {i_path}");
 			print(f"\t@g++ $(CPPFLAGS) $(CXXFLAGS) -c -o $@ {c_path}");
 			
-			print(f"{o_path}: {l_path} {dep_paths}");
-			print(f"\t@lzz -hx hpp $(CPPFLAGS) -o ./Build/Sources/{base} {l_path}");
+			print(f"{i_path}: {l_path} {idep_paths}");
+			print(f"\t@lzz -e -hx hpp $(CPPFLAGS) -o ./Build/Sources/{base} {l_path}");
 			print(f"\t@python ./CopyFile.py {h_path} {i_path}");
 		pass
 	pass

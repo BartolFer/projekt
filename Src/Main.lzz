@@ -1,19 +1,54 @@
-
 #ifndef VSCODE_ONLY
 	#hdr
 		#pragma once
 	#end
 	#src
 		#include <iostream>
-		#include "./Decode/Decoder.hpp"
+		#include <cstdint>
+		#include "./Test.hpp"
+		#include "./FileBuffer.hpp"
+		#include "./Context.hpp"
+		#include "./Decoder.hpp"
 	#end
-	#include "./Decode/Decoder.lzz"
 #else
 	#include <iostream>
-	#include "./Decode/Decoder.hpp"
+	#include <cstdint>
+	#include "./Main.hpp"
+	#include "./Test.hpp"
+	#include "./FileBuffer.hpp"
+	#include "./Context.hpp"
+	#include "./Decoder.hpp"
 #endif
+
+uint8_t BJpeg :: recomended_space_pow = 14;
 
 
 int main() {
-	f();
+	using namespace BJpeg;
+	#ifdef TESTING
+		Test :: runTests();
+	#endif
+	InputFileBuffer file(recomended_space_pow, "D:/temp/Zugpsitze_mountain.jpg");
+	auto contextp = new Context<DECODE>;
+	auto& context = *contextp;
+	auto res = Decode :: image(context, file, 0);
+	printf("res = %u\n", res);
+	FILE* context_file = fopen("D:/temp/jpg_context.txt", "w");
+	if (res == 0) { return EXIT_FAILURE; }
+	fprintf(context_file, "SOF = %s %s %d\n", context.sof_data.arithmetic ? "A" : "H", context.sof_data.differential ? "d" : "n", context.sof_data.mode);
+	fprintf(context_file, "X=%u Y=%u r=%u p=%u\n", context.X, context.Y, context.restart_interval, context.precision);
+	for (int i = 0; i < 2; ++i) {
+		for (int j = 0; j < 2; ++j) {
+			auto& ht = context.huffman_tree[i][j];
+			fprintf(context_file, "H[%d][%d] |", i, j);
+			for (int k = 0; k < 256+255; ++k) {
+				auto& node = ht.nodes[k];
+				if (node.left) { fprintf(context_file, "%3u,%3u|", node.left, node.right_or_data); }
+				else           { fprintf(context_file, "    %3u|",            node.right_or_data); }
+			}
+			fprintf(context_file, "\n");
+		}
+		fprintf(context_file, "\n");
+	}
+	delete contextp;
 }

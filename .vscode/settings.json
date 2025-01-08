@@ -7,6 +7,7 @@
 		"VSCODE_ONLY=",
 	],
 	"files.associations": {
+		"*.lzz": "cpp",
 		"array": "cpp",
 		"atomic": "cpp",
 		"bit": "cpp",
@@ -68,7 +69,7 @@
 		"stop_token": "cpp",
 		"thread": "cpp",
 		"cinttypes": "cpp",
-		"filesystem": "cpp"
+		"filesystem": "cpp",
 	},
 	"C_Cpp.default.forcedInclude": [
 		"${workspaceFolder}/Src/m/a.cpp",
@@ -83,5 +84,8 @@
 				"match": "\\.lzz$",
 			},
 		]
-	}
+	},
+	"files.exclude": {
+		"Src/**/*.hpp": true
+	},
 }

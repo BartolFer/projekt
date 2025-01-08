@@ -1,0 +1,53 @@
+#ifndef VSCODE_ONLY
+	#hdr
+		#pragma once
+		#include <cstdint>
+		#include "./Huffman.hpp"
+		#include "./Markers.hpp"
+		#include "./Util.hpp"
+	#end
+	#src
+	#end
+#else // if VSCODE
+	#include <cstdint>
+	#include "./Context.hpp"
+	#include "./Huffman.hpp"
+	#include "./Markers.hpp"
+	#include "./Util.hpp"
+#endif
+
+namespace BJpeg {
+	typedef uint16_t QuantizationTable[64];
+	struct ComponentData {
+		// from frame header
+		uint8_t sampling_factor_x;
+		uint8_t sampling_factor_y;
+		uint8_t quantization_table;
+		// from scan header
+		uint8_t dc_entropy_table;
+		uint8_t ac_entropy_table;
+	};
+
+	template <CodingType CODING_TYPE>
+	struct Context {
+		
+		Marker :: SOFData sof_data;
+		uint16_t restart_interval;
+		uint8_t precision;
+		uint16_t X, Y;
+		ComponentData component_data[MAX_COMPONENTS];
+		uint8_t component_count;
+		uint8_t component_order[MAX_COMPONENTS];
+		
+		Context() : restart_interval(0), precision(8), payload(new uint8_t[RECOMMENDED_SPACE]) {}
+		~Context() { delete[] self.payload; }
+		
+		HuffmanTree<CODING_TYPE> huffman_tree[2][4];
+		QuantizationTable quantization_table[4];
+		
+		uint8_t* payload;
+	};
+	
+	typedef Context<DECODE> DecodeContext;
+	typedef Context<ENCODE> EncodeContext;
+}

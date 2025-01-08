@@ -1,0 +1,122 @@
+#ifndef VSCODE_ONLY
+	#hdr
+		#pragma once
+		#include <iostream>
+		#include <cstdint>
+		#include <string>
+		#include "./Util.hpp"
+	#end
+	#src
+		#include <filesystem>
+		#include "./Test.hpp"
+	#end
+#else
+	#include <string>
+	#include <iostream>
+	#include <cstdint>
+	#include <filesystem>
+	#include "./FileBuffer.hpp"
+	#include "./Util.hpp"
+	#include "./Test.hpp"
+#endif
+
+
+namespace BJpeg {
+	static size_t freadExactlly(uint8_t* dst, size_t elm_size, size_t count, FILE* file) {
+		size_t amount_read = 0;
+		while (count) {
+			amount_read += fread(dst, elm_size, count, file);
+			count -= amount_read;
+			dst += amount_read;
+			if (feof(file)) { break; }
+		}
+		return amount_read;
+	}
+	
+	// TODO EOF detection?
+	// (at the moment, if someone tries to get data past the end, they will get some garbage value that was already in the buffer!
+	// out-of-bounds access is not possible!)
+	// we could leave it to the decoder (e.g. to check EOF before each entropy coded segment)
+	struct InputFileBuffer {
+		unsigned const half_block_size;
+		InputFileBuffer(unsigned const half_block_size_pow, rref<std :: string> path) 
+			: head(0), tail(0), half_block_size(1 << half_block_size_pow), mask(2 * half_block_size - 1), buffer(new uint8_t[2 * half_block_size]), file_size(std :: filesystem :: file_size(path)), file(fopen(path.c_str(), "rb")) {
+		}
+		uint8_t const& operator [](int offset) {
+			// if (offset >= self.file_size) { throw EOF; /* TODO */ }
+			#ifdef DEBUG
+				static uint8_t const dbg_return = 0x84; // 132
+				if (offset >= self.file_size) { return dbg_return; }
+			#endif
+			if (offset >= self.tail) { self.load(); }
+			unsigned index = offset & self.mask;
+			return self.buffer[index];
+		}
+		void load() {
+			self.tail += freadExactlly(self.buffer + self.head, 1, self.half_block_size, self.file);
+			self.head ^= self.half_block_size;
+		}
+		~InputFileBuffer() {
+			delete[] self.buffer;
+			fclose(self.file);
+		}
+		// should be private, but for testing
+		unsigned head; // 0 or half_size
+	// private:
+		size_t tail;
+		unsigned const mask;
+		uint8_t* const buffer;
+		size_t file_size;
+		// std :: ifstream file;
+		FILE* const file;
+	};
+	
+	#ifdef TESTING
+		namespace {
+			class MyTest : Test {
+				char const* getDescription() { return "InputFileBuffer Test"; }
+				static char const* const path = "./_InputFileBufferTestFile_690074.bin";
+				static unsigned const half_block_size_pow = 3; // 8 bytes
+				static char blocks[4] = {
+					0x11,
+					0x22,
+					0x33,
+					0x44,
+				};
+				void writeHalfBlock(char data, FILE* file) {
+					for (int i = 0; i < (1 << half_block_size_pow); ++i) {
+						fwrite(&data, 1, 1, file);
+					}
+				}
+				void init() {
+					FILE* file = fopen(path, "wb");
+					for (auto data : blocks) { writeHalfBlock(data, file); }
+					fflush(file);
+					fclose(file);
+				}
+				bool test() {
+					InputFileBuffer buffer(half_block_size_pow, std :: string(path));
+					
+					int index = 0;
+					for (auto data : blocks) { 
+						for (int i = 0; i < (1 << half_block_size_pow); ++i, ++index) { 
+							if (buffer[index] != data) {
+								fprintf(stderr, "Failed because 0x%X != 0x%X [%d]\n", buffer[index], data, i);
+								for (int j = 0; j < 2*(1 << half_block_size_pow); ++j) { 
+									fprintf(stderr, "%02X ", buffer.buffer[j]);
+								}
+								fprintf(stderr, "\n h = %d", buffer.head);
+								return false;
+							}
+						}
+					}
+					return true;
+				}
+				void finish() {
+					remove(path);
+				}
+			};
+			MyTest test;
+		}
+	#endif
+}
