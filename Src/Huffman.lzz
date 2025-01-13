@@ -2,6 +2,7 @@
 	#hdr
 		#pragma once
 		#include <cstdint>
+		#include <iostream>
 		#include "./FileBuffer.hpp"
 		#include "./Util.hpp"
 	#end
@@ -11,6 +12,7 @@
 #else // if VSCODE
 	#include <string.h>
 	#include <cstdint>
+	#include <iostream>
 	#include "./Huffman.hpp"
 	#include "./FileBuffer.hpp"
 	#include "./Util.hpp"
@@ -43,15 +45,33 @@ namespace BJpeg {
 			}
 			self.nodes[node] = { 0, value };
 		}
+		void setLastValue(uint8_t last_length) {
+			uint16_t node = 0;
+			for (uint8_t i = last_length; i > 0; --i) {
+				node = self.nodes[node].right_or_data;
+			}
+			self.nodes[node] = { 1, 0 };
+		}
 		
 		ValueAndLength operator [](uint16_t bits) {
 			uint16_t index = 0;
-			for (uint8_t depth = 0; ; ++depth) {
+			for (uint16_t depth = 0; ; ++depth) {
 				auto node = self.nodes[index];
 				if (node.left == 0) {
 					return {depth, node.right_or_data};
 				}
 				index = (bits >> 15) == 0 ? node.left : node.right_or_data;
+				bits <<= 1;
+			}
+		}
+		// TODO GPU data
+		
+		void printToFile(FILE* file) {
+			int highest_r = 0;
+			for (int i = 0; i <= highest_r; ++i) {
+				auto node = self.nodes[i];
+				if (node.left == 0) { fprintf(file, "    %3u|",            node.right_or_data); }
+				else                { fprintf(file, "%3u,%3u|", node.left, node.right_or_data); highest_r = node.right_or_data; }
 			}
 		}
 		
@@ -65,12 +85,14 @@ namespace BJpeg {
 			uint16_t left;          // if left == 0, then next byte is data
 			uint16_t right_or_data; // else, left and right are indexes of left and right nodes
 		};
-		Node nodes[256 + 255]; 
+		Node nodes[256 + 255 + 1]; 
 			// tree is full, which means that number of inner nodes = number of leaves - 1
 			// there is at most 256 values (leaves) in jpg, since values are 8 bit
+			// 256 + 255 (+1 for alignment)
 		
 			// going sequentially through this array is equivalent to pre-order traversal
 	};
+	
 	template <>
 	struct HuffmanTree<ENCODE> {
 		CodeAndLength operator [](uint8_t value) {

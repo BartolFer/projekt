@@ -1,0 +1,148 @@
+#ifndef VSCODE_ONLY
+	#hdr
+		#pragma once
+		#include <cstdint>
+		#include <type_traits>
+		// #include <cstddef>
+		#include "./Util.hpp"
+		#include "./FileBuffer.hpp"
+		#include "./Context.hpp"
+	#end
+	#src
+		#include <string.h>
+		#include <iostream>
+		#include "./Huffman.hpp"
+		#include "./Markers.hpp"
+	#end
+#else // if VSCODE
+	#include <cstdint>
+	#include <type_traits>
+	// #include <cstddef>
+	#include <string.h>
+	#include <iostream>
+	#include "./DecodeScan.hpp"
+	#include "./Util.hpp"
+	#include "./FileBuffer.hpp"
+	#include "./Context.hpp"
+	#include "./Huffman.hpp"
+	#include "./Markers.hpp"
+#endif
+
+#include "./DecoderMacro.hzz"
+
+#define RESET_SCAN_CONTEXT() do for (int ci = 0; ci < MAX_COMPONENTS; ++ci) { auto C = component_order[ci]; context.component_data[C].predictor = 0; } while (0)
+
+namespace BJpeg {
+	namespace Decode {
+		DECODE_FUN(scan) {
+			// interpret header
+			uint32_t result;
+			ASSERT_MARKER(Marker :: SOS);
+			uint16_t Lf; DECODE_READ_U16(Lf);
+			uint8_t Ns = DECODE_READ_U8;
+			if (Ns >= MAX_COMPONENTS) { 
+				std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: s=" << Ns << "\n";
+				return DECODE_RESULT_ERR;
+			}
+			uint8_t component_order[MAX_COMPONENTS];
+			for (uint8_t i = 0; i < Ns; ++i) {
+				uint8_t C = DECODE_READ_U8;
+				if (C >= MAX_COMPONENTS) {
+					std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: cs=" << C << "\n";
+					return DECODE_RESULT_ERR;
+				}
+				component_order[i] = C;
+				auto& component_data = context.component_data[C];
+				DECODE_READ_U4(component_data.dc_entropy_table, component_data.ac_entropy_table);
+			}
+			uint8_t Ss = DECODE_READ_U8;
+			uint8_t Se = DECODE_READ_U8;
+			uint8_t Ah, Al; DECODE_READ_U4(Ah, Al);
+			
+			// decode
+			uint8_t* payload = context.payload;
+			
+			RESET_SCAN_CONTEXT();
+			
+			bool in_payload = true;
+			uint8_t b1 = 0;
+			uint32_t B2 = 0;
+			while (in_payload) {
+				load:; {
+					for (; B2 < RECOMMENDED_SPACE; ++B2) {
+						uint8_t x = DECODE_READ_U8;
+						if (x == 0xFF) {
+							uint8_t marker = DECODE_READ_U8;
+							if (marker == 0x00) {
+								// go on
+							} else if (Marker :: isRST(marker)) {
+								RESET_SCAN_CONTEXT();
+								break;
+							} else {
+								index -= 2;
+								in_payload = false;
+								break;
+							}
+						} 
+						payload[B2] = x;
+					}
+				}
+				// decode
+				decode:; {
+					uint32_t bb2 = 8 * B2;
+					
+					// call GPU kernels for each bit
+					
+					for (int ci = 0; ci < Ns; ++ci) {
+						uint8_t C = component_order[ci];
+						auto data = context.component_data[C];
+						auto& hdc = context.huffman_tree[0][data.dc_entropy_table];
+						auto& hac = context.huffman_tree[1][data.ac_entropy_table];
+						for (int i = 0; i < data.sampling_factor_y; ++i) {
+							for (int j = 0; j < data.sampling_factor_x; ++j) {
+								// decode DC
+								// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
+								// use Huffman
+								// check that b1 + length + additional bits did not exceed bb2
+								// consume additional bits
+								// move b1
+								
+								// decode 63 ACs
+								for (uint8_t decoded_acs = 0; decoded_acs < 63; ) {
+									// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
+									// use Huffman
+									// check that b1 + length + additional bits did not exceed bb2
+									// consume additional bits
+									// move b1
+								}
+							}
+						}
+					}
+				}
+				// auto B3b3 = cleanPayloadSerial(context, b1, B2);
+				// b1 = B3b3 % 8;
+				// auto B3 = B3b3 / 8;
+				// B2 -= B3;
+				// // copy undecoded to start
+				// // might be a problem because memcpy shouldn't be called with the same buffer
+				// memcpy(&payload[0], &payload[B3], B2);
+			}
+			
+			
+			// handle MCUs, RST, 0xFF00, ...
+			// in MCUs there is DC, AC, components, (non)interleaving
+			
+			// sadly, i think that, if there is RST, we can only decode up to it, and not more
+			// or, we can just throw out trailing 1111
+			// but that would take a lot of work (shifting and all)
+			return DECODE_RESULT_OK;
+		}
+		// void resetScanContext(Context<DECODE>& context) {
+		// }
+		// i should move this/these into separate file
+		// uint32_t cleanPayloadSerial(ref<DecodeContext> context, uint8_t b1, uint32_t B2) {
+		// 	// decode from bits [b1] to [8*B2]
+		// 	uint8_t* payload = context.payload;
+		// }
+	}
+}

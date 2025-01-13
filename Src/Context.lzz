@@ -19,6 +19,8 @@
 namespace BJpeg {
 	typedef uint16_t QuantizationTable[64];
 	struct ComponentData {
+		// commputation
+		uint16_t predictor;
 		// from frame header
 		uint8_t sampling_factor_x;
 		uint8_t sampling_factor_y;
@@ -26,6 +28,7 @@ namespace BJpeg {
 		// from scan header
 		uint8_t dc_entropy_table;
 		uint8_t ac_entropy_table;
+		uint8_t _padding;
 	};
 
 	template <CodingType CODING_TYPE>
@@ -36,8 +39,6 @@ namespace BJpeg {
 		uint8_t precision;
 		uint16_t X, Y;
 		ComponentData component_data[MAX_COMPONENTS];
-		uint8_t component_count;
-		uint8_t component_order[MAX_COMPONENTS];
 		
 		Context() : restart_interval(0), precision(8), payload(new uint8_t[RECOMMENDED_SPACE]) {}
 		~Context() { delete[] self.payload; }

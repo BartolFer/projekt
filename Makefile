@@ -1,7 +1,7 @@
 CFLAGS = 
 CPPFLAGS = "-DTESTING" "-DDEBUG" "-Dself=(*this)" "-Ddepend(...)=" "-Drecord=struct __attribute__((packed))"
-CXXFLAGS = "-std=c++23" "-fmodules-ts"
-LDFLAGS = 
+CXXFLAGS = "-std=c++23" "-fmodules-ts" "-IC:/Programs/Cuda/include/"
+LDFLAGS = "-LC:/Programs/Cuda/lib/x64/" "-lOpenCl"
 
 .DEFAULT_GOAL = all
 .PHONY: Build/a.exe clean lzz run
@@ -17,7 +17,7 @@ run: Build/a.exe
 all: Build/a.exe
 Build/a.exe: $(OBJECTS)
 	@echo build
-	@g++ $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $^
+	@g++ $(CXXFLAGS) $(CPPFLAGS) -o $@ $^ $(LDFLAGS)
 lzz: $(I_FILES)
 	@echo lzz
 

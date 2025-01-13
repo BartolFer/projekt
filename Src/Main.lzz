@@ -29,8 +29,7 @@ int main() {
 		Test :: runTests();
 	#endif
 	InputFileBuffer file(recomended_space_pow, "D:/temp/Zugpsitze_mountain.jpg");
-	auto contextp = new Context<DECODE>;
-	auto& context = *contextp;
+	auto& context = *new Context<DECODE>;
 	auto res = Decode :: image(context, file, 0);
 	printf("res = %u\n", res);
 	FILE* context_file = fopen("D:/temp/jpg_context.txt", "w");
@@ -41,14 +40,10 @@ int main() {
 		for (int j = 0; j < 2; ++j) {
 			auto& ht = context.huffman_tree[i][j];
 			fprintf(context_file, "H[%d][%d] |", i, j);
-			for (int k = 0; k < 256+255; ++k) {
-				auto& node = ht.nodes[k];
-				if (node.left) { fprintf(context_file, "%3u,%3u|", node.left, node.right_or_data); }
-				else           { fprintf(context_file, "    %3u|",            node.right_or_data); }
-			}
+			ht.printToFile(context_file);
 			fprintf(context_file, "\n");
 		}
 		fprintf(context_file, "\n");
 	}
-	delete contextp;
+	delete &context;
 }

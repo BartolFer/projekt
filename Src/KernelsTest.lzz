@@ -1,0 +1,116 @@
+#ifndef VSCODE_ONLY
+	#hdr
+		#define CL_TARGET_OPENCL_VERSION 300
+		#include <CL/cl.h>
+		#include <cstdint>
+		#include "./Test.hpp"
+		#include "./kernels.cl.hpp"
+	#end
+	#src
+		#include <iostream>
+	#end
+#else // if VSCODE
+	#define CL_TARGET_OPENCL_VERSION 300
+	#include <CL/cl.h>
+	#include <cstdint>
+	#include "./Test.hpp"
+	#include "./kernels.cl.hpp"
+	#include <iostream>
+	#include "./KernelsTest.hpp"
+#endif
+
+
+namespace BJpeg {
+	namespace {
+		class KernelsTest : Test {
+			virtual const char* getDescription() { return "initializeBufferU32"; }
+			virtual bool test() {
+				bool ret = true;
+				cl_int err;
+				cl_platform_id platform;
+				cl_device_id device[2];
+				cl_context context;
+				cl_command_queue queue;
+				
+				err = clGetPlatformIDs(1, &platform, NULL);
+				checkError(err, "Failed to get platform");
+				
+				err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 2, device, NULL);
+				checkError(err, "Failed to get device");
+				
+				context = clCreateContext(NULL, 1, &device[1], NULL, NULL, &err);
+				checkError(err, "Failed to create context");
+				
+				cl_queue_properties const queue_prop = 0;
+				queue = clCreateCommandQueueWithProperties(context, device[1], &queue_prop, &err);
+				checkError(err, "Failed to create command queue");
+				
+				// const char *kernelSource = 
+				// 	"__kernel void initializeBufferU32(__global uint *buffer, uint value) {\n"
+				// 	"    size_t id = get_global_id(0);\n"
+				// 	"    buffer[id] = value;\n"
+				// 	"}\n";
+				
+				char const* kernels = BJpeg::kernels;
+				cl_program program = clCreateProgramWithSource(context, 1, &kernels, NULL, &err);
+				checkError(err, "Failed to create program");
+				
+				err = clBuildProgram(program, 1, &device[1], NULL, NULL, NULL);
+				checkError(err, "Failed to build program");
+				
+				cl_kernel kernel = clCreateKernel(program, "initializeBufferU32", &err);
+				checkError(err, "Failed to create kernel");
+				
+				size_t bufferSize = 1024;
+				uint32_t initValue = 42;
+				
+				cl_mem deviceBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, bufferSize * sizeof(uint32_t), NULL, &err);
+				checkError(err, "Failed to create buffer");
+				
+				err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &deviceBuffer);
+				checkError(err, "Failed to set kernel arg 0");
+				
+				err = clSetKernelArg(kernel, 1, sizeof(uint32_t), &initValue);
+				checkError(err, "Failed to set kernel arg 1");
+				
+				size_t globalWorkSize = bufferSize;
+				err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &globalWorkSize, NULL, 0, NULL, NULL);
+				checkError(err, "Failed to enqueue kernel");
+				
+				uint32_t *hostBuffer = new uint32_t[bufferSize];
+				err = clEnqueueReadBuffer(queue, deviceBuffer, CL_TRUE, 0, bufferSize * sizeof(uint32_t), hostBuffer, 0, NULL, NULL);
+				checkError(err, "Failed to read buffer");
+				
+				printf("First few values: %u %u %u %u\n", hostBuffer[0], hostBuffer[1], hostBuffer[2], hostBuffer[3]);
+				
+				free(hostBuffer);
+				clReleaseMemObject(deviceBuffer);
+				clReleaseKernel(kernel);
+				clReleaseProgram(program);
+				clReleaseCommandQueue(queue);
+				clReleaseContext(context);
+				return ret;
+			}
+		};
+		KernelsTest test;
+		
+		void checkError(cl_int error, const char *message) {
+			if (error != CL_SUCCESS) {
+				printf("Error %d: %s\n", error, message);
+				exit(1);
+			}
+		}
+	}
+}
+
+// Error checking helper
+
+// Main function to call the kernel
+
+// Example usage:
+/*
+    // Assuming you have initialized OpenCL context, queue, and compiled the kernel:
+    size_t bufferSize = 1024;
+    uint32_t initValue = 42;
+    callInitializeBuffer(context, queue, kernel, bufferSize, initValue);
+*/

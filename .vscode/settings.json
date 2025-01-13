@@ -7,7 +7,7 @@
 		"VSCODE_ONLY=",
 	],
 	"files.associations": {
-		"*.lzz": "cpp",
+		"*.?zz": "cpp",
 		"array": "cpp",
 		"atomic": "cpp",
 		"bit": "cpp",
@@ -70,11 +70,9 @@
 		"thread": "cpp",
 		"cinttypes": "cpp",
 		"filesystem": "cpp",
+		"*.lzz": "cpp",
+		"*.hzz": "cpp"
 	},
-	"C_Cpp.default.forcedInclude": [
-		"${workspaceFolder}/Src/m/a.cpp",
-		"${workspaceFolder}/Src/Main.cpp"
-	],
 	"emeraldwalk.runonsave": {
 		"commands": [
 			{
@@ -88,4 +86,7 @@
 	"files.exclude": {
 		"Src/**/*.hpp": true
 	},
+	"C_Cpp.default.includePath": [
+		"C:/Programs/Cuda/include"
+	],
 }

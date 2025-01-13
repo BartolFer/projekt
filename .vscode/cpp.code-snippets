@@ -29,8 +29,6 @@
 			"\t\t#include <cstdint>",
 			"\t\t#include \"./b.hpp\"",
 			"\t#end",
-			"\t#include \"./a.lzz\"",
-			"\t#include \"./b.lzz\"",
 			"#else // if VSCODE",
 			"\t#include <iostream>",
 			"\t#include <cstdint>",
