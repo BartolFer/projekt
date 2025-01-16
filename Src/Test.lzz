@@ -3,18 +3,29 @@
 	#hdr
 		#pragma once
 		#include <vector>
+		#include <iostream>
 	#end
 	#src
-		#include <iostream>
+		#include <fstream>
 	#end
 #else
 	#include <vector>
 	#include <iostream>
+	#include <fstream>
 #endif
 
 namespace BJpeg {
 	#ifdef TESTING
+		static std :: ofstream output = std :: ofstream("./Build/log.txt");
+		static std :: ostream& error = std :: cerr;
 		struct Test {
+			static std :: ostream& getOutput() {
+				return output << "\nLOG: ";
+			}
+			static std :: ostream& getError() {
+				return error << "\nERROR: ";
+			}
+			
 			virtual char const* getDescription() = 0;
 			virtual bool test() = 0;
 			
@@ -26,16 +37,23 @@ namespace BJpeg {
 			}
 			
 			static void runTests() {
+				size_t success = 0;
+				size_t failure = 0;
 				for (auto test : tests) {
 					test->init();
 					if (test->test()) {
-						// std :: cerr << "\n\t\t" << "Test <" << test->getDescription() << "> success" << std :: endl;
+						Test :: getOutput() << "\t\t" << "Test <" << test->getDescription() << "> success" << std :: endl;
+						++success;
 					} else {
-						std :: cerr << "\n\t\t" << "Test <" << test->getDescription() << "> failed" << std :: endl;
+						Test :: getError() << "\t\t" << "Test <" << test->getDescription() << "> failed" << std :: endl;
+						++failure;
 					}
 					test->finish();
 				}
-				std :: cerr << "\n\t\t" << "Finished with " << tests.size() << " tests" << std :: endl;
+				Test :: getOutput() << "\t\t" << "Finished with " << tests.size() << " tests" << std :: endl;
+				std :: cout         << "\t\t" << "Finished with " << tests.size() << " tests" << std :: endl;
+				Test :: getOutput() << "\t\t\t" << "Successful " << success << "        failed " << failure << std :: endl;
+				std :: cout         << "\t\t\t" << "Successful " << success << "        failed " << failure << std :: endl;
 			}
 		private:
 			static std :: vector<Test*> tests;

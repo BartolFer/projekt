@@ -25,25 +25,29 @@ uint8_t BJpeg :: recomended_space_pow = 14;
 
 int main() {
 	using namespace BJpeg;
+	if (recomended_space_pow < 8) {
+		std :: cerr << "Recommended space is at least 256B (2^8)" << std :: endl;
+		return EXIT_FAILURE;
+	}
 	#ifdef TESTING
 		Test :: runTests();
 	#endif
-	InputFileBuffer file(recomended_space_pow, "D:/temp/Zugpsitze_mountain.jpg");
-	auto& context = *new Context<DECODE>;
-	auto res = Decode :: image(context, file, 0);
-	printf("res = %u\n", res);
-	FILE* context_file = fopen("D:/temp/jpg_context.txt", "w");
-	if (res == 0) { return EXIT_FAILURE; }
-	fprintf(context_file, "SOF = %s %s %d\n", context.sof_data.arithmetic ? "A" : "H", context.sof_data.differential ? "d" : "n", context.sof_data.mode);
-	fprintf(context_file, "X=%u Y=%u r=%u p=%u\n", context.X, context.Y, context.restart_interval, context.precision);
-	for (int i = 0; i < 2; ++i) {
-		for (int j = 0; j < 2; ++j) {
-			auto& ht = context.huffman_tree[i][j];
-			fprintf(context_file, "H[%d][%d] |", i, j);
-			ht.printToFile(context_file);
-			fprintf(context_file, "\n");
-		}
-		fprintf(context_file, "\n");
-	}
-	delete &context;
+	// InputFileBuffer file(recomended_space_pow, "D:/temp/Zugpsitze_mountain.jpg");
+	// auto& context = *new Context<DECODE>;
+	// auto res = Decode :: image(context, file, 0);
+	// printf("res = %u\n", res);
+	// FILE* context_file = fopen("D:/temp/jpg_context.txt", "w");
+	// if (res == 0) { return EXIT_FAILURE; }
+	// fprintf(context_file, "SOF = %s %s %d\n", context.sof_data.arithmetic ? "A" : "H", context.sof_data.differential ? "d" : "n", context.sof_data.mode);
+	// fprintf(context_file, "X=%u Y=%u r=%u p=%u\n", context.X, context.Y, context.restart_interval, context.precision);
+	// for (int i = 0; i < 2; ++i) {
+	// 	for (int j = 0; j < 2; ++j) {
+	// 		auto& ht = context.huffman_tree[i][j];
+	// 		fprintf(context_file, "H[%d][%d] |", i, j);
+	// 		ht.printToFile(context_file);
+	// 		fprintf(context_file, "\n");
+	// 	}
+	// 	fprintf(context_file, "\n");
+	// }
+	// delete &context;
 }

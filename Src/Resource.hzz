@@ -1,0 +1,34 @@
+#pragma once
+
+#include <concepts>
+
+
+namespace BJpeg {
+	template <typename T>
+	concept IsResource = requires(T t) {
+		requires std::is_member_function_pointer_v<decltype(&T::init)>;
+		{ t.finish() } /* noexcept /* (would be nice, but LZZ doesn't allow it) */;
+	};
+	template <typename T, typename... Args>
+	concept IsActualResource = requires(T t, Args... args) {
+		{ t.init(args...) } -> std :: convertible_to<bool>;
+		{ t.finish() } /* noexcept /* (would be nice, but LZZ doesn't allow it) */;
+	};
+	template <typename T> requires (IsResource<T>)
+	struct Resource : T {
+		bool _resource_ok = true;
+		template <typename... Args> requires (IsActualResource<T, Args...>)
+		explicit inline Resource(T t, Args&&... args) : T(t) {
+			self._resource_ok = self.init(args...);
+		}
+		template <typename... Args> requires (IsActualResource<T, Args...>)
+		explicit inline Resource(Args&&... args) {
+			self._resource_ok = self.init(args...);
+		}
+		~Resource() {
+			self.finish();
+		}
+		operator bool() { return self._resource_ok; }
+	};
+}
+
