@@ -71,7 +71,8 @@
 		"cinttypes": "cpp",
 		"filesystem": "cpp",
 		"*.lzz": "cpp",
-		"*.hzz": "cpp"
+		"*.hzz": "cpp",
+		"cstring": "cpp"
 	},
 	"emeraldwalk.runonsave": {
 		"commands": [
@@ -80,6 +81,18 @@
 				"showElapsed": false,
 				"cmd": "python lzz.py lzz",
 				"match": "\\.lzz$",
+			},
+			{
+				"autoShowOutputPanel": "error",
+				"showElapsed": false,
+				"cmd": "python lzz.py lzz",
+				"match": "\\.hzz$",
+			},
+			{
+				"autoShowOutputPanel": "error",
+				"showElapsed": false,
+				"cmd": "python lzz.py lzz",
+				"match": "\\.cl$",
 			},
 		]
 	},
