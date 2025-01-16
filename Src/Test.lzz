@@ -36,7 +36,7 @@ namespace BJpeg {
 				Test :: tests.push_back(this);
 			}
 			
-			static void runTests() {
+			static bool runTests() {
 				size_t success = 0;
 				size_t failure = 0;
 				for (auto test : tests) {
@@ -54,6 +54,7 @@ namespace BJpeg {
 				std :: cout         << "\t\t" << "Finished with " << tests.size() << " tests" << std :: endl;
 				Test :: getOutput() << "\t\t\t" << "Successful " << success << "        failed " << failure << std :: endl;
 				std :: cout         << "\t\t\t" << "Successful " << success << "        failed " << failure << std :: endl;
+				return failure == 0;
 			}
 		private:
 			static std :: vector<Test*> tests;

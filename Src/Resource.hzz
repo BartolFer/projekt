@@ -28,7 +28,14 @@ namespace BJpeg {
 		~Resource() {
 			self.finish();
 		}
+		// Resource(Resource<T>) = delete;
+		Resource(Resource<T>&) = delete;
+		Resource(Resource<T>&&) = delete;
 		operator bool() { return self._resource_ok; }
 	};
+	
+	template <typename T> struct  IsAResource              : std :: false_type {};
+	template <typename T> struct  IsAResource<Resource<T>> : std ::  true_type {};
+	template <typename T> concept IsNotAResource = !IsAResource<T>::value;
 }
 

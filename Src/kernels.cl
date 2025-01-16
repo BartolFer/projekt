@@ -123,11 +123,11 @@ kernel void decodeHuffman1(__global u8 payload[], u32 b1, u32 B2, __constant Huf
 // where HV = sum(H*V)
 
 // started as [X][bb2 - b1]
-kernel void decodeRaiseN(__global u32 lanes[], u32 lane_width, u8 prev_size_pow, u8 lanes_count) {
+kernel void decodeRaise(__global u32 lanes[], u32 lane_width, u8 lanes_count, u8 prev_size_pow) {
 	u8  x = get_global_id(0);
 	u32 i = get_global_id(1);
 	u8  lane_id = x * (1U << (prev_size_pow + 1)) % lanes_count;
-	u8  next_id = lane_id + (1U << prev_size_pow);
+	u8  next_id = (lane_id + (1U << prev_size_pow)) % lanes_count;
 	u32 row_width = lanes_count * lane_width;
 	
 	u32 prev_base = prev_size_pow * row_width;
@@ -143,28 +143,28 @@ kernel void decodeRaiseN(__global u32 lanes[], u32 lane_width, u8 prev_size_pow,
 	if (next == LANE_ERROR_VALUE) { lanes[c] = LANE_ERROR_VALUE; return; }
 	lanes[c] = data + next;
 }
-kernel void decodeLower(__global u32 lanes[], u32 lane_width, u8 size_pow, u8 lanes_count, __global u32 positions[]) {
+kernel void decodeLower(__global u32 positions[], __global u32 lanes[], u32 lane_width, u8 lanes_count, u8 size_pow) {
 	u8  x = get_global_id(0);
 	u32 i = get_global_id(1);
 	u8  lane_id = x * (1U << (size_pow+1)) % lanes_count;
-	u8  next_id = lane_id + (1U << size_pow);
+	u8  next_id = (lane_id + (1U << size_pow)) % lanes_count;
 	u32 row_width = lanes_count * lane_width;
 	
-	u32 p = lane_id * lane_width + i;
+	u32 p = lane_id * (lane_width + 8) + i;
 	u32 pos = positions[p];
 	if (pos == LANE_ERROR_VALUE) { return; }
 	u32 row_base = size_pow * row_width;
 	u32 a = row_base + lane_id * lane_width + i;
 	u32 data = lanes[a];
-	// if (data == LANE_ERROR_VALUE) { return; }
-	u32 q = next_id * lane_width + i + data;
+	if (data == LANE_ERROR_VALUE) { return; }
+	u32 q = next_id * (lane_width + 8) + i + data;
 	positions[q] = pos + (1U << size_pow);
 }
 kernel void positionsToIndexes(__global u32 positions[], __global u32x2 indexes[], u32 lane_width) {
 	u32 lane_id = get_global_id(0);
 	u32 i       = get_global_id(1);
 	
-	u32 p = lane_id * lane_width + i;
+	u32 p = lane_id * (lane_width + 8) + i;
 	u32 pos = positions[p];
 	if (pos == LANE_ERROR_VALUE) { return; }
 	indexes[pos] = (u32x2)(lane_id, i);
@@ -174,7 +174,7 @@ kernel void decodeHuffman2(__global u8 payload[], u32 b1, __constant HuffmanTree
 	u32x2 id = indexes[pos];
 	u32 lane_id = id.x;
 	u32 i       = id.y;
-	// u32 p = lane_id * lane_width + i;
+	// u32 p = lane_id * (lane_width + 8) + i;
 	LaneInfo lane_info = lane_infos[lane_id];
 	u32 huf_id = lane_info.huf_id;
 	u32 lane_index = lane_id * lane_width + i;

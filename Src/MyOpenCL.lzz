@@ -4,6 +4,7 @@
 		#include <iostream>
 		#include <CL/cl.h>
 		#include <cstdint>
+		#include "./Util.hpp"
 	#end
 	#src
 	#end
@@ -12,6 +13,7 @@
 	#include <iostream>
 	#include <CL/cl.h>
 	#include <cstdint>
+	#include "./Util.hpp"
 	#include "./MyOpenCL.hpp"
 #endif
 
@@ -72,6 +74,9 @@ namespace MyOpenCL {
 		}
 	};
 	
+	template <typename T>
+	struct Buffer;
+	
 	struct Kernel {
 		Kernel() : _next_index(0) {}
 		cl_kernel kernel;
@@ -87,16 +92,19 @@ namespace MyOpenCL {
 		}
 		
 		cl_uint _next_index;
-		// template <typename T> bool setArg(Buffer<T>& arg               ) { return self.setArg(arg.buffer       ); }
-		// template <typename T> bool setArg(Buffer<T>& arg, cl_uint index) { return self.setArg(arg.buffer, index); }
-		template <typename T>
+		void resetArgs() {
+			self._next_index = 0;
+		}
+		template <typename T> bool setArg(Buffer<T>& arg               ) { return self.setArg(arg.buffer       ); }
+		template <typename T> bool setArg(Buffer<T>& arg, cl_uint index) { return self.setArg(arg.buffer, index); }
+		template <BJpeg :: IsNotAResource T>
 		bool setArg(T& arg) {
 			cl_int err = clSetKernelArg(self.kernel, self._next_index, sizeof(T), &arg);
 			ERROR_HANDLING(err, "Failed to set argument " << self._next_index);
 			++self._next_index;
 			return true;
 		}
-		template <typename T>
+		template <BJpeg :: IsNotAResource T>
 		bool setArg(T& arg, cl_uint index) {
 			cl_int err = clSetKernelArg(self.kernel, index, sizeof(T), &arg);
 			ERROR_HANDLING(err, "Failed to set argument " << index);

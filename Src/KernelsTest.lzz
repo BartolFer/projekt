@@ -36,7 +36,7 @@
 
 namespace BJpeg {
 	namespace {
-		class KernelsTest : Test {
+		struct KernelsTest : Test {
 			virtual bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) = 0;
 			virtual bool test() {
 				cl_device_id device_id;
@@ -50,7 +50,286 @@ namespace BJpeg {
 			}
 		};
 		
-		class TestInitializeBufferU32 : KernelsTest {
+		struct BufferSetter {
+			MyOpenCL :: Kernel kernel;
+			bool init(MyOpenCL :: Program program) { return self.kernel.init(program, "initializeBufferU32"); }
+			void finish() { self.kernel.finish(); }
+			bool operator ()(MyOpenCL :: Queue queue, MyOpenCL :: Buffer<uint32_t> buffer, uint32_t value) {
+				self.kernel.resetArgs();
+				if (!self.kernel.setArg(buffer.buffer)) { return false; }
+				if (!self.kernel.setArg(value)) { return false; }
+				if (!self.kernel(queue, 1, &buffer.length)) { return false; }
+				return true;
+			}
+		};
+		struct Test_decodeHuffman1 : KernelsTest {
+			const char *getDescription() { return "Test decodeHuffman1"; }
+			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+				Test :: getError() << self.getDescription() << ": not implemented" << std :: endl;
+				return true;
+			}
+		};
+		struct Test_decodeRaise : KernelsTest {
+			const char *getDescription() { return "Test decodeRaise"; }
+			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+				Resource<MyOpenCL :: Kernel> kernel(program, "decodeRaise");
+				if (!kernel) { return false; }
+				
+				constexpr uint32_t const lane_width = 64;
+				constexpr uint8_t const lane_count = 4;
+				constexpr uint8_t const depth = 5;
+				constexpr uint8_t  const prev_size_pow = 0;
+				uint32_t const x = ~(uint32_t)0;
+				uint32_t initial[depth][lane_count][lane_width] = {
+					{
+						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{3,2,1,4,3,2,1,5,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,5,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{3,3,2,4,3,3,2,5,4,3,3,2,4,3,3,2,3,3,2,3,2,3,3,2,5,4,3,3,2,2,4,3,3,2,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+				};
+				uint32_t result  [depth][lane_count][lane_width] = {{{0}}};
+				uint32_t expected[depth][lane_count][lane_width] = {
+					{
+						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{3,2,1,4,3,2,1,5,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,5,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{3,3,2,4,3,3,2,5,4,3,3,2,4,3,3,2,3,3,2,3,2,3,3,2,5,4,3,3,2,2,4,3,3,2,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{7,6,5,x,x,x,x,x,8,7,6,5,7,6,5,4,5,4,3,5,4,x,x,x,x,5,4,3,2,5,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{7,6,5,9,8,7,6,9,8,7,6,5,7,6,5,4,6,5,4,5,4,8,7,6,7,6,5,4,3,5,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+				};
+				
+				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lane_count * lane_width);
+				if (!lanes) { return false; }
+				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
+				
+				if (!kernel.setArg(lanes.buffer)) { return false; }
+				if (!kernel.setArg(lane_width)) { return false; }
+				if (!kernel.setArg(lane_count)) { return false; }
+				if (!kernel.setArg(prev_size_pow, 3)) { return false; }
+				
+				size_t global_work[2] = { 2, lane_width };
+				if (!kernel(queue, 2, global_work)) { return false; }
+				
+				if (!lanes.read(queue, &result[0][0][0])) { return false; }
+				for (uint32_t d = 0; d < depth; ++d) {
+					for (uint32_t l = 0; l < lane_count; ++l) {
+						for (uint32_t i = 0; i < lane_width; ++i) {
+							if (result[d][l][i] != expected[d][l][i]) {
+								Test :: getError() << "[" << d << "][" << l << "][" << i << "]: e=" << expected[d][l][i] << " v=" << result[d][l][i] << std :: endl;
+								return false;
+							}
+						}
+					}
+				}
+				
+				return true;
+			}
+		};
+		struct Test_decodeLower : KernelsTest {
+			const char *getDescription() { return "Test decodeLower"; }
+			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+				Resource<MyOpenCL :: Kernel> kernel(program, "decodeLower");
+				if (!kernel) { return false; }
+				Resource<BufferSetter> set_buf(program);
+				if (!set_buf) { return false; }
+				
+				constexpr uint32_t const lane_width = 64;
+				constexpr uint8_t const lane_count = 4;
+				constexpr uint8_t const depth = 5;
+				uint32_t const x = ~(uint32_t)0;
+				uint32_t initial[depth][lane_count][lane_width] = {
+					{
+						{ 3, 2, 1, 4, 3, 2, 1, x, 4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 2, 1, 3, 2, 1, x, 4, 3, 2, 1, 1, 4, 3, 2, 1, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ 3, 2, 1, 4, 3, 2, 1, x, 4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 2, 1, 3, 2, 1, x, 4, 3, 2, 1, 1, 4, 3, 2, 1, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ 3, 2, 1, 4, 3, 2, 1, 5, 4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 2, 1, 3, 2, 1, 5, 4, 3, 2, 1, 1, 4, 3, 2, 1, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ 3, 3, 2, 4, 3, 3, 2, 5, 4, 3, 3, 2, 4, 3, 3, 2, 3, 3, 2, 3, 2, 3, 3, 2, 5, 4, 3, 3, 2, 2, 4, 3, 3, 2, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+					},
+					{
+						{ 7, 6, 5, x, x, x, x, x, 8, 7, 6, 5, 7, 6, 5, 4, 5, 4, 3, 5, 4, x, x, x, x, 5, 4, 3, 2, 5, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ 7, 6, 5, 9, 8, 7, 6, 9, 8, 7, 6, 5, 7, 6, 5, 4, 6, 5, 4, 5, 4, 8, 7, 6, 7, 6, 5, 4, 3, 5, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+					},
+					{
+						{16,15,14, x, x, x, x, x,14,13,12,11,12,11,10, 9,13,12,11,12,11, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+					},
+					{
+						{29,28,27, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+					},
+					{
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
+					},
+				};
+				uint32_t result  [lane_count][lane_width + 8] = {{{0}}};
+				uint32_t expected[lane_count][lane_width] = {
+					{0,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,4,x,x,x,x,x,x,x,x,x,x,x,x,8,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					{x,x,x,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,5,x,x,x,x,x,x,x,x,x,x,9,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					{x,x,x,x,x,x,x,2,x,x,x,x,x,x,x,x,x,x,x,x,x,6,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					{x,x,x,x,x,x,x,x,x,x,x,x,3,x,x,x,x,x,x,x,x,x,x,x,7,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+				};
+				
+				Resource<MyOpenCL :: Buffer<uint32_t>> positions(context, CL_MEM_READ_WRITE, lane_count * (lane_width + 8));
+				if (!positions) { return false; }
+				if (!set_buf(queue, positions, x)) { return false; }
+				uint32_t zero = 0;
+				if (!positions.write(queue, &zero, 1)) { return false; }
+				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lane_count * lane_width);
+				if (!lanes) { return false; }
+				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
+				
+				if (!kernel.setArg(positions)) { return false; }
+				if (!kernel.setArg(lanes)) { return false; }
+				if (!kernel.setArg(lane_width)) { return false; }
+				if (!kernel.setArg(lane_count)) { return false; }
+				
+				uint8_t size_pow;
+				size_t global_work[2] = { lane_count, lane_width };
+
+				size_pow = 3;
+				global_work[0] = 1;
+				if (!kernel.setArg(size_pow, 4)) { return false; }
+				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!positions.read(queue, &result[0][0])) { return false; }
+				size_pow = 2;
+				global_work[0] = 1;
+				if (!kernel.setArg(size_pow, 4)) { return false; }
+				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!positions.read(queue, &result[0][0])) { return false; }
+				size_pow = 1;
+				global_work[0] = 1;
+				if (!kernel.setArg(size_pow, 4)) { return false; }
+				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!positions.read(queue, &result[0][0])) { return false; }
+				size_pow = 0;
+				global_work[0] = 2;
+				if (!kernel.setArg(size_pow, 4)) { return false; }
+				if (!kernel(queue, 2, global_work)) { return false; }
+				
+				if (!positions.read(queue, &result[0][0])) { return false; }
+				for (uint32_t l = 0; l < lane_count; ++l) {
+					for (uint32_t i = 0; i < 34; ++i) { // hardcoded
+						if (result[l][i] != expected[l][i]) {
+							Test :: getError() << "[" << l << "][" << i << "]: e=" << expected[l][i] << " v=" << result[l][i] << std :: endl;
+							return false;
+						}
+					}
+				}
+				
+				return true;
+			}
+		};
+		struct Test_positionsToIndexes : KernelsTest {
+			const char *getDescription() { return "Test positionsToIndexes"; }
+			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+				Resource<MyOpenCL :: Kernel> kernel(program, "positionsToIndexes");
+				if (!kernel) { return false; }
+				Resource<BufferSetter> set_buf(program);
+				if (!set_buf) { return false; }
+				
+				constexpr uint32_t const lane_width = 64;
+				constexpr uint8_t const lane_count = 4;
+				constexpr uint8_t const depth = 5;
+				uint32_t const x = ~(uint32_t)0;
+				
+				uint32_t initial[lane_count][lane_width + 8] = {
+					{0,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,4,x,x,x,x,x,x,x,x,x,x,x,x,8,x,x,x,x, x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
+					{x,x,x,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,5,x,x,x,x,x,x,x,x,x,x,9,x,x,x, x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
+					{x,x,x,x,x,x,x,2,x,x,x,x,x,x,x,x,x,x,x,x,x,6,x,x,x,x,x,x,x,x,x,x,x,x,10,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
+					{x,x,x,x,x,x,x,x,x,x,x,x,3,x,x,x,x,x,x,x,x,x,x,x,7,x,x,x,x,x,x,x,x,x, x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
+				};
+				cl_uint2 result  [11] = {0};
+				cl_uint2 expected[11] = {{{0,0}}, {{1,3}}, {{2,7}}, {{3,12}}, {{0,16}}, {{1,19}}, {{2,21}}, {{3,24}}, {{0,29}}, {{1,30}}, {{2,34}}};
+				
+				Resource<MyOpenCL :: Buffer<uint32_t>> positions(context, CL_MEM_READ_WRITE, lane_count * (lane_width + 8));
+				if (!positions) { return false; }
+				if (!positions.write(queue, &initial[0][0])) { return false; }
+				Resource<MyOpenCL :: Buffer<cl_uint2>> indexes(context, CL_MEM_READ_WRITE, 16);
+				if (!indexes) { return false; }
+				if (!indexes.write(queue, result)) { return false; }
+				
+				if (!kernel.setArg(positions)) { return false; }
+				if (!kernel.setArg(indexes)) { return false; }
+				if (!kernel.setArg(lane_width)) { return false; }
+				
+				size_t global_work[2] = { lane_count, lane_width };
+				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!indexes.read(queue, &result[0])) { return false; }
+				
+				for (int i = 0; i <= 10; ++i) {
+					if (result[i].s[0] != expected[i].s[0] || result[i].s[1] != expected[i].s[1]) {
+						Test :: getError() << "[" << i << "]: e=(" << expected[i].s[0] << "," << expected[i].s[1] << ")" << " v=(" << result[i].s[0] << "," << result[i].s[1] << ")" << std :: endl;
+						return false;
+					}
+				}
+				
+				return true;
+			}
+		};
+		struct Test_decodeHuffman2 : KernelsTest {
+			const char *getDescription() { return "Test decodeHuffman2"; }
+			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+				Test :: getError() << self.getDescription() << ": not implemented" << std :: endl;
+				return true;
+			}
+		};
+		struct Test_initializeBufferU32 : KernelsTest {
 			const char *getDescription() { return "Test initializeBufferU32"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				Resource<MyOpenCL :: Kernel> kernel(program, "initializeBufferU32"); if (!kernel) { return false; }
@@ -87,16 +366,15 @@ namespace BJpeg {
 				return true;
 			}
 		};
-		TestInitializeBufferU32 test;
 		
-		void checkError(cl_int error, const char *message) {
-			if (error != CL_SUCCESS) {
-				printf("Error %d: %s\n", error, message);
-				exit(1);
-			}
+		namespace { 
+			Test_decodeHuffman1      test_decodeHuffman1     ;
+			Test_decodeRaise        test_decodeRaise       ;
+			Test_decodeLower         test_decodeLower        ;
+			Test_positionsToIndexes  test_positionsToIndexes ;
+			Test_decodeHuffman2      test_decodeHuffman2     ;
+			Test_initializeBufferU32 test_initializeBufferU32;
 		}
-		
-		
 	}
 }
 
