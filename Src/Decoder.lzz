@@ -60,6 +60,7 @@ namespace BJpeg {
 								if (table_class > 1 || table_dest > 3) { return DECODE_RESULT_ERR; }
 								HuffmanTree<DECODE>& huffman = context.huffman_tree[table_class][table_dest];
 								huffman.reset();
+								uint16_t last_assigned_index = 0;
 								uint32_t const counts_start = index - 1; // because of 1-indexing
 								uint32_t const values_start = index + 16;
 								uint16_t code = 0;
@@ -70,7 +71,7 @@ namespace BJpeg {
 									uint8_t const count = file[counts_start + length];
 									for (uint8_t i = 0; i < count; ++i) {
 										uint8_t value = file[values_start + value_index];
-										huffman.update(code, length, value);
+										huffman.update(code, length, value, last_assigned_index);
 										
 										++code;
 										++value_index;
@@ -80,16 +81,10 @@ namespace BJpeg {
 									}
 									code <<= 1;
 								}
-								// fill the remaining tree on depth last_length with last used value
-								// Huffman should always have even number of last length
-								// but that is never true in jpg, because 11..111 is reserved for greater length
-								// even though it could be since there is no greter length (oh well...)
-								// this step shouldn't be necesarry if data is valid
-								uint8_t last_value = file[values_start + value_index - 1]; // set the last used value
-								for (; last_code < (uint32_t) ((uint32_t)1 << (uint32_t)last_length); ++last_code) {
-									huffman.update(last_code, last_length, last_value);
+								if (last_code + 1 != 1 << last_length) {
+									return DECODE_RESULT_ERR;
 								}
-								huffman.setLastValue(last_length);
+								huffman.setLastNode(last_length);
 								index = values_start + value_index;
 							}
 						} break;
