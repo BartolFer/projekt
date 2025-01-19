@@ -9,6 +9,7 @@
 		#include <iostream>
 		#include "./MyOpenCL.hpp"
 		#include "./Util.hpp"
+		#include "./Huffman.hpp"
 	#end
 #else // if VSCODE
 	#define CL_TARGET_OPENCL_VERSION 300
@@ -18,6 +19,7 @@
 	#include <iostream>
 	#include "./MyOpenCL.hpp"
 	#include "./Util.hpp"
+	#include "./Huffman.hpp"
 	#include "./KernelsTest.hpp"
 #endif
 
@@ -65,7 +67,107 @@ namespace BJpeg {
 		struct Test_decodeHuffman1 : KernelsTest {
 			const char *getDescription() { return "Test decodeHuffman1"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Test :: getError() << self.getDescription() << ": not implemented" << std :: endl;
+				Resource<MyOpenCL :: Kernel> kernel(program, "decodeHuffman1");
+				if (!kernel) { return false; }
+				
+				constexpr uint32_t const b1 = 3;
+				constexpr uint32_t const B2 = 14;
+				constexpr uint32_t const lane_width = 128;
+				constexpr uint8_t const lane_count = 3;
+				constexpr uint8_t const depth = 5;
+				constexpr uint8_t  const prev_size_pow = 0;
+				uint32_t const x = ~(uint32_t)0;
+				
+				HuffmanTree<DECODE> trees_arr[2][4] = {
+					{
+						{.nodes={{1, 4}, {2, 3}, {0, 3}, {0, 6}, {5, 8}, {6, 7}, {0, 7}, {0, 4}, {9, 10}, {0, 5}, {11, 12}, {0, 2}, {1, 0}}},
+						{.nodes={{1, 2}, {0, 2}, {3, 4}, {0, 5}, {5, 6}, {0, 4}, {7, 8}, {0, 3}, {1, 0}}},
+					},
+					{
+						{.nodes={{1, 14}, {2, 5}, {3, 4}, {0, 213}, {0, 149}, {6, 9}, {7, 8}, {0, 0}, {0, 197}, {10, 11}, {0, 20}, {12, 13}, {0, 5}, {0, 85}, {15, 34}, {16, 23}, {17, 20}, {18, 19}, {0, 212}, {0, 164}, {21, 22}, {0, 133}, {0, 147}, {24, 27}, {25, 26}, {0, 69}, {0, 228}, {28, 31}, {29, 30}, {0, 4}, {0, 148}, {32, 33}, {0, 53}, {0, 21}, {35, 58}, {36, 43}, {37, 40}, {38, 39}, {0, 99}, {0, 3}, {41, 42}, {0, 67}, {0, 131}, {44, 51}, {45, 48}, {46, 47}, {0, 84}, {0, 100}, {49, 50}, {0, 244}, {0, 180}, {52, 55}, {53, 54}, {0, 181}, {0, 196}, {56, 57}, {0, 229}, {0, 245}, {59, 74}, {60, 67}, {61, 64}, {62, 63}, {0, 227}, {0, 195}, {65, 66}, {0, 179}, {0, 68}, {68, 71}, {69, 70}, {0, 116}, {0, 243}, {72, 73}, {0, 115}, {0, 35}, {75, 82}, {76, 79}, {77, 78}, {0, 51}, {0, 37}, {80, 81}, {0, 211}, {0, 83}, {83, 90}, {84, 87}, {85, 86}, {0, 101}, {0, 52}, {88, 89}, {0, 117}, {0, 165}, {91, 94}, {92, 93}, {0, 240}, {0, 36}, {95, 98}, {96, 97}, {0, 163}, {0, 19}, {99, 100}, {0, 132}, {1, 0}}},
+						{.nodes={{1, 12}, {2, 5}, {3, 4}, {0, 99}, {0, 116}, {6, 9}, {7, 8}, {0, 243}, {0, 240}, {10, 11}, {0, 244}, {0, 164}, {13, 28}, {14, 19}, {15, 16}, {0, 179}, {17, 18}, {0, 131}, {0, 67}, {20, 23}, {21, 22}, {0, 36}, {0, 35}, {24, 25}, {0, 100}, {26, 27}, {0, 115}, {0, 52}, {29, 44}, {30, 37}, {31, 34}, {32, 33}, {0, 212}, {0, 227}, {35, 36}, {0, 20}, {0, 132}, {38, 41}, {39, 40}, {0, 228}, {0, 0}, {42, 43}, {0, 196}, {0, 195}, {45, 52}, {46, 49}, {47, 48}, {0, 83}, {0, 4}, {50, 51}, {0, 51}, {0, 84}, {53, 58}, {54, 55}, {0, 148}, {56, 57}, {0, 211}, {0, 68}, {59, 62}, {60, 61}, {0, 3}, {0, 180}, {63, 66}, {64, 65}, {0, 163}, {0, 19}, {67, 68}, {0, 147}, {1, 0}}},
+					},
+				};
+				uint8_t payload_arr[] = {29, 184, 120, 230, 47, 204, 154, 14, 87, 44, 203, 86, 123, 95, 255, 255};
+				struct LaneInfo {
+					uint32_t huf_id;
+					uint32_t c_id;
+					uint32_t y;
+					uint32_t x;
+				} lane_infos_arr[lane_count] = {{0, 0, 0, 0}, {0, 0, 0, 1}, {1, 1, 0, 0}};
+
+				uint32_t initial[depth][lane_count][lane_width] = {
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+					{
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
+					},
+				};
+				uint32_t result  [depth][lane_count][lane_width] = {{{0}}};
+				uint8_t lane_indexes_arr[2] = {0, 2};
+				
+				Resource<MyOpenCL :: Buffer<uint8_t>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
+				if (!payload) { return false; }
+				if (!payload.write(queue, &payload_arr[0])) { return false; }
+				Resource<MyOpenCL :: Buffer<HuffmanTree<DECODE>>> trees(context, CL_MEM_READ_ONLY, 2*4);
+				if (!trees) { return false; }
+				if (!trees.write(queue, &trees_arr[0][0])) { return false; }
+				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_ONLY, lane_count);
+				if (!lane_infos) { return false; }
+				if (!lane_infos.write(queue, &lane_infos_arr[0])) { return false; }
+				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lane_count * lane_width);
+				if (!lanes) { return false; }
+				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
+				Resource<MyOpenCL :: Buffer<uint8_t>> lane_indexes(context, CL_MEM_READ_ONLY, 2);
+				if (!lane_indexes) { return false; }
+				if (!lane_indexes.write(queue, &lane_indexes_arr[0])) { return false; }
+				
+				if (!kernel.setArg(payload)) { return false; }
+				if (!kernel.setArg(b1)) { return false; }
+				if (!kernel.setArg(B2)) { return false; }
+				if (!kernel.setArg(trees)) { return false; }
+				if (!kernel.setArg(lane_infos)) { return false; }
+				if (!kernel.setArg(lanes)) { return false; }
+				if (!kernel.setArg(lane_width)) { return false; }
+				if (!kernel.setArg(lane_indexes)) { return false; }
+				
+				size_t global_work[2] = { 2, 8*B2 - b1 };
+				if (!kernel(queue, 2, global_work)) { return false; }
+				
+				if (!lanes.read(queue, &result[0][0][0])) { return false; }
+				if (result[0][0][0] != 54) {
+					Test :: getError() << "[0][0][0]: e=" << 54 << " v=" << result[0][0][0] << std :: endl;
+					return false;
+				}
+				if (result[0][2][54] != 51) {
+					Test :: getError() << "[0][2][54]: e=" << 51 << " v=" << result[0][2][54] << std :: endl;
+					return false;
+				}
+				if (result[0][0][54 + 51] != x) {
+					Test :: getError() << "[0][0][54 + 51]: e=x=" << x << " v=" << result[0][0][54 + 51] << std :: endl;
+					return false;
+				}
+				
 				return true;
 			}
 		};
@@ -325,7 +427,106 @@ namespace BJpeg {
 		struct Test_decodeHuffman2 : KernelsTest {
 			const char *getDescription() { return "Test decodeHuffman2"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Test :: getError() << self.getDescription() << ": not implemented" << std :: endl;
+				Resource<MyOpenCL :: Kernel> kernel(program, "decodeHuffman2");
+				if (!kernel) { return false; }
+				
+				constexpr uint32_t const b1 = 3;
+				constexpr uint32_t const B2 = 14;
+				constexpr uint32_t const lane_width = 128;
+				constexpr uint8_t const lane_count = 3;
+				constexpr uint8_t const unit_count = 2;
+				constexpr uint8_t const depth = 5;
+				uint32_t const x = ~(uint32_t)0;
+				
+				HuffmanTree<DECODE> trees_arr[2][4] = {
+					{
+						{.nodes={{1, 4}, {2, 3}, {0, 3}, {0, 6}, {5, 8}, {6, 7}, {0, 7}, {0, 4}, {9, 10}, {0, 5}, {11, 12}, {0, 2}, {1, 0}}},
+						{.nodes={{1, 2}, {0, 2}, {3, 4}, {0, 5}, {5, 6}, {0, 4}, {7, 8}, {0, 3}, {1, 0}}},
+					},
+					{
+						{.nodes={{1, 14}, {2, 5}, {3, 4}, {0, 213}, {0, 149}, {6, 9}, {7, 8}, {0, 0}, {0, 197}, {10, 11}, {0, 20}, {12, 13}, {0, 5}, {0, 85}, {15, 34}, {16, 23}, {17, 20}, {18, 19}, {0, 212}, {0, 164}, {21, 22}, {0, 133}, {0, 147}, {24, 27}, {25, 26}, {0, 69}, {0, 228}, {28, 31}, {29, 30}, {0, 4}, {0, 148}, {32, 33}, {0, 53}, {0, 21}, {35, 58}, {36, 43}, {37, 40}, {38, 39}, {0, 99}, {0, 3}, {41, 42}, {0, 67}, {0, 131}, {44, 51}, {45, 48}, {46, 47}, {0, 84}, {0, 100}, {49, 50}, {0, 244}, {0, 180}, {52, 55}, {53, 54}, {0, 181}, {0, 196}, {56, 57}, {0, 229}, {0, 245}, {59, 74}, {60, 67}, {61, 64}, {62, 63}, {0, 227}, {0, 195}, {65, 66}, {0, 179}, {0, 68}, {68, 71}, {69, 70}, {0, 116}, {0, 243}, {72, 73}, {0, 115}, {0, 35}, {75, 82}, {76, 79}, {77, 78}, {0, 51}, {0, 37}, {80, 81}, {0, 211}, {0, 83}, {83, 90}, {84, 87}, {85, 86}, {0, 101}, {0, 52}, {88, 89}, {0, 117}, {0, 165}, {91, 94}, {92, 93}, {0, 240}, {0, 36}, {95, 98}, {96, 97}, {0, 163}, {0, 19}, {99, 100}, {0, 132}, {1, 0}}},
+						{.nodes={{1, 12}, {2, 5}, {3, 4}, {0, 99}, {0, 116}, {6, 9}, {7, 8}, {0, 243}, {0, 240}, {10, 11}, {0, 244}, {0, 164}, {13, 28}, {14, 19}, {15, 16}, {0, 179}, {17, 18}, {0, 131}, {0, 67}, {20, 23}, {21, 22}, {0, 36}, {0, 35}, {24, 25}, {0, 100}, {26, 27}, {0, 115}, {0, 52}, {29, 44}, {30, 37}, {31, 34}, {32, 33}, {0, 212}, {0, 227}, {35, 36}, {0, 20}, {0, 132}, {38, 41}, {39, 40}, {0, 228}, {0, 0}, {42, 43}, {0, 196}, {0, 195}, {45, 52}, {46, 49}, {47, 48}, {0, 83}, {0, 4}, {50, 51}, {0, 51}, {0, 84}, {53, 58}, {54, 55}, {0, 148}, {56, 57}, {0, 211}, {0, 68}, {59, 62}, {60, 61}, {0, 3}, {0, 180}, {63, 66}, {64, 65}, {0, 163}, {0, 19}, {67, 68}, {0, 147}, {1, 0}}},
+					},
+				};
+				uint8_t payload_arr[] = {29, 184, 120, 230, 47, 204, 154, 14, 87, 44, 203, 86, 123, 95, 255, 255};
+				struct LaneInfo {
+					uint32_t huf_id;
+					uint32_t c_id;
+					uint32_t y;
+					uint32_t x;
+				} lane_infos_arr[lane_count] = {{0, 0, 0, 0}, {0, 0, 0, 1}, {1, 1, 0, 0}};
+				cl_uint2 indexes_arr[unit_count] = {
+					{0, 0},
+					{2, 54},
+				};
+
+				struct {
+					uint8_t SSSS;
+					uint16_t bits;
+				} expected[unit_count][64] = {
+					{{2, 0b11}, {5, 0b00011}, {3, 0b110}, {0,0}      , {4, 0b0010}, {0,0}      , {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {3, 0b011}, }, 
+					{{2, 0b00}, {4, 0b0101} , {0,0}     , {4, 0b1100}, {0,0}      , {4, 0b1101}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}     , {3, 0b110}, },
+				};
+				int16_t result_arr[unit_count][64];
+				
+				Resource<MyOpenCL :: Buffer<uint8_t>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
+				if (!payload) { return false; }
+				if (!payload.write(queue, &payload_arr[0])) { return false; }
+				Resource<MyOpenCL :: Buffer<HuffmanTree<DECODE>>> trees(context, CL_MEM_READ_ONLY, 2*4);
+				if (!trees) { return false; }
+				if (!trees.write(queue, &trees_arr[0][0])) { return false; }
+				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_ONLY, lane_count);
+				if (!lane_infos) { return false; }
+				if (!lane_infos.write(queue, &lane_infos_arr[0])) { return false; }
+				Resource<MyOpenCL :: Buffer<cl_uint2>> indexes(context, CL_MEM_READ_ONLY, 2);
+				if (!indexes) { return false; }
+				if (!indexes.write(queue, &indexes_arr[0])) { return false; }
+				Resource<MyOpenCL :: Buffer<int16_t>> result(context, CL_MEM_READ_WRITE, 2 * 64);
+				if (!result) { return false; }
+				
+				if (!kernel.setArg(payload)) { return false; }
+				if (!kernel.setArg(b1)) { return false; }
+				if (!kernel.setArg(trees)) { return false; }
+				if (!kernel.setArg(lane_infos)) { return false; }
+				if (!kernel.setArg(lane_width)) { return false; }
+				if (!kernel.setArg(indexes)) { return false; }
+				if (!kernel.setArg(result)) { return false; }
+				
+				size_t global_work[1] = { unit_count };
+				if (!kernel(queue, 1, global_work)) { return false; }
+				
+				if (!result.read(queue, &result_arr[0][0])) { return false; }
+				for (int uint_id = 0; uint_id < unit_count; ++uint_id) {
+					for (int i = 0; i < 64; ++i) {
+						auto ex   = expected  [uint_id][i];
+						int16_t r = result_arr[uint_id][i];
+						if (ex.SSSS == 0) {
+							if (r != 0) {
+								Test :: getError() << "[" << uint_id << "][" << i << "]: 0 e=" << ex.SSSS << "|" << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
+								return false;
+							}
+						} else {
+							int M = 1 << ex.SSSS;
+							int m = M >> 1;
+							int mask = M - 1;
+							if (m <= r && r < M) {
+								if (r & mask != ex.bits) {
+									Test :: getError() << "[" << uint_id << "][" << i << "]: + e=" << ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
+									return false;
+								}
+							} else if (-M < r && r <= -m) {
+								if ((r - 1) & mask != ex.bits) {
+									Test :: getError() << "[" << uint_id << "][" << i << "]: - e=" << ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
+									return false;
+								}
+							} else {
+								Test :: getError() << "[" << uint_id << "][" << i << "]: SSSS e=" << ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
+								return false;
+							}
+						}
+					}
+				}
+				
 				return true;
 			}
 		};
@@ -369,7 +570,7 @@ namespace BJpeg {
 		
 		namespace { 
 			Test_decodeHuffman1      test_decodeHuffman1     ;
-			Test_decodeRaise        test_decodeRaise       ;
+			Test_decodeRaise         test_decodeRaise        ;
 			Test_decodeLower         test_decodeLower        ;
 			Test_positionsToIndexes  test_positionsToIndexes ;
 			Test_decodeHuffman2      test_decodeHuffman2     ;

@@ -3,6 +3,11 @@ typedef ushort u16;
 typedef uint   u32;
 typedef ulong  u64;
 typedef uint2  u32x2;
+typedef char  i8;
+typedef short i16;
+typedef int   i32;
+typedef long  i64;
+typedef int2  i32x2;
 
 typedef struct {
 	u16 left;
@@ -33,7 +38,9 @@ u8Pair decodeHuffman(__constant HuffmanTree huf, u16 code) {
 #define LANE_ERROR_VALUE UINT_MAX
 typedef struct {
 	u32 huf_id;
-	u32 first_lane;
+	u32 c_id;
+	u32 y;
+	u32 x;
 } LaneInfo;
 
 #define MAX_COMPONENTS 4
@@ -50,6 +57,12 @@ typedef struct {
 	u8 _padding;
 } ComponentData;
 
+#define READ_3B (0U                            \
+	| ((u32) payload[B + 0] << 020)            \
+	| ((u32) payload[B + 1] << 010)            \
+	| ((u32) payload[B + 2] << 000)            \
+)
+
 // started as [Ns][bb2 - b1]
 kernel void decodeHuffman1(__global u8 payload[], u32 b1, u32 B2, __constant HuffmanTree trees[2][4], __constant LaneInfo lane_infos[], __global u32 lanes[], u32 lane_width, __constant u8 lane_indexes[]) {
 	u8  C = get_global_id(0);
@@ -65,17 +78,15 @@ kernel void decodeHuffman1(__global u8 payload[], u32 b1, u32 B2, __constant Huf
 	__constant HuffmanTreeNode* huf_ac = trees[1][huf_id];
 	#pragma region DC
 		u32 B = bb >> 3;
-		u32 b = bb & 8;
+		u32 b = bb & 7;
 		if (B >= B2) {
 			lanes[lane_index] = LANE_ERROR_VALUE;
 			return;
 		}
 		// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
-		u16 code = 0U
-			| ((u16) payload[B+0] << (b + 8))
-			| ((u16) payload[B+1] << (b + 0))
-			| ((u16) payload[B+2] >> (8 - b))
-		;
+		//    .b
+		// aaaaaaaa aaaaaaaa aaaaaaaa
+		u16 code = READ_3B >> (8 - b);
 		u8Pair d_s = decodeHuffman(huf_dc, code);
 		if (d_s.x == 17) {
 			lanes[lane_index] = LANE_ERROR_VALUE;
@@ -87,17 +98,13 @@ kernel void decodeHuffman1(__global u8 payload[], u32 b1, u32 B2, __constant Huf
 	#pragma region AC
 		for (int ac_count = 0; ac_count < 63; ) {
 			u32 B = bb >> 3;
-			u32 b = bb & 8;
+			u32 b = bb & 7;
 			if (B >= B2) {
 				lanes[lane_index] = LANE_ERROR_VALUE;
 				return;
 			}
 			// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
-			u16 code = 0U
-				| ((u16) payload[B+0] << (b + 8))
-				| ((u16) payload[B+1] << (b + 0))
-				| ((u16) payload[B+2] >> (8 - b))
-			;
+			u16 code = READ_3B >> (8 - b);
 			u8Pair d_s = decodeHuffman(huf_ac, code);
 			if (d_s.x == 17) {
 				lanes[lane_index] = LANE_ERROR_VALUE;
@@ -106,9 +113,9 @@ kernel void decodeHuffman1(__global u8 payload[], u32 b1, u32 B2, __constant Huf
 			if (d_s.y == 0x00) {
 				// rest are 0
 				ac_count = 63;
-			} else if (d_s.y == 0xF0) {
-				// next 16 are 0
-				ac_count += 16;
+			// } else if (d_s.y == 0xF0) {
+			// 	// next 16 are 0
+			// 	ac_count += 16;
 			} else {
 				u8 RRRR = d_s.y >> 4;
 				ac_count += RRRR + 1;
@@ -169,7 +176,7 @@ kernel void positionsToIndexes(__global u32 positions[], __global u32x2 indexes[
 	if (pos == LANE_ERROR_VALUE) { return; }
 	indexes[pos] = (u32x2)(lane_id, i);
 }
-kernel void decodeHuffman2(__global u8 payload[], u32 b1, __constant HuffmanTree trees[2][4], __constant LaneInfo lane_infos[], u32 lane_width, __constant u8 lane_indexes[], __global u32 indexes[], __global u16 result[][64]) {
+kernel void decodeHuffman2(__global u8 payload[], u32 b1, __constant HuffmanTree trees[2][4], __constant LaneInfo lane_infos[], u32 lane_width, __global u32x2 indexes[], __global i16 result[][64]) {
 	u32 pos = get_global_id(0);
 	u32x2 id = indexes[pos];
 	u32 lane_id = id.x;
@@ -181,56 +188,84 @@ kernel void decodeHuffman2(__global u8 payload[], u32 b1, __constant HuffmanTree
 	__constant HuffmanTreeNode* huf_dc = trees[0][huf_id];
 	__constant HuffmanTreeNode* huf_ac = trees[1][huf_id];
 	// TODO result_index
-	u32 result_index = 0;
-	__global u16* res = result[result_index];
+	u32 result_index = pos; // TODO + offset in image
+	__global i16* res = result[result_index];
+	
+	for (int i = 0; i < 64; ++i) {
+		res[i] = 0;
+	}
 	
 	u32 bbi = b1 + i;
 	u32 bb = bbi;
 	#pragma region DC
 		u32 B = bb >> 3;
-		u32 b = bb & 8;
+		u32 b = bb & 7;
 		// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
-		u16 code = 0U
-			| ((u16) payload[B+0] << (b + 8))
-			| ((u16) payload[B+1] << (b + 0))
-			| ((u16) payload[B+2] >> (8 - b))
-		;
+		u16 code = READ_3B >> (8 - b);
 		u8Pair d_s = decodeHuffman(huf_dc, code);
 		// TODO store symbol
 		// TODO read d_s.y bits
 		// store +- (1 << d_s.y) + those bits (but transformed)
-		res[0] = 0; 
-		bb += d_s.x + d_s.y;
+		bb += d_s.x;
+		u8 SSSS = d_s.y;
+		if (SSSS != 0) {
+			u32 B = bb >> 3;
+			u32 b = bb & 7;
+			// SSSS == 14;
+			//    .b
+			// 00000000 aaaaaaaa aaaaaaaa aaaaaaaa
+			//             _____ ________ _------>
+			// ______ ________                    
+			//                     ______ ________
+			// b + SSSS + ? = 24
+			i16 data = READ_3B << (b + 8) >> (32 - SSSS);
+			if ((data & (1U << (SSSS - 1))) == 0) {
+				// negative
+				data = data - (1 << SSSS) + 1;
+			}
+			res[0] = data;
+			bb += SSSS;
+		}
 	#pragma endregion
 	
 	#pragma region AC
 		for (int ac_count = 1; ac_count < 64; ) {
-			res[ac_count] = 0;
-		}
-		for (int ac_count = 1; ac_count < 64; ) {
 			u32 B = bb >> 3;
-			u32 b = bb & 8;
+			u32 b = bb & 7;
 			// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
-			u16 code = 0U
-				| ((u16) payload[B+0] << (b + 8))
-				| ((u16) payload[B+1] << (b + 0))
-				| ((u16) payload[B+2] >> (8 - b))
-			;
+			u16 code = READ_3B >> (8 - b);
 			u8Pair d_s = decodeHuffman(huf_ac, code);
 			// TODO store symbol
 			if (d_s.y == 0x00) {
 				// rest are 0
 				ac_count = 64;
-			} else if (d_s.y == 0xF0) {
-				// next 16 are 0
-				ac_count += 16;
+			// } else if (d_s.y == 0xF0) {
+			// 	// next 16 are 0
+			// 	ac_count += 16;
 			} else {
 				u8 RRRR = d_s.y >> 4;
-				// TODO
-				res[ac_count + RRRR] = 0;
+				u8 SSSS = d_s.y & 0x0F;
+				if (SSSS != 0) {
+					u32 B = bb >> 3;
+					u32 b = bb & 7;
+					// SSSS == 14;
+					//    .b
+					// 00000000 aaaaaaaa aaaaaaaa aaaaaaaa
+					//             _____ ________ _------>
+					// ______ ________                    
+					//                     ______ ________
+					// b + SSSS + ? = 24
+					i16 data = READ_3B << (b + 8) >> (32 - SSSS);
+					if ((data & (1U << (SSSS - 1))) == 0) {
+						// negative
+						data = data - (1 << SSSS) + 1;
+					}
+					res[ac_count + RRRR] = data;
+					bb += SSSS;
+				}
 				ac_count += RRRR + 1;
 			}
-			bb += d_s.x + (d_s.y & 0x0F);
+			bb += d_s.x;
 		}
 	#pragma endregion
 }
