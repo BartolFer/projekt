@@ -5,8 +5,10 @@
 		#include "./Huffman.hpp"
 		#include "./Markers.hpp"
 		#include "./Util.hpp"
+		#include "./MyOpenCL.hpp"
 	#end
 	#src
+		#include "./kernels.cl.hpp"
 	#end
 #else // if VSCODE
 	#include <cstdint>
@@ -14,6 +16,8 @@
 	#include "./Huffman.hpp"
 	#include "./Markers.hpp"
 	#include "./Util.hpp"
+	#include "./MyOpenCL.hpp"
+	#include "./kernels.cl.hpp"
 #endif
 
 namespace BJpeg {
@@ -30,6 +34,109 @@ namespace BJpeg {
 		uint8_t ac_entropy_table;
 		uint8_t _padding;
 	};
+	
+	struct LaneInfo {
+		u32 huf_id;
+		u32 c_id;
+		u32 y;
+		u32 x;
+	};
+	template <CodingType CODING_TYPE>
+	struct CLContext;
+	template <>
+	struct CLContext<CodingType :: DECODE> {
+		MyOpenCL :: Context context            ;
+		MyOpenCL :: Queue   queue              ;
+		MyOpenCL :: Program program            ;
+		struct Kernels {
+			MyOpenCL :: Kernel decodeHuffman1     ; enum      decodeHuffman1Args { payload, b1, B2, trees, lane_infos, lanes, lane_width, lane_indexes, };
+			MyOpenCL :: Kernel decodeRaise        ; enum         decodeRaiseArgs { lanes, lane_width, lanes_count, prev_size_pow, };
+			MyOpenCL :: Kernel decodeLower        ; enum         decodeLowerArgs { positions, lanes, lane_width, lanes_count, size_pow, };
+			MyOpenCL :: Kernel positionsToIndexes ; enum  positionsToIndexesArgs { positions, indexes, lane_width, };
+			MyOpenCL :: Kernel decodeHuffman2     ; enum      decodeHuffman2Args { payload, b1, trees, lane_infos, lane_width, indexes, result, };
+			MyOpenCL :: Kernel initializeBufferU32; enum initializeBufferU32Args { buffer, value, };
+		};
+		Kernels kernel;
+		struct Buffers {
+			MyOpenCL :: Buffer<u8> payload;
+			MyOpenCL :: Buffer<typename HuffmanTree<CodingType :: DECODE> :: CLType[4]> trees;
+			MyOpenCL :: Buffer<LaneInfo> lane_infos;
+			MyOpenCL :: Buffer<u32> lanes;
+			MyOpenCL :: Buffer<u8> lane_indexes;
+			MyOpenCL :: Buffer<u32> positions;
+			MyOpenCL :: Buffer<u32x2> indexes;
+			MyOpenCL :: Buffer<i16[64]> result;
+			bool result_set;
+		};
+		Buffers buffer;
+		
+		bool init() {
+			cl_device_id device_id;
+			
+			if (!MyOpenCL :: getDeviceId(device_id)) { return false; }
+			if (!self.context.init(device_id)) { return false; }
+			if (!self.queue  .init(device_id, self.context)) { return false; }
+			if (!self.program.init(device_id, self.context, kernels)) { return false; }
+			
+			if (!self.kernel.decodeHuffman1     .init(self.program, "decodeHuffman1"     )) { return false; }
+			if (!self.kernel.decodeRaise        .init(self.program, "decodeRaise"        )) { return false; }
+			if (!self.kernel.decodeLower        .init(self.program, "decodeLower"        )) { return false; }
+			if (!self.kernel.positionsToIndexes .init(self.program, "positionsToIndexes" )) { return false; }
+			if (!self.kernel.decodeHuffman2     .init(self.program, "decodeHuffman2"     )) { return false; }
+			if (!self.kernel.initializeBufferU32.init(self.program, "initializeBufferU32")) { return false; }
+			
+			if (!self.buffer.payload     .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , RECOMMENDED_SPACE             )) { return false; }
+			if (!self.buffer.trees       .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , 2                             )) { return false; }
+			if (!self.buffer.lane_infos  .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , MAX_LANE_COUNT                )) { return false; }
+			if (!self.buffer.lanes       .init(self.context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, MAX_LANE_SIZE                 )) { return false; }
+			if (!self.buffer.lane_indexes.init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , MAX_COMPONENTS                )) { return false; }
+			if (!self.buffer.positions   .init(self.context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, MAX_LANE_ROW_WIDTH            )) { return false; }
+			if (!self.buffer.indexes     .init(self.context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, MAX_UNITS_IN_RECOMMENDED_SPACE)) { return false; }
+			//	if (!self.buffer.result      .init(self.context, CL_MEM_HOST_READ_ONLY  | CL_MEM_WRITE_ONLY, ?)) { return false; }
+			self.buffer.result_set = false;
+			
+			if (!self.kernel.decodeHuffman1.setArg(self.buffer.payload     , Kernels :: decodeHuffman1Args :: payload     )) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg(self.buffer.trees       , Kernels :: decodeHuffman1Args :: trees       )) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg(self.buffer.lane_infos  , Kernels :: decodeHuffman1Args :: lane_infos  )) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg(self.buffer.lanes       , Kernels :: decodeHuffman1Args :: lanes       )) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg(self.buffer.lane_indexes, Kernels :: decodeHuffman1Args :: lane_indexes)) { return false; }
+			
+			if (!self.kernel.decodeRaise.setArg(self.buffer.lanes, Kernels :: decodeRaiseArgs :: lanes)) { return false; }
+			
+			if (!self.kernel.decodeLower.setArg(self.buffer.positions, Kernels :: decodeLowerArgs :: positions)) { return false; }
+			if (!self.kernel.decodeLower.setArg(self.buffer.lanes    , Kernels :: decodeLowerArgs :: lanes    )) { return false; }
+			
+			if (!self.kernel.positionsToIndexes.setArg(self.buffer.positions, Kernels :: positionsToIndexesArgs :: positions)) { return false; }
+			if (!self.kernel.positionsToIndexes.setArg(self.buffer.indexes  , Kernels :: positionsToIndexesArgs :: indexes  )) { return false; }
+			
+			if (!self.kernel.decodeHuffman2.setArg(self.buffer.payload   , Kernels :: decodeHuffman2Args :: payload   )) { return false; }
+			if (!self.kernel.decodeHuffman2.setArg(self.buffer.trees     , Kernels :: decodeHuffman2Args :: trees     )) { return false; }
+			if (!self.kernel.decodeHuffman2.setArg(self.buffer.lane_infos, Kernels :: decodeHuffman2Args :: lane_infos)) { return false; }
+			if (!self.kernel.decodeHuffman2.setArg(self.buffer.indexes   , Kernels :: decodeHuffman2Args :: indexes   )) { return false; }
+			//	if (!self.kernel.decodeHuffman2.setArg(self.buffer.result    , Kernels :: decodeHuffman2Args :: result    )) { return false; }
+			
+			return true;
+		}
+		void finish() {
+			self.context.finish();
+			self.queue  .finish();
+			self.program.finish();
+			self.kernel.decodeHuffman1     .finish();
+			self.kernel.decodeRaise        .finish();
+			self.kernel.decodeLower        .finish();
+			self.kernel.positionsToIndexes .finish();
+			self.kernel.decodeHuffman2     .finish();
+			self.kernel.initializeBufferU32.finish();
+			self.buffer.payload     .finish();
+			self.buffer.trees       .finish();
+			self.buffer.lane_infos  .finish();
+			self.buffer.lanes       .finish();
+			self.buffer.lane_indexes.finish();
+			self.buffer.positions   .finish();
+			self.buffer.indexes     .finish();
+			self.buffer.result      .finish();
+		}
+	};
 
 	template <CodingType CODING_TYPE>
 	struct Context {
@@ -39,16 +146,33 @@ namespace BJpeg {
 		uint8_t precision;
 		uint16_t X, Y;
 		ComponentData component_data[MAX_COMPONENTS];
-		
-		Context() : restart_interval(0), precision(8), payload(new uint8_t[RECOMMENDED_SPACE]) {}
-		~Context() { delete[] self.payload; }
-		
+		CLContext<CODING_TYPE> cl;
 		HuffmanTree<CODING_TYPE> huffman_tree[2][4];
 		QuantizationTable quantization_table[4];
+		u8* payload;
 		
-		uint8_t* payload;
+		
+		bool init() {
+			self.restart_interval = 0;
+			self.precision = 8;
+			self.payload = new u8[RECOMMENDED_SPACE];
+			
+			if (!self.cl.init()) { return false; }
+			
+			return true;
+		}
+		bool initResultBuffer() {
+			if (self.cl.buffer.result_set) { return false; }
+			if (!self.cl.buffer.result.init(self.cl.context, CL_MEM_HOST_READ_ONLY | CL_MEM_WRITE_ONLY, (u32) ROUND_UP_8(self.Y) * ROUND_UP_8(self.X) / 64)) { return false; }
+			self.cl.buffer.result_set = true;
+			return true;
+		}
+		void finish() {
+			delete[] self.payload;
+			self.cl.finish();
+		}
 	};
 	
-	typedef Context<DECODE> DecodeContext;
-	typedef Context<ENCODE> EncodeContext;
+	typedef Context<CodingType :: DECODE> DecodeContext;
+	typedef Context<CodingType :: ENCODE> EncodeContext;
 }

@@ -29,7 +29,7 @@ namespace BJpeg {
 				self.differential = (sof >> 2) & 1;
 				self.mode = (Mode) (sof && 0b11);
 			}
-			uint8_t toMarker() { return 0xC0 | (self.arithmetic << 3) | (self.differential << 2) | self.mode; }
+			uint8_t toMarker() { return 0xC0 | (self.arithmetic << 3) | (self.differential << 2) | (int)self.mode; }
 		};
 		
 		// other

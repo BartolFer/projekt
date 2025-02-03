@@ -29,24 +29,27 @@ namespace MyOpenCL {
 		ERROR_HANDLING(err, "Failed to get device");
 		return true;
 	}
+	// TODO handle fail check in finish
 	struct Context {
 		cl_context context;
+		Context() : context(0) {}
 		
-		bool init(cl_device_id const& device_id) {
+		bool init(cl_device_id const device_id) {
 			cl_int err;
 			self.context = clCreateContext(nullptr, 1, &device_id, nullptr, nullptr, &err);
 			ERROR_HANDLING(err, "Failed to create context");
 			return true;
 		}
 		void finish() {
-			clReleaseContext(self.context);
+			if (self.context) { clReleaseContext(self.context); }
 		}
 	};
 	
 	struct Queue {
 		cl_command_queue queue;
+		Queue() : queue(0) {}
 		
-		bool init(cl_device_id const& device_id, Context context) {
+		bool init(cl_device_id const device_id, Context context) {
 			cl_int err;
 			cl_queue_properties const queue_prop = 0;
 			self.queue = clCreateCommandQueueWithProperties(context.context, device_id, &queue_prop, &err);
@@ -54,12 +57,13 @@ namespace MyOpenCL {
 			return true;
 		}
 		void finish() {
-			clReleaseCommandQueue(self.queue);
+			if (self.queue) { clReleaseCommandQueue(self.queue); }
 		}
 	};
 	
 	struct Program {
 		cl_program program;
+		Program() : program(0) {}
 		
 		bool init(cl_device_id device_id, Context context, char const* kernels) {
 			cl_int err;
@@ -70,16 +74,15 @@ namespace MyOpenCL {
 			return true;
 		}
 		void finish() {
-			clReleaseProgram(self.program);
+			if (self.program) { clReleaseProgram(self.program); }
 		}
 	};
 	
-	template <typename T>
-	struct Buffer;
+	template <typename T> struct Buffer;
 	
 	struct Kernel {
-		Kernel() : _next_index(0) {}
 		cl_kernel kernel;
+		Kernel() : kernel(0), _next_index(0) {}
 		
 		bool init(Program program, char const* name) {
 			cl_int err;
@@ -88,13 +91,14 @@ namespace MyOpenCL {
 			return true;
 		}
 		void finish() {
-			clReleaseKernel(self.kernel);
+			if (self.kernel) { clReleaseKernel(self.kernel); }
 		}
 		
 		cl_uint _next_index;
 		void resetArgs() {
 			self._next_index = 0;
 		}
+		template <typename T, ScopedEnum Enum> bool setArg(T& arg, Enum index) { return self.setArg(arg, static_cast<int>(index)); }
 		template <typename T> bool setArg(Buffer<T>& arg               ) { return self.setArg(arg.buffer       ); }
 		template <typename T> bool setArg(Buffer<T>& arg, cl_uint index) { return self.setArg(arg.buffer, index); }
 		template <BJpeg :: IsNotAResource T>
@@ -132,6 +136,7 @@ namespace MyOpenCL {
 	struct Buffer {
 		cl_mem buffer;
 		size_t length;
+		Buffer() : buffer(0) {}
 		
 		bool init(Context context, cl_mem_flags flags, size_t length, T* host = nullptr) {
 			self.length = length;
@@ -141,7 +146,7 @@ namespace MyOpenCL {
 			return true;
 		}
 		void finish() {
-			clReleaseMemObject(self.buffer);
+			if (self.buffer) { clReleaseMemObject(self.buffer); }
 		}
 		
 		bool write(Queue queue, T* buffer) {

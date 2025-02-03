@@ -2,19 +2,7 @@
 #ifndef VSCODE_ONLY
 	// #ifdef LZZ_Util_hpp
 	#hdr
-		#pragma once
-		#include <concepts>
-		#include <cstdint>
-
-		template <typename T>
-		using ref = T&;
-		template <typename T>
-		using rref = T&&;
-		
-		#define MAX_COMPONENTS 4
-		#define RECOMMENDED_SPACE (1 << recomended_space_pow)
-		
-		#include "./Resource.hzz"
+		#include "./UtilH.hzz"
 	#end
 	// #endif
 	#src
@@ -22,24 +10,27 @@
 #else
 	#include <concepts>
 	#include <cstdint>
+	#include <CL/cl.h>
 
-	template <typename T>
-	using ref = T&;
-	template <typename T>
-	using rref = T&&;
-	
-	#define MAX_COMPONENTS 4
-	#define RECOMMENDED_SPACE (1 << recomended_space_pow)
-	
-	#include "./Resource.hzz"
+	#include "./UtilH.hzz"
 #endif
 
 
 
 namespace BJpeg {
 	extern uint8_t recomended_space_pow;
-	enum CodingType { DECODE, ENCODE };
+
 	
+	typedef cl_uchar  u8;
+	typedef cl_ushort u16;
+	typedef cl_uint   u32;
+	typedef cl_ulong  u64;
+	typedef cl_uint2  u32x2;
+	typedef cl_char  i8;
+	typedef cl_short i16;
+	typedef cl_int   i32;
+	typedef cl_long  i64;
+	typedef cl_int2  i32x2;
 
 	uint8_t const to_zigzag[8][8] = {
 		{  0,  1,  5,  6, 14, 15, 27, 28 },

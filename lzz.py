@@ -96,7 +96,7 @@ pass
 def getIncludeDeps(dependancies):
 	for src in dependancies:
 		if   src.endswith(".lzz"): yield getIName(src[ : -4]);
-		elif src.endswith(".hzz"): continue;
+		elif src.endswith(".hzz"): yield getZName(src[ : -4]);
 		elif src.endswith(".cl"): yield getIName(src);
 		else: assert False, src;
 	pass
@@ -124,10 +124,12 @@ with open("./Build/Makefile", "w") as mk:
 				inc_paths = " ".join(getIncludeDeps(deps));
 				print(f"{o_path}: {l_path} {dep_paths}");
 				print(f"\t@lzz -e -hx hpp $(CPPFLAGS) -o ./Build/Sources/{dir} {l_path}");
+				print(f"\t@python ./Preprocess.py {h_path} {c_path}");
 				print(f"\t@python ./CopyFile.py {h_path} {i_path}");
 				print(f"\t@g++ $(CPPFLAGS) $(CXXFLAGS) -c -o $@ {c_path}");
 				print(f"{i_path}: {l_path} {inc_paths}");
 				print(f"\t@lzz -e -hx hpp $(CPPFLAGS) -o ./Build/Sources/{dir} {l_path}");
+				print(f"\t@python ./Preprocess.py {h_path} {c_path}");
 				print(f"\t@python ./CopyFile.py {h_path} {i_path}");
 			elif src.endswith(".hzz"):
 				dir = dirpath(src);

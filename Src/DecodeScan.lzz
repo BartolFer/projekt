@@ -137,7 +137,7 @@ namespace BJpeg {
 			// but that would take a lot of work (shifting and all)
 			return DECODE_RESULT_OK;
 		}
-		// void resetScanContext(Context<DECODE>& context) {
+		// void resetScanContext(Context<CodingType :: DECODE>& context) {
 		// }
 		// i should move this/these into separate file
 		// uint32_t cleanPayloadSerial(ref<DecodeContext> context, uint8_t b1, uint32_t B2) {

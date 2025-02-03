@@ -30,7 +30,8 @@ namespace BJpeg {
 	template <CodingType CODING_TYPE>
 	struct HuffmanTree;
 	template <>
-	struct HuffmanTree<DECODE> {
+	struct HuffmanTree<CodingType :: DECODE> {
+		typedef u16 CLType;
 		void reset() {
 			memset(self.nodes, 0, sizeof(self.nodes));
 		}
@@ -88,7 +89,8 @@ namespace BJpeg {
 	};
 	
 	template <>
-	struct HuffmanTree<ENCODE> {
+	struct HuffmanTree<CodingType :: ENCODE> {
+		typedef u16 CLType;
 		CodeAndLength operator [](uint8_t value) {
 			return {0, 0};
 		}
