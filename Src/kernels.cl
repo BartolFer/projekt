@@ -37,10 +37,14 @@ u8Pair decodeHuffman(__constant HuffmanTree huf, u16 code) {
 
 #define LANE_ERROR_VALUE UINT_MAX
 typedef struct {
-	u32 huf_id;
-	u32 c_id;
-	u32 y;
-	u32 x;
+	u8 c_id;
+	u8 dc_huf;
+	u8 ac_huf;
+	u8 y;
+	u8 x;
+	u8 _6;
+	u8 _7;
+	u8 _8;
 } LaneInfo;
 
 #define MAX_COMPONENTS 4
@@ -72,10 +76,9 @@ kernel void decodeHuffman1(__global u8 payload[], u32 b1, u32 B2, __constant Huf
 	
 	u8 lane_id = lane_indexes[C];
 	LaneInfo lane_info = lane_infos[lane_id];
-	u32 huf_id = lane_info.huf_id;
 	u32 lane_index = lane_id * lane_width + i;
-	__constant HuffmanTreeNode* huf_dc = trees[0][huf_id];
-	__constant HuffmanTreeNode* huf_ac = trees[1][huf_id];
+	__constant HuffmanTreeNode* huf_dc = trees[0][lane_info.dc_huf];
+	__constant HuffmanTreeNode* huf_ac = trees[1][lane_info.ac_huf];
 	#pragma region DC
 		u32 B = bb >> 3;
 		u32 b = bb & 7;
@@ -183,10 +186,10 @@ kernel void decodeHuffman2(__global u8 payload[], u32 b1, __constant HuffmanTree
 	u32 i       = id.y;
 	// u32 p = lane_id * (lane_width + 8) + i;
 	LaneInfo lane_info = lane_infos[lane_id];
-	u32 huf_id = lane_info.huf_id;
+	u32 dc_huf = lane_info.dc_huf;
 	u32 lane_index = lane_id * lane_width + i;
-	__constant HuffmanTreeNode* huf_dc = trees[0][huf_id];
-	__constant HuffmanTreeNode* huf_ac = trees[1][huf_id];
+	__constant HuffmanTreeNode* huf_dc = trees[0][dc_huf];
+	__constant HuffmanTreeNode* huf_ac = trees[1][dc_huf];
 	// TODO result_index
 	u32 result_index = pos; // TODO + offset in image
 	__global i16* res = result[result_index];
@@ -270,6 +273,9 @@ kernel void decodeHuffman2(__global u8 payload[], u32 b1, __constant HuffmanTree
 	#pragma endregion
 }
 
+kernel void 
+
 kernel void initializeBufferU32(__global u32 buffer[], u32 value) {
 	buffer[get_global_id(0)] = value;
 }
+

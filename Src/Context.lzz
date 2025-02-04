@@ -36,10 +36,14 @@ namespace BJpeg {
 	};
 	
 	struct LaneInfo {
-		u32 huf_id;
-		u32 c_id;
-		u32 y;
-		u32 x;
+		u8 c_id;
+		u8 dc_huf;
+		u8 ac_huf;
+		u8 y;
+		u8 x;
+		u8 _6;
+		u8 _7;
+		u8 _8;
 	};
 	template <CodingType CODING_TYPE>
 	struct CLContext;
@@ -59,7 +63,7 @@ namespace BJpeg {
 		Kernels kernel;
 		struct Buffers {
 			MyOpenCL :: Buffer<u8> payload;
-			MyOpenCL :: Buffer<typename HuffmanTree<CodingType :: DECODE> :: CLType[4]> trees;
+			MyOpenCL :: Buffer<HuffmanTree<CodingType :: DECODE>[4]> trees;
 			MyOpenCL :: Buffer<LaneInfo> lane_infos;
 			MyOpenCL :: Buffer<u32> lanes;
 			MyOpenCL :: Buffer<u8> lane_indexes;
@@ -138,9 +142,10 @@ namespace BJpeg {
 		}
 	};
 
-	template <CodingType CODING_TYPE>
-	struct Context {
-		
+	template <CodingType CODING_TYPE = DECODE>
+	struct Context {};
+	template <> struct Context<DECODE> {
+		static CodingType const CODING_TYPE = DECODE;
 		Marker :: SOFData sof_data;
 		uint16_t restart_interval;
 		uint8_t precision;
@@ -155,7 +160,9 @@ namespace BJpeg {
 		bool init() {
 			self.restart_interval = 0;
 			self.precision = 8;
-			self.payload = new u8[RECOMMENDED_SPACE];
+			if (!(self.payload = new (std :: nothrow) u8[RECOMMENDED_SPACE])) {
+				return false;
+			}
 			
 			if (!self.cl.init()) { return false; }
 			
@@ -165,11 +172,20 @@ namespace BJpeg {
 			if (self.cl.buffer.result_set) { return false; }
 			if (!self.cl.buffer.result.init(self.cl.context, CL_MEM_HOST_READ_ONLY | CL_MEM_WRITE_ONLY, (u32) ROUND_UP_8(self.Y) * ROUND_UP_8(self.X) / 64)) { return false; }
 			self.cl.buffer.result_set = true;
+			if (!self.cl.kernel.decodeHuffman2.setArg(self.cl.buffer.result, CLContext<CODING_TYPE> :: Kernels :: decodeHuffman2Args :: result)) { return false; }
 			return true;
 		}
 		void finish() {
 			delete[] self.payload;
 			self.cl.finish();
+		}
+		bool updateHuffmanCL() {
+			self.cl.buffer.trees.write(self.cl.queue, self.huffman_tree);
+			return true;
+		}
+		bool updateSamplingFactorCL(u8 Nf) {
+			
+			return true;
 		}
 	};
 	

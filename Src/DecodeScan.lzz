@@ -44,16 +44,30 @@ namespace BJpeg {
 				std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: s=" << Ns << "\n";
 				return DECODE_RESULT_ERR;
 			}
-			uint8_t component_order[MAX_COMPONENTS];
+			LaneInfo lane_info[MAX_LANE_COUNT];
+			u8 lane_indexes[MAX_COMPONENTS];
+			u8 lane_index_current = 0;
 			for (uint8_t i = 0; i < Ns; ++i) {
 				uint8_t C = DECODE_READ_U8;
 				if (C >= MAX_COMPONENTS) {
 					std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: cs=" << C << "\n";
 					return DECODE_RESULT_ERR;
 				}
-				component_order[i] = C;
 				auto& component_data = context.component_data[C];
 				DECODE_READ_U4(component_data.dc_entropy_table, component_data.ac_entropy_table);
+				lane_indexes[i] = lane_index_current;
+				for (u8 y = 0; y < component_data.sampling_factor_y; ++y) {
+					for (u8 x = 0; x < component_data.sampling_factor_x; ++x) {
+						lane_info[lane_index_current] = LaneInfo{
+							.c_id = C,
+							.dc_huf = component_data.dc_entropy_table,
+							.ac_huf = component_data.ac_entropy_table,
+							.y = y,
+							.x = x,
+						};
+						++lane_index_current;
+					}
+				}
 			}
 			uint8_t Ss = DECODE_READ_U8;
 			uint8_t Se = DECODE_READ_U8;

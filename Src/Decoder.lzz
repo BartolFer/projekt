@@ -87,6 +87,7 @@ namespace BJpeg {
 								huffman.setLastNode(last_length);
 								index = values_start + value_index;
 							}
+							if (!context.updateHuffmanCL()) { return DECODE_RESULT_ERR; }
 						} break;
 						case Marker :: DAC: {
 							// not implemented
@@ -101,6 +102,7 @@ namespace BJpeg {
 								if (Pq == 0) { for (uint8_t i = 0; i < 64; ++i) { table[i] = DECODE_READ_U8; } } 
 								else         { for (uint8_t i = 0; i < 64; ++i) { DECODE_READ_U16(table[i]); } }
 							}
+							// TODO quantization CL
 						} break;
 						case Marker :: DRI: {
 							DECODE_READ_U16(context.restart_interval);
