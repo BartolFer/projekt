@@ -44,9 +44,9 @@ namespace BJpeg {
 				std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: s=" << Ns << "\n";
 				return DECODE_RESULT_ERR;
 			}
-			LaneInfo lane_info[MAX_LANE_COUNT];
+			LaneInfo lane_infos[MAX_LANE_COUNT];
 			u8 lane_indexes[MAX_COMPONENTS];
-			u8 lane_index_current = 0;
+			u8 lanes_count = 0;
 			for (uint8_t i = 0; i < Ns; ++i) {
 				uint8_t C = DECODE_READ_U8;
 				if (C >= MAX_COMPONENTS) {
@@ -55,92 +55,223 @@ namespace BJpeg {
 				}
 				auto& component_data = context.component_data[C];
 				DECODE_READ_U4(component_data.dc_entropy_table, component_data.ac_entropy_table);
-				lane_indexes[i] = lane_index_current;
+				lane_indexes[i] = lanes_count;
 				for (u8 y = 0; y < component_data.sampling_factor_y; ++y) {
 					for (u8 x = 0; x < component_data.sampling_factor_x; ++x) {
-						lane_info[lane_index_current] = LaneInfo{
+						lane_infos[lanes_count] = LaneInfo{
 							.c_id = C,
 							.dc_huf = component_data.dc_entropy_table,
 							.ac_huf = component_data.ac_entropy_table,
 							.y = y,
 							.x = x,
 						};
-						++lane_index_current;
+						++lanes_count;
 					}
 				}
 			}
+			if (!context.updateLaneIndexes(lane_indexes)) { return DECODE_RESULT_ERR; }
+			if (!context.updateLaneInfos(lane_infos)) { return DECODE_RESULT_ERR; }
 			uint8_t Ss = DECODE_READ_U8;
 			uint8_t Se = DECODE_READ_U8;
 			uint8_t Ah, Al; DECODE_READ_U4(Ah, Al);
 			
 			// decode
-			uint8_t* payload = context.payload;
+			u8* payload = context.payload;
+			CLContext<DECODE> cl = context.cl;
+			using      decodeHuffman1Args = CLContext<DECODE> :: Kernels ::      decodeHuffman1Args;
+			using         decodeRaiseArgs = CLContext<DECODE> :: Kernels ::         decodeRaiseArgs;
+			using         decodeLowerArgs = CLContext<DECODE> :: Kernels ::         decodeLowerArgs;
+			using  positionsToIndexesArgs = CLContext<DECODE> :: Kernels ::  positionsToIndexesArgs;
+			using      decodeHuffman2Args = CLContext<DECODE> :: Kernels ::      decodeHuffman2Args;
+			using initializeBufferU32Args = CLContext<DECODE> :: Kernels :: initializeBufferU32Args;
 			
-			RESET_SCAN_CONTEXT();
-			
-			bool in_payload = true;
-			uint8_t b1 = 0;
-			uint32_t B2 = 0;
-			while (in_payload) {
-				load:; {
-					for (; B2 < RECOMMENDED_SPACE; ++B2) {
-						uint8_t x = DECODE_READ_U8;
-						if (x == 0xFF) {
-							uint8_t marker = DECODE_READ_U8;
-							if (marker == 0x00) {
-								// go on
-							} else if (Marker :: isRST(marker)) {
-								RESET_SCAN_CONTEXT();
-								break;
-							} else {
-								index -= 2;
-								in_payload = false;
-								break;
-							}
-						} 
-						payload[B2] = x;
+			// load payload
+			u32 payload_length = 0;
+			for (bool running = true; running; ++payload_length) {
+				uint8_t x = DECODE_READ_U8;
+				if (x == 0xFF) {
+					uint8_t marker = DECODE_READ_U8;
+					if (marker == 0x00) {
+						// go on
+					} else if (Marker :: isRST(marker)) {
+						return DECODE_RESULT_ERR;
+						//	RESET_SCAN_CONTEXT();
+						break;
+					} else {
+						index -= 2;
+						running = false;
+						break;
 					}
-				}
-				// decode
-				decode:; {
-					uint32_t bb2 = 8 * B2;
-					
-					// call GPU kernels for each bit
-					
-					for (int ci = 0; ci < Ns; ++ci) {
-						uint8_t C = component_order[ci];
-						auto data = context.component_data[C];
-						auto& hdc = context.huffman_tree[0][data.dc_entropy_table];
-						auto& hac = context.huffman_tree[1][data.ac_entropy_table];
-						for (int i = 0; i < data.sampling_factor_y; ++i) {
-							for (int j = 0; j < data.sampling_factor_x; ++j) {
-								// decode DC
-								// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
-								// use Huffman
-								// check that b1 + length + additional bits did not exceed bb2
-								// consume additional bits
-								// move b1
-								
-								// decode 63 ACs
-								for (uint8_t decoded_acs = 0; decoded_acs < 63; ) {
-									// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
-									// use Huffman
-									// check that b1 + length + additional bits did not exceed bb2
-									// consume additional bits
-									// move b1
-								}
-							}
-						}
-					}
-				}
-				// auto B3b3 = cleanPayloadSerial(context, b1, B2);
-				// b1 = B3b3 % 8;
-				// auto B3 = B3b3 / 8;
-				// B2 -= B3;
-				// // copy undecoded to start
-				// // might be a problem because memcpy shouldn't be called with the same buffer
-				// memcpy(&payload[0], &payload[B3], B2);
+				} 
+				payload[payload_length] = x;
 			}
+			for (int i = 0; i < 100; ++i) {
+				payload[payload_length+i] = ~0;
+			}
+			u32 job_size = payload_length * 8;
+
+			// init buffers 
+			if (!cl.buffer.payload.write(cl.queue, payload, payload_length)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32.setArg((u32)~0         , initializeBufferU32Args :: value )) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32.setArg(cl.buffer.lanes, initializeBufferU32Args :: buffer)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32(cl.queue, 1, &cl.buffer.lanes.length)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32.setArg(cl.buffer.positions, initializeBufferU32Args :: buffer)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32(cl.queue, 1, &cl.buffer.positions.length)) { return DECODE_RESULT_ERR; }
+			
+			// start kernels
+			size_t decodeHuffman1_dim[2] = { Ns, job_size };
+			if (!cl.kernel.decodeHuffman1.setArg(payload_length, decodeHuffman1Args :: B2        )) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeHuffman1.setArg(job_size      , decodeHuffman1Args :: lane_width)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeHuffman1(cl.queue, 2, decodeHuffman1_dim)) { return DECODE_RESULT_ERR; }
+			
+			// copy from done lanes to lanes with same component
+			for (uint8_t i = 0; i < Ns; ++i) {
+				auto li = lane_indexes[i];
+				auto first_lane = lane_infos[li];
+				auto C = first_lane.c_id;
+				auto& component_data = context.component_data[C];
+				u8 k = 0;
+				for (u8 y = 0; y < component_data.sampling_factor_y; ++y) {
+					for (u8 x = 0; x < component_data.sampling_factor_x; ++x) {
+						if (k == 0) { ++k; continue; }
+						size_t a = li * job_size;
+						size_t b = a + k++ * job_size;
+						if (!cl.buffer.lanes.copy(cl.queue, job_size, a, cl.buffer.lanes, b)) { return DECODE_RESULT_ERR; }
+					}
+				}
+			}
+			
+			if (!cl.kernel.decodeRaise.setArg(job_size   , decodeRaiseArgs :: lane_width )) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeRaise.setArg(lanes_count, decodeRaiseArgs :: lanes_count)) { return DECODE_RESULT_ERR; }
+			u8 depth = 1;
+			u32 every_nth = 1;
+			std :: cout << (u32)depth << " " << (u32)lanes_count << " " << (u32)job_size << std :: endl;
+			for (; true; ++depth) {
+				std :: cout << "bbx 0 " << (u32)depth << "!" << std :: endl;
+				if (lanes_count % (every_nth * 2) == 0) { every_nth *= 2; }
+				size_t decodeRaise_dim[2] = {lanes_count / every_nth, job_size };
+				u8 prev_depth = depth - 1;
+				if (!cl.kernel.decodeRaise.setArg(prev_depth, decodeRaiseArgs :: prev_size_pow)) { return DECODE_RESULT_ERR; }
+				if (!cl.kernel.decodeRaise(cl.queue, 2, decodeRaise_dim)) { return DECODE_RESULT_ERR; }
+				//	u32* ns = new u32[cl.buffer.lanes.length];
+				//	if (!cl.buffer.lanes.read(cl.queue, ns, cl.buffer.lanes.length)) { return DECODE_RESULT_ERR; }
+				//	for (size_t i = 0; i < cl.buffer.lanes.length;)
+				//	{
+				//		for (int j = 0; j < lanes_count && i < cl.buffer.lanes.length; ++j) {
+				//			for (int k = 0; k < job_size && i < cl.buffer.lanes.length; ++k, ++i) {
+				//				if (ns[i] != ~0) { std :: cout << ns[i] << " "; }
+				//				else { std :: cout << "x" << " "; }
+				//			}
+				//			std :: cout << std :: endl;
+				//		}
+				//		std :: cout << std :: endl;
+				//	}
+				//	std :: cout << std :: endl;
+				//	u32 ns[10];
+				//	if (!cl.buffer.lanes.read(cl.queue, ns, 10, 188448)) { return DECODE_RESULT_ERR; }
+				//	for (size_t i = 0; i < 10; i++)
+				//	{
+				//		if (ns[i] != ~0) { std :: cout << ns[i] << " "; }
+				//		else { std :: cout << "x" << " "; }
+				//	}
+				//	std :: cout << std :: endl;
+				
+				
+				u32 n;
+				if (!cl.buffer.lanes.read(cl.queue, &n, 1, depth * lanes_count * job_size)) { return DECODE_RESULT_ERR; }
+				//	std :: cout << "@ " << (depth * lanes_count * job_size) << " = " << std :: hex << n << std :: endl;
+				if (n == ~0) {
+					break;
+				}
+			}
+			std :: cout << depth << std :: endl;
+			u32 zero = 0;
+			cl.buffer.positions.write(cl.queue, &zero, 1);
+			//	return DECODE_RESULT_ERR;
+			
+			if (!cl.kernel.decodeLower.setArg(job_size   , decodeLowerArgs :: lane_width )) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeLower.setArg(lanes_count, decodeLowerArgs :: lanes_count)) { return DECODE_RESULT_ERR; }
+			for (; depth-- > 0;) {
+				if (lanes_count % (4 << depth) == 0) { every_nth /= 2; }
+				std :: cout << "bbx 1 " << (u32)depth << " " << (u32) every_nth << "!" << std :: endl;
+				size_t decodeLower_dim[2] = {lanes_count / every_nth, job_size };
+				if (!cl.kernel.decodeLower.setArg(depth, decodeLowerArgs :: size_pow)) { return DECODE_RESULT_ERR; }
+				if (!cl.kernel.decodeLower(cl.queue, 2, decodeLower_dim)) { return DECODE_RESULT_ERR; }
+			}
+			//	return DECODE_RESULT_ERR;
+			
+			size_t positionsToIndexes_dim[2] = {lanes_count, job_size};
+			if (!cl.kernel.positionsToIndexes.setArg(job_size, positionsToIndexesArgs :: lane_width)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.positionsToIndexes(cl.queue, 2, positionsToIndexes_dim)) { return DECODE_RESULT_ERR; }
+			
+			if (!cl.kernel.decodeHuffman2.setArg(job_size, decodeHuffman2Args :: lane_width)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeHuffman2(cl.queue, 1, &cl.img_size)) { return DECODE_RESULT_ERR; }
+			
+			//	RESET_SCAN_CONTEXT();
+			
+			//	bool in_payload = true;
+			//	uint8_t b1 = 0;
+			//	uint32_t B2 = 0;
+			//	while (in_payload) {
+			//		load:; {
+			//			for (; B2 < RECOMMENDED_SPACE; ++B2) {
+			//				uint8_t x = DECODE_READ_U8;
+			//				if (x == 0xFF) {
+			//					uint8_t marker = DECODE_READ_U8;
+			//					if (marker == 0x00) {
+			//						// go on
+			//					} else if (Marker :: isRST(marker)) {
+			//						RESET_SCAN_CONTEXT();
+			//						break;
+			//					} else {
+			//						index -= 2;
+			//						in_payload = false;
+			//						break;
+			//					}
+			//				} 
+			//				payload[B2] = x;
+			//			}
+			//		}
+			//		// decode
+			//		decode:; {
+			//			uint32_t bb2 = 8 * B2;
+					
+			//			// call GPU kernels for each bit
+					
+			//			for (int ci = 0; ci < Ns; ++ci) {
+			//				uint8_t C = component_order[ci];
+			//				auto data = context.component_data[C];
+			//				auto& hdc = context.huffman_tree[0][data.dc_entropy_table];
+			//				auto& hac = context.huffman_tree[1][data.ac_entropy_table];
+			//				for (int i = 0; i < data.sampling_factor_y; ++i) {
+			//					for (int j = 0; j < data.sampling_factor_x; ++j) {
+			//						// decode DC
+			//						// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
+			//						// use Huffman
+			//						// check that b1 + length + additional bits did not exceed bb2
+			//						// consume additional bits
+			//						// move b1
+								
+			//						// decode 63 ACs
+			//						for (uint8_t decoded_acs = 0; decoded_acs < 63; ) {
+			//							// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
+			//							// use Huffman
+			//							// check that b1 + length + additional bits did not exceed bb2
+			//							// consume additional bits
+			//							// move b1
+			//						}
+			//					}
+			//				}
+			//			}
+			//		}
+			//		// auto B3b3 = cleanPayloadSerial(context, b1, B2);
+			//		// b1 = B3b3 % 8;
+			//		// auto B3 = B3b3 / 8;
+			//		// B2 -= B3;
+			//		// // copy undecoded to start
+			//		// // might be a problem because memcpy shouldn't be called with the same buffer
+			//		// memcpy(&payload[0], &payload[B3], B2);
+			//	}
 			
 			
 			// handle MCUs, RST, 0xFF00, ...

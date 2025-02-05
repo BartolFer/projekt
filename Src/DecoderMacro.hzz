@@ -1,4 +1,4 @@
-#define DECODE_FUN(name) uint32_t name(ref<DecodeContext> context, ref<InputFileBuffer> file, uint32_t index)
+#define DECODE_FUN(name) uint32_t name(Context<DECODE>& context, ref<InputFileBuffer> file, uint32_t index)
 
 #define CHECK_MARKER(marker) (                                \
 	(file[index] == 0xFF && file[index + 1] == (marker))       \

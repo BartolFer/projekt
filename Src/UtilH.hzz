@@ -11,6 +11,7 @@ using ref = T&;
 template <typename T>
 using rref = T&&;
 
+
 #define MAX_COMPONENTS 4
 #define RECOMMENDED_SPACE (1 << recomended_space_pow)
 

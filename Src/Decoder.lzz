@@ -159,12 +159,13 @@ namespace BJpeg {
 				DECODE_READ_U16(context.X);
 				// TODO [564678324] this doesn't support multiple frames
 				// which is fine if we don't support hierarchical
-				if (!context.initResultBuffer()) { return DECODE_RESULT_ERR; }
 				uint8_t Nf = DECODE_READ_U8;
 				if (Nf >= MAX_COMPONENTS) { 
 					std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: " << Nf << "\n";
 					return DECODE_RESULT_ERR;
 				}
+				context.component_count = Nf;
+				if (!context.cl.init(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { return DECODE_RESULT_ERR; }
 				for (uint8_t i = 0; i < Nf; ++i) {
 					uint8_t C = DECODE_READ_U8;
 					if (C >= MAX_COMPONENTS) {

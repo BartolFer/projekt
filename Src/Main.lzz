@@ -27,13 +27,23 @@ uint8_t BJpeg :: recomended_space_pow = 26; // 64 MiB
 
 int main() {
 	using namespace BJpeg;
-	if (recomended_space_pow < 8) {
-		std :: cerr << "Recommended space is at least 256B (2^8)" << std :: endl;
-		return EXIT_FAILURE;
-	}
+	//	if (recomended_space_pow < 8) {
+	//		std :: cerr << "Recommended space is at least 256B (2^8)" << std :: endl;
+	//		return EXIT_FAILURE;
+	//	}
 	#ifdef TESTING
 		return Test :: runTests() ? EXIT_SUCCESS : EXIT_FAILURE;
 	#endif
+	
+	Resource<InputFileBuffer> file("D:/Personal/nastava/projekt/Temp/J32_1_small.jpg");
+	//	Resource<InputFileBuffer> file("D:/temp/Zugpsitze_mountain.jpg");
+	if (!file   ) { std :: cerr << "!file"    << std :: endl; return 1; }
+	Resource<DecodeContext> context;
+	if (!context) { std :: cerr << "!context" << std :: endl; return 1; }
+	
+	auto res = Decode :: image(context, file, 0);
+	std :: cout << "res = " << res << std :: endl;
+	
 	// InputFileBuffer file(recomended_space_pow, "D:/temp/Zugpsitze_mountain.jpg");
 	// auto& context = *new Context<CodingType :: DECODE>;
 	// auto res = Decode :: image(context, file, 0);

@@ -68,10 +68,18 @@ typedef struct {
 )
 
 // started as [Ns][bb2 - b1]
-kernel void decodeHuffman1(__global u8 payload[], u32 b1, u32 B2, __constant HuffmanTree trees[2][4], __constant LaneInfo lane_infos[], __global u32 lanes[], u32 lane_width, __constant u8 lane_indexes[]) {
+kernel void decodeHuffman1(
+	__global u8 payload[], 
+	u32 B2, 
+	__constant HuffmanTree trees[2][4], 
+	__constant LaneInfo lane_infos[], 
+	__global u32 lanes[], 
+	u32 lane_width, 
+	__constant u8 lane_indexes[]
+) {
 	u8  C = get_global_id(0);
 	u32 i = get_global_id(1);
-	u32 bbi = b1 + i;
+	u32 bbi = i;
 	u32 bb = bbi;
 	
 	u8 lane_id = lane_indexes[C];
@@ -133,7 +141,12 @@ kernel void decodeHuffman1(__global u8 payload[], u32 b1, u32 B2, __constant Huf
 // where HV = sum(H*V)
 
 // started as [X][bb2 - b1]
-kernel void decodeRaise(__global u32 lanes[], u32 lane_width, u8 lanes_count, u8 prev_size_pow) {
+kernel void decodeRaise(
+	__global u32 lanes[], 
+	u32 lane_width, 
+	u8 lanes_count, 
+	u8 prev_size_pow
+) {
 	u8  x = get_global_id(0);
 	u32 i = get_global_id(1);
 	u8  lane_id = x * (1U << (prev_size_pow + 1)) % lanes_count;
@@ -153,52 +166,69 @@ kernel void decodeRaise(__global u32 lanes[], u32 lane_width, u8 lanes_count, u8
 	if (next == LANE_ERROR_VALUE) { lanes[c] = LANE_ERROR_VALUE; return; }
 	lanes[c] = data + next;
 }
-kernel void decodeLower(__global u32 positions[], __global u32 lanes[], u32 lane_width, u8 lanes_count, u8 size_pow) {
+kernel void decodeLower(
+	__global u32 positions[], 
+	__global u32 lanes[], 
+	u32 lane_width, 
+	u8 lanes_count, 
+	u8 size_pow
+) {
 	u8  x = get_global_id(0);
 	u32 i = get_global_id(1);
 	u8  lane_id = x * (1U << (size_pow+1)) % lanes_count;
 	u8  next_id = (lane_id + (1U << size_pow)) % lanes_count;
 	u32 row_width = lanes_count * lane_width;
 	
-	u32 p = lane_id * (lane_width + 8) + i;
+	u32 p = lane_id * lane_width + i;
 	u32 pos = positions[p];
 	if (pos == LANE_ERROR_VALUE) { return; }
 	u32 row_base = size_pow * row_width;
 	u32 a = row_base + lane_id * lane_width + i;
 	u32 data = lanes[a];
 	if (data == LANE_ERROR_VALUE) { return; }
-	u32 q = next_id * (lane_width + 8) + i + data;
+	u32 q = next_id * lane_width + i + data;
 	positions[q] = pos + (1U << size_pow);
 }
-kernel void positionsToIndexes(__global u32 positions[], __global u32x2 indexes[], u32 lane_width) {
+kernel void positionsToIndexes(
+	__global u32 positions[], 
+	__global u32x2 indexes[], 
+	u32 lane_width
+) {
 	u32 lane_id = get_global_id(0);
 	u32 i       = get_global_id(1);
 	
-	u32 p = lane_id * (lane_width + 8) + i;
+	u32 p = lane_id * lane_width + i;
 	u32 pos = positions[p];
 	if (pos == LANE_ERROR_VALUE) { return; }
 	indexes[pos] = (u32x2)(lane_id, i);
 }
-kernel void decodeHuffman2(__global u8 payload[], u32 b1, __constant HuffmanTree trees[2][4], __constant LaneInfo lane_infos[], u32 lane_width, __global u32x2 indexes[], __global i16 result[][64]) {
+kernel void decodeHuffman2(
+	__global u8 payload[], 
+	__constant HuffmanTree trees[2][4], 
+	__constant LaneInfo lane_infos[], 
+	u32 lane_width, 
+	__global u32x2 indexes[], 
+	__global i16 coefficients[][64]
+) {
 	u32 pos = get_global_id(0);
 	u32x2 id = indexes[pos];
 	u32 lane_id = id.x;
 	u32 i       = id.y;
-	// u32 p = lane_id * (lane_width + 8) + i;
+	// u32 p = lane_id * lane_width + i;
 	LaneInfo lane_info = lane_infos[lane_id];
 	u32 dc_huf = lane_info.dc_huf;
 	u32 lane_index = lane_id * lane_width + i;
 	__constant HuffmanTreeNode* huf_dc = trees[0][dc_huf];
 	__constant HuffmanTreeNode* huf_ac = trees[1][dc_huf];
-	// TODO result_index
-	u32 result_index = pos; // TODO + offset in image
-	__global i16* res = result[result_index];
+	// TODO coefficients_index
+	u32 coefficients_index = pos; // TODO + offset in image
+	__global i16* res = coefficients[coefficients_index];
 	
 	for (int i = 0; i < 64; ++i) {
 		res[i] = 0;
 	}
 	
-	u32 bbi = b1 + i;
+	u32 bbi = i;
 	u32 bb = bbi;
 	#pragma region DC
 		u32 B = bb >> 3;
@@ -273,9 +303,9 @@ kernel void decodeHuffman2(__global u8 payload[], u32 b1, __constant HuffmanTree
 	#pragma endregion
 }
 
-kernel void 
+//	kernel void TODO +scan
 
 kernel void initializeBufferU32(__global u32 buffer[], u32 value) {
-	buffer[get_global_id(0)] = value;
+	buffer[(u32)get_global_id(0)] = value;
 }
 

@@ -23,13 +23,17 @@ namespace MyOpenCL {
 	bool getDeviceId(cl_device_id& device_id) {
 		cl_int err;
 		cl_platform_id platform;
+		char name[1024];
 		err = clGetPlatformIDs(1, &platform, nullptr);
 		ERROR_HANDLING(err, "Failed to get platform");
+		clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(name), name, NULL);
+		printf("Platform: %.1024s\n", name);
 		err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device_id, nullptr);
 		ERROR_HANDLING(err, "Failed to get device");
+		clGetDeviceInfo(device_id, CL_DEVICE_NAME, sizeof(name), name, NULL);
+		printf("Device: %.1024s\n", name);
 		return true;
 	}
-	// TODO handle fail check in finish
 	struct Context {
 		cl_context context;
 		Context() : context(0) {}
@@ -82,12 +86,14 @@ namespace MyOpenCL {
 	
 	struct Kernel {
 		cl_kernel kernel;
-		Kernel() : kernel(0), _next_index(0) {}
+		char const* name;
+		Kernel() : kernel(0), _next_index(0), name("null") {}
 		
 		bool init(Program program, char const* name) {
 			cl_int err;
 			self.kernel = clCreateKernel(program.program, name, &err);
 			ERROR_HANDLING(err, "Failed to create kernel " << name);
+			self.name = name;
 			return true;
 		}
 		void finish() {
@@ -98,36 +104,36 @@ namespace MyOpenCL {
 		void resetArgs() {
 			self._next_index = 0;
 		}
-		template <typename T, ScopedEnum Enum> bool setArg(T& arg, Enum index) { return self.setArg(arg, static_cast<int>(index)); }
+		template <typename T, ScopedEnum Enum> bool setArg(rref<T> arg, Enum index) { return self.setArg(arg, static_cast<int>(index)); }
 		template <typename T> bool setArg(Buffer<T>& arg               ) { return self.setArg(arg.buffer       ); }
 		template <typename T> bool setArg(Buffer<T>& arg, cl_uint index) { return self.setArg(arg.buffer, index); }
 		template <BJpeg :: IsNotAResource T>
 		bool setArg(T& arg) {
 			cl_int err = clSetKernelArg(self.kernel, self._next_index, sizeof(T), &arg);
-			ERROR_HANDLING(err, "Failed to set argument " << self._next_index);
+			ERROR_HANDLING(err, self.name << ": Failed to set argument (x) " << self._next_index << "   " << sizeof(T));
 			++self._next_index;
 			return true;
 		}
 		template <BJpeg :: IsNotAResource T>
 		bool setArg(T& arg, cl_uint index) {
 			cl_int err = clSetKernelArg(self.kernel, index, sizeof(T), &arg);
-			ERROR_HANDLING(err, "Failed to set argument " << index);
+			ERROR_HANDLING(err, self.name << ": Failed to set argument (n) " << index << "   " << sizeof(T));
 			return true;
 		}
 		
 		bool operator ()(Queue queue, size_t dimension, size_t* global_size) {
 			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, dimension, nullptr, global_size, nullptr, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to enqueue kernel");
+			ERROR_HANDLING(err, self.name << "Failed to enqueue kernel");
 			return true;
 		}
 		bool operator ()(Queue queue, size_t dimension, size_t* global_size, size_t* global_offset) {
 			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, dimension, global_offset, global_size, nullptr, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to enqueue kernel");
+			ERROR_HANDLING(err, self.name << "Failed to enqueue kernel");
 			return true;
 		}
 		bool operator ()(Queue queue, size_t dimension, size_t* global_size, size_t* global_offset, size_t* local_size) {
 			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, dimension, global_offset, global_size, local_size, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to enqueue kernel");
+			ERROR_HANDLING(err, self.name << "Failed to enqueue kernel");
 			return true;
 		}
 	};
@@ -166,17 +172,23 @@ namespace MyOpenCL {
 		}
 		bool read(Queue queue, T* buffer) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, 0, self.length * sizeof(T), buffer, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to read buffer ");
+			ERROR_HANDLING(err, "Failed to read buffer -");
 			return true;
 		}
 		bool read(Queue queue, T* buffer, size_t length) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, 0, length * sizeof(T), buffer, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to read buffer ");
+			ERROR_HANDLING(err, "Failed to read buffer l ");
 			return true;
 		}
 		bool read(Queue queue, T* buffer, size_t length, size_t offset) {
-			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, offset, length * sizeof(T), buffer, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to read buffer ");
+			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T), length * sizeof(T), buffer, 0, nullptr, nullptr);
+			ERROR_HANDLING(err, "Failed to read buffer o ");
+			return true;
+		}
+		
+		bool copy(Queue queue, size_t length, size_t offset, Buffer<T> dst, size_t dst_offset) {
+			cl_int err = clEnqueueCopyBuffer(queue.queue, self.buffer, dst.buffer, offset * sizeof(T), dst_offset * sizeof(T), length * sizeof(T), 0, nullptr, nullptr);
+			ERROR_HANDLING(err, "Failed to read buffer o ");
 			return true;
 		}
 	};
