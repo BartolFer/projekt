@@ -303,7 +303,33 @@ kernel void decodeHuffman2(
 	#pragma endregion
 }
 
-//	kernel void TODO +scan
+kernel void prescan1(__global i16 coefficients[][64], i8 half_step_pow) {
+	u32 i = get_global_id(0); // offset already calculated
+	u32 a = ((i + 1) << (half_step_pow + 1)) - 1;
+	u32 b = a - (1 << half_step_pow);
+	coefficients[a][0] += coefficients[b][0];
+}
+kernel void prescan2(__global i16 coefficients[][64], i8 half_step_pow) {
+	u32 i = get_global_id(0); // offset already calculated
+	u32 a = ((i + 1) << (half_step_pow + 1)) - 1;
+	u32 b = a - (1 << half_step_pow);
+	i32 x = coefficients[a][0];
+	i32 y = coefficients[b][0];
+	coefficients[a][0] = x + y;
+	coefficients[b][0] = x;
+}
+kernel void shiftLeft(__global i16 coefficients[][64]) {
+	u32 i = get_global_id(0); // offset already calculated
+	coefficients[i][0] = coefficients[i + 1][0];
+}
+//	kernel void scanLinear(__global i16 coefficients[][64], u32 offset, u32 length) {
+//		for 
+//	}
+
+//	kernel void transform()
+//	handle Q, DCT, SUB, and putting into right place
+//	a b    e    g
+//	c d    f    h
 
 kernel void initializeBufferU32(__global u32 buffer[], u32 value) {
 	buffer[(u32)get_global_id(0)] = value;

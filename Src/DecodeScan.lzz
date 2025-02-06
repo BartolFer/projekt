@@ -11,8 +11,10 @@
 	#src
 		#include <string.h>
 		#include <iostream>
+		#include <bit>
 		#include "./Huffman.hpp"
 		#include "./Markers.hpp"
+		#include "./Test.hpp"
 	#end
 #else // if VSCODE
 	#include <cstdint>
@@ -20,12 +22,14 @@
 	// #include <cstddef>
 	#include <string.h>
 	#include <iostream>
+	#include <bit>
 	#include "./DecodeScan.hpp"
 	#include "./Util.hpp"
 	#include "./FileBuffer.hpp"
 	#include "./Context.hpp"
 	#include "./Huffman.hpp"
 	#include "./Markers.hpp"
+	#include "./Test.hpp"
 #endif
 
 #include "./DecoderMacro.hzz"
@@ -207,6 +211,8 @@ namespace BJpeg {
 			if (!cl.kernel.decodeHuffman2.setArg(job_size, decodeHuffman2Args :: lane_width)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.decodeHuffman2(cl.queue, 1, &cl.img_size)) { return DECODE_RESULT_ERR; }
 			
+			if (!plusScanCoefficients(cl.img_size, cl)) { return DECODE_RESULT_ERR; }
+			
 			//	RESET_SCAN_CONTEXT();
 			
 			//	bool in_payload = true;
@@ -282,6 +288,48 @@ namespace BJpeg {
 			// but that would take a lot of work (shifting and all)
 			return DECODE_RESULT_OK;
 		}
+		
+		namespace {
+			#define DO_SCAN_ON_CPU_TRESHOLD 0
+			//	#define DO_SCAN_ON_CPU_TRESHOLD 6
+			bool plusScanCoefficients(size_t n, CLContext<DECODE> cl) {
+				using  prescan1Args = CLContext<DECODE> :: Kernels ::  prescan1Args;
+				using  prescan2Args = CLContext<DECODE> :: Kernels ::  prescan2Args;
+				using shiftLeftArgs = CLContext<DECODE> :: Kernels :: shiftLeftArgs;
+				
+				size_t offset = 0;
+				i16 start_value = 0;
+				for (int max_size_pow = std :: bit_width(n); max_size_pow >= DO_SCAN_ON_CPU_TRESHOLD; --max_size_pow) {
+					size_t bit = 1 << max_size_pow;
+					if ((bit & n) == 0) { continue; }
+					
+					//	TODO do plusscan on bit elements from offset 
+					for (i8 half_step_pow = 0; half_step_pow < max_size_pow; ++half_step_pow) {
+						size_t amount_of_work = bit >> (half_step_pow + 1);
+						if (!cl.kernel.prescan1.setArg(half_step_pow, prescan1Args :: half_step_pow)) { return false; }
+						if (!cl.kernel.prescan1(cl.queue, 1, &amount_of_work, &offset)) { return false; }
+					}
+					i16 x;
+					if (!cl.buffer.coefficients.read (cl.queue, &x          , 0, offset + bit - 1, sizeof(i16), 0)) { return false; }
+					if (!cl.buffer.coefficients.write(cl.queue, &start_value, 0, offset + bit - 1, sizeof(i16), 0)) { return false; }
+					start_value += x;
+					for (i8 half_step_pow = max_size_pow - 1; half_step_pow > 0; --half_step_pow) {
+						size_t amount_of_work = bit >> (half_step_pow + 1);
+						if (!cl.kernel.prescan2.setArg(half_step_pow, prescan2Args :: half_step_pow)) { return false; }
+						if (!cl.kernel.prescan2(cl.queue, 1, &amount_of_work, &offset)) { return false; }
+					}
+					size_t amount_of_work = bit - 1;
+					if (!cl.kernel.shiftLeft(cl.queue, 1, &amount_of_work, &offset)) { return false; }
+					if (!cl.buffer.coefficients.write(cl.queue, &start_value, 0, offset + bit - 1, sizeof(i16), 0)) { return false; }
+					
+					n -= bit; //	equivalent to seting max_size_pow-th bit to zero
+					offset += bit;
+				}
+				//	TODO remaining n elements manually
+				
+				return true;
+			}
+		}
 		// void resetScanContext(Context<CodingType :: DECODE>& context) {
 		// }
 		// i should move this/these into separate file
@@ -289,5 +337,36 @@ namespace BJpeg {
 		// 	// decode from bits [b1] to [8*B2]
 		// 	uint8_t* payload = context.payload;
 		// }
+		
+		#ifdef TESTING
+		namespace {
+			struct Test_plusScanCoefficients : Test {
+				virtual char const* getDescription() { return "Test_plusScanCoefficients"; }
+				virtual bool test() {
+					constexpr int const n = 10;
+					Resource<CLContext<DECODE>> cl(1, n);
+					i16 coefficients[n][64] = {{3}, {1}, {4}, {1}, {5}, {9}, {2}, {6}, {3}, {1}, };
+					i16 expected    [n][64] = {{3}, {4}, {8}, {9}, {14}, {23}, {25}, {31}, {34}, {35}, };
+					i16 result      [n][64];
+					if (cl.buffer.coefficients.length != n) {
+						Test :: getError() << "Invalid size: expected " << n << ", got " << cl.buffer.coefficients.length << std :: endl;
+						return false;
+					}
+					if (!cl.buffer.coefficients.write(cl.queue, coefficients)) { return false; }
+					plusScanCoefficients(n, cl);
+					if (!cl.buffer.coefficients.read(cl.queue, result)) { return false; }
+					
+					for (int i = 0; i < n; ++i) {
+						if (result[i][0] != expected[i][0]) {
+							Test :: getError() << "Difference at index " << i << ": expected " << expected[i][0] << ", got " << result[i][0] << std :: endl;
+							return false;
+						}
+					}
+					return true;
+				}
+			};
+			Test_plusScanCoefficients test_plusScanCoefficients;
+		}
+		#endif
 	}
 }

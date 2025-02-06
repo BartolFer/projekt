@@ -3,10 +3,30 @@
 #include <concepts>
 
 
+
 namespace BJpeg {
+	template <typename>
+	struct FunctionTraits;
+
+	template <typename T, typename... Args>
+	struct FunctionTraits<T(Args...)> {
+		using ReturnType = T;
+	};
+	template <typename T, typename... Args>
+	struct FunctionTraits<T (*)(Args...)> {
+		using ReturnType = T;
+	};
+	template <typename T, typename C, typename... Args>
+	struct FunctionTraits<T (C::*)(Args...)> {
+		using ReturnType = T;
+	};
+	template <typename F>
+	using ReturnType = typename FunctionTraits<F> :: ReturnType;
+
 	template <typename T>
 	concept IsResource = requires(T t) {
-		requires std::is_member_function_pointer_v<decltype(&T::init)>;
+		requires std :: is_member_function_pointer_v<decltype(&T :: init)>;
+		requires std :: convertible_to<ReturnType<decltype(&T :: init)>, bool>;
 		{ t.finish() } /* noexcept /* (would be nice, but LZZ doesn't allow it) */;
 	};
 	template <typename T, typename... Args>

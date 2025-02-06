@@ -61,6 +61,9 @@ namespace BJpeg {
 			MyOpenCL :: Kernel positionsToIndexes ; enum  positionsToIndexesArgs { positions, indexes, lane_width, };
 			MyOpenCL :: Kernel decodeHuffman2     ; enum      decodeHuffman2Args { payload, trees, lane_infos, lane_width, indexes, coefficients, };
 			MyOpenCL :: Kernel initializeBufferU32; enum initializeBufferU32Args { buffer, value, };
+			MyOpenCL :: Kernel prescan1           ; enum            prescan1Args { coefficients, half_step_pow, };
+			MyOpenCL :: Kernel prescan2           ; enum            prescan2Args { coefficients, half_step_pow, };
+			MyOpenCL :: Kernel shiftLeft          ; enum           shiftLeftArgs { coefficients, };
 		};
 		Kernels kernel;
 		struct Buffers {
@@ -103,6 +106,9 @@ namespace BJpeg {
 			if (!self.kernel.positionsToIndexes .init(self.program, "positionsToIndexes" )) { return false; }
 			if (!self.kernel.decodeHuffman2     .init(self.program, "decodeHuffman2"     )) { return false; }
 			if (!self.kernel.initializeBufferU32.init(self.program, "initializeBufferU32")) { return false; }
+			if (!self.kernel.prescan1           .init(self.program, "prescan1"           )) { return false; }
+			if (!self.kernel.prescan2           .init(self.program, "prescan2"           )) { return false; }
+			if (!self.kernel.shiftLeft          .init(self.program, "shiftLeft"          )) { return false; }
 			
 			if (!self.buffer.payload     .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , file_size     )) { return false; }
 			if (!self.buffer.trees       .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , 2             )) { return false; }
@@ -111,7 +117,7 @@ namespace BJpeg {
 			if (!self.buffer.lane_indexes.init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , MAX_COMPONENTS)) { return false; }
 			if (!self.buffer.positions   .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, row           )) { return false; }
 			if (!self.buffer.indexes     .init(self.context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, img_size      )) { return false; }
-			if (!self.buffer.coefficients.init(self.context, CL_MEM_HOST_READ_ONLY  | CL_MEM_WRITE_ONLY, img_size      )) { return false; }
+			if (!self.buffer.coefficients.init(self.context,                          CL_MEM_WRITE_ONLY, img_size      )) { return false; }
 			
 			if (!self.kernel.decodeHuffman1.setArg(self.buffer.payload     , Kernels :: decodeHuffman1Args :: payload     )) { return false; }
 			if (!self.kernel.decodeHuffman1.setArg(self.buffer.trees       , Kernels :: decodeHuffman1Args :: trees       )) { return false; }
@@ -133,6 +139,10 @@ namespace BJpeg {
 			if (!self.kernel.decodeHuffman2.setArg(self.buffer.indexes     , Kernels :: decodeHuffman2Args :: indexes     )) { return false; }
 			if (!self.kernel.decodeHuffman2.setArg(self.buffer.coefficients, Kernels :: decodeHuffman2Args :: coefficients)) { return false; }
 			
+			if (!self.kernel.prescan1 .setArg(self.buffer.coefficients, Kernels ::  prescan1Args :: coefficients)) { return false; }
+			if (!self.kernel.prescan2 .setArg(self.buffer.coefficients, Kernels ::  prescan2Args :: coefficients)) { return false; }
+			if (!self.kernel.shiftLeft.setArg(self.buffer.coefficients, Kernels :: shiftLeftArgs :: coefficients)) { return false; }
+			
 			self.initialized = true;
 			return true;
 		}
@@ -146,6 +156,9 @@ namespace BJpeg {
 			self.kernel.positionsToIndexes .finish();
 			self.kernel.decodeHuffman2     .finish();
 			self.kernel.initializeBufferU32.finish();
+			self.kernel.prescan1           .finish();
+			self.kernel.prescan2           .finish();
+			self.kernel.shiftLeft          .finish();
 			self.buffer.payload     .finish();
 			self.buffer.trees       .finish();
 			self.buffer.lane_infos  .finish();
