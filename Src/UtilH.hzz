@@ -27,6 +27,20 @@ using rref = T&&;
 template <typename E>
 concept ScopedEnum = std :: is_scoped_enum_v<E>;
 
+
+//	this is surronded by noexcept by-reference lambda: [&] noexcept {  }
+#define defer(...) _defer_macro2(__COUNTER__, __VA_ARGS__)
+#define _defer_macro2(...) _defer_macro1(__VA_ARGS__)
+#define _defer_macro1(cnt, ...) /* [[no_unique_address]] */ DeferVar const tmp_defer_var_ ## cnt{[&]noexcept{__VA_ARGS__}}
+template <typename F> requires std::is_nothrow_invocable_v<F>
+struct DeferVar {
+	F f;
+	~DeferVar() {
+		f();
+	}
+};
+
+
 namespace BJpeg {
 	enum CodingType { DECODE, ENCODE };
 }

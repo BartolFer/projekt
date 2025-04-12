@@ -42,8 +42,8 @@ typedef struct {
 	u8 ac_huf;
 	u8 y;
 	u8 x;
-	u8 _6;
-	u8 _7;
+	u8 start_in_mcu;
+	u8 amount_in_mcu;
 	u8 _8;
 } LaneInfo;
 
@@ -179,14 +179,14 @@ kernel void decodeLower(
 	u8  next_id = (lane_id + (1U << size_pow)) % lanes_count;
 	u32 row_width = lanes_count * lane_width;
 	
-	u32 p = lane_id * lane_width + i;
+	u32 p = lane_id * (lane_width + 8) + i;
 	u32 pos = positions[p];
 	if (pos == LANE_ERROR_VALUE) { return; }
 	u32 row_base = size_pow * row_width;
 	u32 a = row_base + lane_id * lane_width + i;
 	u32 data = lanes[a];
 	if (data == LANE_ERROR_VALUE) { return; }
-	u32 q = next_id * lane_width + i + data;
+	u32 q = next_id * (lane_width + 8) + i + data;
 	positions[q] = pos + (1U << size_pow);
 }
 kernel void positionsToIndexes(
@@ -197,7 +197,7 @@ kernel void positionsToIndexes(
 	u32 lane_id = get_global_id(0);
 	u32 i       = get_global_id(1);
 	
-	u32 p = lane_id * lane_width + i;
+	u32 p = lane_id * (lane_width + 8) + i;
 	u32 pos = positions[p];
 	if (pos == LANE_ERROR_VALUE) { return; }
 	indexes[pos] = (u32x2)(lane_id, i);
@@ -303,33 +303,68 @@ kernel void decodeHuffman2(
 	#pragma endregion
 }
 
-kernel void prescan1(__global i16 coefficients[][64], i8 half_step_pow) {
-	u32 i = get_global_id(0); // offset already calculated
-	u32 a = ((i + 1) << (half_step_pow + 1)) - 1;
-	u32 b = a - (1 << half_step_pow);
-	coefficients[a][0] += coefficients[b][0];
+kernel void prepareMCUs(
+	__global i16 coefficients[][64], 
+	__global LaneInfo lane_infos[], 
+	u8 mcu_length
+) {
+	//	maybe use remaining 3 fields to store start + amount 
+	//	and on CPU compute that stuff and begin only those components that are needed
+	u8 lane_id = get_global_id(0);
+	u32 i = get_global_id(1);
+	LaneInfo lane_info = lane_infos[lane_id];
+	i16 accumulator = 0;
+	u32 mcu_base = i * mcu_length + lane_info.start_in_mcu;
+	for (u8 j = 0; j < lane_info.amount_in_mcu; ++j) {
+		accumulator += coefficients[mcu_base + j][0];
+		coefficients[mcu_base + j][0] = accumulator;
+	}
 }
-kernel void prescan2(__global i16 coefficients[][64], i8 half_step_pow) {
-	u32 i = get_global_id(0); // offset already calculated
-	u32 a = ((i + 1) << (half_step_pow + 1)) - 1;
-	u32 b = a - (1 << half_step_pow);
-	i32 x = coefficients[a][0];
-	i32 y = coefficients[b][0];
-	coefficients[a][0] = x + y;
-	coefficients[b][0] = x;
-}
-kernel void shiftLeft(__global i16 coefficients[][64]) {
-	u32 i = get_global_id(0); // offset already calculated
-	coefficients[i][0] = coefficients[i + 1][0];
-}
-//	kernel void scanLinear(__global i16 coefficients[][64], u32 offset, u32 length) {
-//		for 
-//	}
 
-//	kernel void transform()
-//	handle Q, DCT, SUB, and putting into right place
-//	a b    e    g
-//	c d    f    h
+inline void addMCUsToRight(
+	__global i16 coefficients[][64],
+	__global LaneInfo lane_infos[], 
+	u32 a_index,
+	u32 b_index,
+	u8 mcu_length
+) {
+	//	i will generate this function dynamically
+	
+	//	or not
+	u16 last_component_id = ~0;
+	i16 a = 0x363f;
+	for (int i = mcu_length - 1; i >= 0; --i) {
+		LaneInfo lane_info = lane_infos[i];
+		if ((u16)lane_info.c_id != last_component_id) {
+			last_component_id = lane_info.c_id;
+			a = coefficients[a_index + i][0];
+		}
+		coefficients[b_index + i][0] += a;
+	}
+}
+kernel void prefixSum1(
+	__global i16 coefficients[][64],
+	__global LaneInfo lane_infos[], 
+	u32 half_size/* _pow? */,
+	u8 mcu_length
+) {
+	u32 i = get_global_id(0);
+	u32 b_index = mcu_length * ((i + 1) * half_size * 2 - 1);
+	u32 a_index = b_index - half_size * mcu_length;
+	addMCUsToRight(coefficients, lane_infos, a_index, b_index, mcu_length);
+}
+kernel void prefixSum2(
+	__global i16 coefficients[][64],
+	__global LaneInfo lane_infos[], 
+	u32 half_size/* _pow? */,
+	u8 mcu_length
+) {
+	u32 i = get_global_id(0);
+	u32 b_index = mcu_length * (half_size + (i + 1) * half_size * 2 - 1);
+	u32 a_index = b_index - half_size * mcu_length;
+	addMCUsToRight(coefficients, lane_infos, a_index, b_index, mcu_length);
+}
+
 
 kernel void initializeBufferU32(__global u32 buffer[], u32 value) {
 	buffer[(u32)get_global_id(0)] = value;

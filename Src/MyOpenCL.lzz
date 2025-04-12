@@ -17,7 +17,7 @@
 	#include "./MyOpenCL.hpp"
 #endif
 
-#define ERROR_HANDLING(err, msg) if ((err) != CL_SUCCESS) { std :: cerr << "Error " << (err) << ": " << msg << std :: endl; return false; }
+#define ERROR_HANDLING(err, msg) if ((err) != CL_SUCCESS) { std :: cerr << "Error " << (err) << ": " << std :: flush /* << msg */ << std :: endl; return false; }
 
 namespace MyOpenCL {
 	bool getDeviceId(cl_device_id& device_id) {
@@ -27,11 +27,11 @@ namespace MyOpenCL {
 		err = clGetPlatformIDs(1, &platform, nullptr);
 		ERROR_HANDLING(err, "Failed to get platform");
 		clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(name), name, NULL);
-		printf("Platform: %.1024s\n", name);
+		//	printf("Platform: %.1024s\n", name);
 		err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device_id, nullptr);
 		ERROR_HANDLING(err, "Failed to get device");
 		clGetDeviceInfo(device_id, CL_DEVICE_NAME, sizeof(name), name, NULL);
-		printf("Device: %.1024s\n", name);
+		//	printf("Device: %.1024s\n", name);
 		return true;
 	}
 	struct Context {
@@ -148,7 +148,7 @@ namespace MyOpenCL {
 			self.length = length;
 			cl_int err;
 			self.buffer = clCreateBuffer(context.context, flags, length * sizeof(T), host, &err);
-			ERROR_HANDLING(err, "Failed to create context");
+			ERROR_HANDLING(err, "Failed to create buffer");
 			return true;
 		}
 		void finish() {
