@@ -121,6 +121,7 @@ pass
 for file in zzc_files:
 	with open(file.abs_file.macro_temp_2) as f: raw = f.read();
 	raw = "".join(macro_processor.processMarkers(raw, file.tokens));
+	#	if "Test" in file.path: print("===\n" + raw + "\n___");
 	file.tokens = list(tokenizer.tokenize(raw));
 	macro_processor.transformIntoRTokens(file.tokens);
 	macro_processor.transformMacroTokensAfterPreprocess(file.tokens);

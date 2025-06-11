@@ -7,8 +7,8 @@
 		"exe": "./Build/a.exe"
 	},
 	"compiler": {
-		"preprocess": ["gcc", "-E", "-o", {"arg":"out"}, {"arg":"in"}],
-		"obj": ["g++", {"var":"CPPFLAGS"}, {"var":"CXXFLAGS"}, "-c", "-o", {"arg":"out"}, {"arg":"in"}],
+		"preprocess": ["gcc", {"var":"CPPFLAGS"}, "-E", "-o", {"arg":"out"}, {"arg":"in"}],
+		"obj": ["g++", "-Dfun=", {"var":"CPPFLAGS"}, {"var":"CXXFLAGS"}, "-c", "-o", {"arg":"out"}, {"arg":"in"}],
 		"target": ["g++", {"var":"CXXFLAGS"}, {"var":"CPPFLAGS"}, "-o", {"arg":"out"}, {"arg":"in"}, {"var":"LDFLAGS"}]
 	},
 	"vars": {

@@ -530,47 +530,67 @@ def _function(tokens: list[SToken], index: int, index_kwd: int, endex: int, sema
 		#	anonymous template in_struct static inline
 		if   context == 0b00000:
 			region.hdr_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b00001:
 			region.hdr_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.hdr_impl = raw;
 		elif context == 0b00010:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b00011 :
 			region.hdr_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.hdr_impl = raw;
 		elif context == 0b00100:
 			region.hdr_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw if i != index_name else semantic_stack.struct_prefix + raw;
 		elif context == 0b00101:
 			region.hdr_decl = raw;
 		elif context == 0b00110:
 			region.hdr_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			if i != index_static: region.src_impl = raw if i != index_name else semantic_stack.struct_prefix + raw;
 		elif context == 0b00111:
 			region.hdr_decl = raw;
 		elif context == 0b01000:
 			region.hdr_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.hdr_impl = raw;
 		elif context == 0b01001:
 			region.hdr_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.hdr_impl = raw;
 		elif context == 0b01010:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b01011:
 			region.hdr_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.hdr_impl = raw;
 		elif context == 0b01100:
 			region.hdr_decl = raw;
@@ -583,47 +603,67 @@ def _function(tokens: list[SToken], index: int, index_kwd: int, endex: int, sema
 			region.hdr_decl = raw;
 		elif context == 0b10000:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b10001:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b10010:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b10011 :
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b10100:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw if i != index_name else semantic_stack.struct_prefix + raw;
 		elif context == 0b10101:
 			region.src_decl = raw;
 		elif context == 0b10110:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			if i != index_static: region.src_impl = raw if i != index_name else semantic_stack.struct_prefix + raw;
 		elif context == 0b10111:
 			region.src_decl = raw;
 		elif context == 0b11000:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b11001:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b11010:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b11011:
 			region.src_decl = raw;
+			if not has_init: continue;
 			if i in indexes_of_equal: continue;
+			if raw == "virtual": continue;
 			region.src_impl = raw;
 		elif context == 0b11100:
 			region.src_decl = raw;
@@ -843,10 +883,12 @@ def _namespace(tokens: list[SToken], index: int, index_kwd: int, endex: int, sem
 	endex_scope = _findClosingNormal(tokens, index_scope);
 	
 	for (i, token) in chain(SimpleSliceIter(tokens, index, index_scope + 1), [(endex_scope, tokens[endex_scope])]):
+		#	print(repr(token.raw));
 		token.ephermal = True;
 		token.region.src_decl = token.raw;
 		token.region.src_impl = token.raw;
 	pass
+	fwd.add(endex_scope);
 	
 	for i in chain(range(index, index_scope + 1), [endex_scope]): fwd.addCandidate(i);
 	

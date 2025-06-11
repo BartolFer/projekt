@@ -1,42 +1,36 @@
 
-#ifndef VSCODE_ONLY
-	#hdr
-		#pragma once
-		#include <vector>
-		#include <iostream>
-	#end
-	#src
-		#include <fstream>
-	#end
-#else
+#pragma region zzc hdr_decl
+	#pragma once
 	#include <vector>
 	#include <iostream>
+#pragma endregion zzc
+#pragma region zzc src_decl
 	#include <fstream>
-#endif
+#pragma endregion zzc
 
 namespace BJpeg {
 	#ifdef TESTING
 		static std :: ofstream output = std :: ofstream("./Build/log.txt");
 		static std :: ostream& error = std :: cerr;
 		struct Test {
-			static std :: ostream& getOutput() {
+			fun static std :: ostream& getOutput() {
 				return output << "\nLOG: ";
 			}
-			static std :: ostream& getError() {
+			fun static std :: ostream& getError() {
 				return error << "\nERROR: ";
 			}
 			
-			virtual char const* getDescription() = 0;
-			virtual bool test() = 0;
+			fun virtual char const* getDescription() = 0;
+			fun virtual bool test() = 0;
 			
-			virtual void init() {}
-			virtual void finish() {}
+			fun virtual void init() {}
+			fun virtual void finish() {}
 			
-			Test() {
+			fun Test() {
 				Test :: tests.push_back(this);
 			}
 			
-			static bool runTests() {
+			fun static bool runTests() {
 				size_t success = 0;
 				size_t failure = 0;
 				for (auto test : tests) {

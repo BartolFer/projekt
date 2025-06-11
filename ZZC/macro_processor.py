@@ -218,11 +218,27 @@ def gatherMacroInfo(token: MacroToken):
 pass
 
 def processMarkers(raw: str, original_tokens: list[Token]) -> Iterable[str]:
-	if "<:::>" not in raw: return raw;
+	lines = raw.splitlines();
+	raw = "";
+	accumulated_line = "";
+	for line in lines:
+		accumulated_line += line + "\n";
+		if line.endswith("\\"): 
+			pass;
+		elif re.match(r"[\s\\]*#", accumulated_line):
+			accumulated_line = "";
+		else:
+			raw += accumulated_line;
+			accumulated_line = "";
+		pass
+	pass
+	#	print("===", raw);
+	
 	string_indexes = list(_quickFindStrings(raw));
+	if "<:::>" not in raw: return [raw];
 	index_start = raw.index("<:::>") + len("<:::>\n");
 	endex_end = raw.rindex("<:::>") - 1;
-	if endex_end < index_start: return raw;
+	if endex_end < index_start: return [raw];
 	index = index_start;
 	while (index := _markerIndex(raw, "<:::", index_start, string_indexes)) < endex_end:
 		yield raw[index_start : index];
@@ -266,13 +282,18 @@ def transformMacroTokensAfterPreprocess(tokens: list[RToken]):
 pass
 
 def _markerIndex(raw: str, sub: str, index_start: int, string_indexes: list[tuple[int, int]]) -> int:
+	#	print(string_indexes);
 	while True:
+		#	print(index_start, repr(raw[index_start : index_start + 20]), end = "    ");
 		index = raw.index(sub, index_start);
+		#	print(index);
 		if any(a < index < b for (a, b) in string_indexes):
 			index_start = index + 1;
 		else:
 			break;
 		pass
+	pass
+	#	print("found");
 	return index;
 pass
 def _quickFindStrings(raw: str) -> Iterable[tuple[int, int]]:

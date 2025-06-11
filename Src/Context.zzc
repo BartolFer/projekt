@@ -10,6 +10,9 @@
 	#include <bit>
 	#include "./kernels.cl.tmp.zzh"
 #pragma endregion zzc
+#pragma region zzc ide
+	//	#include "./Context.zzh"
+#pragma endregion zzc
 
 
 namespace BJpeg {
