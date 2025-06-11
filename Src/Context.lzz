@@ -6,6 +6,7 @@
 		#include "./Markers.hpp"
 		#include "./Util.hpp"
 		#include "./MyOpenCL.hpp"
+		#include "./Kernels.hpp"
 	#end
 	#src
 		#include "./kernels.cl.hpp"
@@ -18,6 +19,7 @@
 	#include "./Markers.hpp"
 	#include "./Util.hpp"
 	#include "./MyOpenCL.hpp"
+	#include "./Kernels.hpp"
 	#include "./kernels.cl.hpp"
 	#include <bit>
 #endif
@@ -37,16 +39,6 @@ namespace BJpeg {
 		uint8_t _padding;
 	};
 	
-	struct LaneInfo {
-		u8 c_id;
-		u8 dc_huf;
-		u8 ac_huf;
-		u8 y;
-		u8 x;
-		u8 start_in_mcu;
-		u8 amount_in_mcu;
-		u8 _8;
-	};
 	template <CodingType CODING_TYPE>
 	struct CLContext;
 	template <>
@@ -54,17 +46,6 @@ namespace BJpeg {
 		MyOpenCL :: Context context            ;
 		MyOpenCL :: Queue   queue              ;
 		MyOpenCL :: Program program            ;
-		struct Kernels {
-			MyOpenCL :: Kernel decodeHuffman1     ; enum      decodeHuffman1Args { payload, B2, trees, lane_infos, lanes, lane_width, lane_indexes, };
-			MyOpenCL :: Kernel decodeRaise        ; enum         decodeRaiseArgs { lanes, lane_width, lanes_count, prev_size_pow, };
-			MyOpenCL :: Kernel decodeLower        ; enum         decodeLowerArgs { positions, lanes, lane_width, lanes_count, size_pow, };
-			MyOpenCL :: Kernel positionsToIndexes ; enum  positionsToIndexesArgs { positions, indexes, lane_width, };
-			MyOpenCL :: Kernel decodeHuffman2     ; enum      decodeHuffman2Args { payload, trees, lane_infos, lane_width, indexes, coefficients, };
-			MyOpenCL :: Kernel initializeBufferU32; enum initializeBufferU32Args { buffer, value, };
-			MyOpenCL :: Kernel prepareMCUs        ; enum         prepareMCUsArgs { coefficients, lane_infos, mcu_length, };
-			MyOpenCL :: Kernel prefixSum1         ; enum          prefixSum1Args { coefficients, lane_infos, half_size, mcu_length, };
-			MyOpenCL :: Kernel prefixSum2         ; enum          prefixSum2Args { coefficients, lane_infos, half_size, mcu_length, };
-		};
 		Kernels kernel;
 		struct Buffers {
 			MyOpenCL :: Buffer<u8> payload;
@@ -100,15 +81,15 @@ namespace BJpeg {
 			if (!self.queue  .init(device_id, self.context)) { return false; }
 			if (!self.program.init(device_id, self.context, kernels)) { return false; }
 			
-			if (!self.kernel.decodeHuffman1     .init(self.program, "decodeHuffman1"     )) { return false; }
-			if (!self.kernel.decodeRaise        .init(self.program, "decodeRaise"        )) { return false; }
-			if (!self.kernel.decodeLower        .init(self.program, "decodeLower"        )) { return false; }
-			if (!self.kernel.positionsToIndexes .init(self.program, "positionsToIndexes" )) { return false; }
-			if (!self.kernel.decodeHuffman2     .init(self.program, "decodeHuffman2"     )) { return false; }
-			if (!self.kernel.initializeBufferU32.init(self.program, "initializeBufferU32")) { return false; }
-			if (!self.kernel.prepareMCUs        .init(self.program, "prepareMCUs"        )) { return false; }
-			if (!self.kernel.prefixSum1         .init(self.program, "prefixSum1"         )) { return false; }
-			if (!self.kernel.prefixSum2         .init(self.program, "prefixSum2"         )) { return false; }
+			if (!self.kernel.decodeHuffman1     .init(self.program)) { return false; }
+			if (!self.kernel.decodeRaise        .init(self.program)) { return false; }
+			if (!self.kernel.decodeLower        .init(self.program)) { return false; }
+			if (!self.kernel.positionsToIndexes .init(self.program)) { return false; }
+			if (!self.kernel.decodeHuffman2     .init(self.program)) { return false; }
+			if (!self.kernel.initializeBufferU32.init(self.program)) { return false; }
+			if (!self.kernel.prepareMCUs        .init(self.program)) { return false; }
+			if (!self.kernel.prefixSum1         .init(self.program)) { return false; }
+			if (!self.kernel.prefixSum2         .init(self.program)) { return false; }
 			
 			if (!self.buffer.payload     .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , file_size     )) { return false; }
 			if (!self.buffer.trees       .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , 2             )) { return false; }
@@ -119,32 +100,32 @@ namespace BJpeg {
 			if (!self.buffer.indexes     .init(self.context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, img_size      )) { return false; }
 			if (!self.buffer.coefficients.init(self.context,                          CL_MEM_WRITE_ONLY, img_size      )) { return false; }
 			
-			if (!self.kernel.decodeHuffman1.setArg(self.buffer.payload     , Kernels :: decodeHuffman1Args :: payload     )) { return false; }
-			if (!self.kernel.decodeHuffman1.setArg(self.buffer.trees       , Kernels :: decodeHuffman1Args :: trees       )) { return false; }
-			if (!self.kernel.decodeHuffman1.setArg(self.buffer.lane_infos  , Kernels :: decodeHuffman1Args :: lane_infos  )) { return false; }
-			if (!self.kernel.decodeHuffman1.setArg(self.buffer.lanes       , Kernels :: decodeHuffman1Args :: lanes       )) { return false; }
-			if (!self.kernel.decodeHuffman1.setArg(self.buffer.lane_indexes, Kernels :: decodeHuffman1Args :: lane_indexes)) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg_payload      (self.buffer.payload      )) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg_trees        (self.buffer.trees        )) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg_lanes        (self.buffer.lanes        )) { return false; }
+			if (!self.kernel.decodeHuffman1.setArg_lane_indexes (self.buffer.lane_indexes )) { return false; }
 			
-			if (!self.kernel.decodeRaise.setArg(self.buffer.lanes, Kernels :: decodeRaiseArgs :: lanes)) { return false; }
+			if (!self.kernel.decodeRaise.setArg_lanes        (self.buffer.lanes        )) { return false; }
 			
-			if (!self.kernel.decodeLower.setArg(self.buffer.positions, Kernels :: decodeLowerArgs :: positions)) { return false; }
-			if (!self.kernel.decodeLower.setArg(self.buffer.lanes    , Kernels :: decodeLowerArgs :: lanes    )) { return false; }
+			if (!self.kernel.decodeLower.setArg_positions    (self.buffer.positions    )) { return false; }
+			if (!self.kernel.decodeLower.setArg_lanes        (self.buffer.lanes        )) { return false; }
 			
-			if (!self.kernel.positionsToIndexes.setArg(self.buffer.positions, Kernels :: positionsToIndexesArgs :: positions)) { return false; }
-			if (!self.kernel.positionsToIndexes.setArg(self.buffer.indexes  , Kernels :: positionsToIndexesArgs :: indexes  )) { return false; }
+			if (!self.kernel.positionsToIndexes.setArg_positions    (self.buffer.positions    )) { return false; }
+			if (!self.kernel.positionsToIndexes.setArg_indexes      (self.buffer.indexes      )) { return false; }
 			
-			if (!self.kernel.decodeHuffman2.setArg(self.buffer.payload     , Kernels :: decodeHuffman2Args :: payload     )) { return false; }
-			if (!self.kernel.decodeHuffman2.setArg(self.buffer.trees       , Kernels :: decodeHuffman2Args :: trees       )) { return false; }
-			if (!self.kernel.decodeHuffman2.setArg(self.buffer.lane_infos  , Kernels :: decodeHuffman2Args :: lane_infos  )) { return false; }
-			if (!self.kernel.decodeHuffman2.setArg(self.buffer.indexes     , Kernels :: decodeHuffman2Args :: indexes     )) { return false; }
-			if (!self.kernel.decodeHuffman2.setArg(self.buffer.coefficients, Kernels :: decodeHuffman2Args :: coefficients)) { return false; }
+			if (!self.kernel.decodeHuffman2.setArg_payload      (self.buffer.payload      )) { return false; }
+			if (!self.kernel.decodeHuffman2.setArg_trees        (self.buffer.trees        )) { return false; }
+			if (!self.kernel.decodeHuffman2.setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
+			if (!self.kernel.decodeHuffman2.setArg_indexes      (self.buffer.indexes      )) { return false; }
+			if (!self.kernel.decodeHuffman2.setArg_coefficients (self.buffer.coefficients )) { return false; }
 			
-			if (!self.kernel.prepareMCUs.setArg(self.buffer.coefficients, Kernels ::  prepareMCUsArgs :: coefficients)) { return false; }
-			if (!self.kernel.prepareMCUs.setArg(self.buffer.lane_infos,   Kernels ::  prepareMCUsArgs :: lane_infos  )) { return false; }
-			if (!self.kernel.prefixSum1 .setArg(self.buffer.coefficients, Kernels ::  prefixSum1Args  :: coefficients)) { return false; }
-			if (!self.kernel.prefixSum1 .setArg(self.buffer.lane_infos  , Kernels ::  prefixSum1Args  :: lane_infos  )) { return false; }
-			if (!self.kernel.prefixSum2 .setArg(self.buffer.coefficients, Kernels ::  prefixSum2Args  :: coefficients)) { return false; }
-			if (!self.kernel.prefixSum2 .setArg(self.buffer.lane_infos  , Kernels ::  prefixSum2Args  :: lane_infos  )) { return false; }
+			if (!self.kernel.prepareMCUs.setArg_coefficients (self.buffer.coefficients )) { return false; }
+			if (!self.kernel.prepareMCUs.setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
+			if (!self.kernel.prefixSum1 .setArg_coefficients (self.buffer.coefficients )) { return false; }
+			if (!self.kernel.prefixSum1 .setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
+			if (!self.kernel.prefixSum2 .setArg_coefficients (self.buffer.coefficients )) { return false; }
+			if (!self.kernel.prefixSum2 .setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
 			
 			self.initialized = true;
 			return true;

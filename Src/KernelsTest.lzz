@@ -55,12 +55,16 @@
 
 namespace BJpeg {
 	namespace {
-		std::vector<i16> inflateTo64Coefficients(std::vector<i16> dc_coefficients) {
-			std::vector<i16> result; result.reserve(64 * dc_coefficients.size());
+		Kernels kernels_var;
+		
+		std :: vector<i16[64]> inflateTo64Coefficients(std :: vector<i16> dc_coefficients) {
+			std :: vector<i16[64]> result; result.reserve(64 * dc_coefficients.size());
+			int index = 0;
 			for (auto x : dc_coefficients) {
-				result.push_back(x);
+				result[index][0] = x;
 				for (int i = 1; i < 64; ++i) {
-					result.push_back(i); //	or any random value (but consistent between calls (we want that coefficients and expected have same ACs (in prefixSum test)))
+					result[index][i] = i;
+					//	or any random value (but consistent between calls (we want that coefficients and expected have same ACs (in prefixSum test)))
 				}
 			}
 			return result;
@@ -81,26 +85,29 @@ namespace BJpeg {
 		};
 		
 		struct BufferSetter {
-			MyOpenCL :: Kernel kernel;
+			MyOpenCL :: Kernel<1> kernel;
 			bool init(MyOpenCL :: Program program) { return self.kernel.init(program, "initializeBufferU32"); }
 			void finish() { self.kernel.finish(); }
 			bool operator ()(MyOpenCL :: Queue queue, MyOpenCL :: Buffer<uint32_t> buffer, uint32_t value) {
 				self.kernel.resetArgs();
-				if (!self.kernel.setArg(buffer.buffer)) { return false; }
+				if (!self.kernel.setArg(buffer)) { return false; }
 				if (!self.kernel.setArg(value)) { return false; }
-				if (!self.kernel(queue, 1, &buffer.length)) { return false; }
+				
+				size_t work[1] = { buffer.length };
+				if (!self.kernel (queue, work)) { return false; }
+				//	if (!self.kernel (queue, &buffer.length)) { return false; } // because we can't have nice things
 				return true;
 			}
 		};
 		struct Test_decodeHuffman1 : KernelsTest {
 			char const* getDescription() { return "Test decodeHuffman1"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource<MyOpenCL :: Kernel> kernel(program, "decodeHuffman1");
+				Resource kernel(kernels_var.decodeHuffman1, program);
 				if (!kernel) { return false; }
 				
 				constexpr uint32_t const B2 = 14;
 				constexpr uint32_t const lane_width = 128;
-				constexpr uint8_t const lane_count = 3;
+				constexpr uint8_t const lanes_count = 3;
 				constexpr uint8_t const depth = 5;
 				constexpr uint8_t  const prev_size_pow = 0;
 				uint32_t const x = ~(uint32_t)0;
@@ -116,9 +123,9 @@ namespace BJpeg {
 					},
 				};
 				uint8_t payload_arr[] = {237, 195, 199, 49, 126, 100, 208, 114, 185, 102, 90, 179, 218, 255, 255, 255};
-				LaneInfo lane_infos_arr[lane_count] = {{0, 0, 0, 16, 16}, {1, 0, 0, 16, 16}, {2, 1, 1, 16, 16}, };
+				LaneInfo lane_infos_arr[lanes_count] = {{0, 0, 0, 16, 16}, {1, 0, 0, 16, 16}, {2, 1, 1, 16, 16}, };
 
-				uint32_t initial[depth][lane_count][lane_width] = {
+				uint32_t initial[depth][lanes_count][lane_width] = {
 					{
 						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
@@ -145,35 +152,35 @@ namespace BJpeg {
 						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 					},
 				};
-				uint32_t result  [depth][lane_count][lane_width] = {{{0}}};
+				uint32_t result  [depth][lanes_count][lane_width] = {{{0}}};
 				uint8_t lane_indexes_arr[2] = {0, 2};
 				
 				Resource<MyOpenCL :: Buffer<uint8_t>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
 				if (!payload) { return false; }
-				if (!payload.write(queue, &payload_arr[0])) { return false; }
-				Resource<MyOpenCL :: Buffer<HuffmanTree<CodingType :: DECODE>>> trees(context, CL_MEM_READ_ONLY, 2*4);
+				if (!payload.write(queue, payload_arr)) { return false; }
+				Resource<MyOpenCL :: Buffer<HuffmanTree<CodingType :: DECODE>[4]>> trees(context, CL_MEM_READ_ONLY, 2);
 				if (!trees) { return false; }
-				if (!trees.write(queue, &trees_arr[0][0])) { return false; }
-				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_ONLY, lane_count);
+				if (!trees.write(queue, trees_arr)) { return false; }
+				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_ONLY, lanes_count);
 				if (!lane_infos) { return false; }
-				if (!lane_infos.write(queue, &lane_infos_arr[0])) { return false; }
-				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lane_count * lane_width);
+				if (!lane_infos.write(queue, lane_infos_arr)) { return false; }
+				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
 				if (!lanes) { return false; }
 				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
 				Resource<MyOpenCL :: Buffer<uint8_t>> lane_indexes(context, CL_MEM_READ_ONLY, 2);
 				if (!lane_indexes) { return false; }
 				if (!lane_indexes.write(queue, &lane_indexes_arr[0])) { return false; }
 				
-				if (!kernel.setArg(payload)) { return false; }
-				if (!kernel.setArg(B2)) { return false; }
-				if (!kernel.setArg(trees)) { return false; }
-				if (!kernel.setArg(lane_infos)) { return false; }
-				if (!kernel.setArg(lanes)) { return false; }
-				if (!kernel.setArg(lane_width)) { return false; }
-				if (!kernel.setArg(lane_indexes)) { return false; }
+				if (!kernel.setArg_payload     (payload     )) { return false; }
+				if (!kernel.setArg_B2          (B2          )) { return false; }
+				if (!kernel.setArg_trees       (trees       )) { return false; }
+				if (!kernel.setArg_lane_infos  (lane_infos  )) { return false; }
+				if (!kernel.setArg_lanes       (lanes       )) { return false; }
+				if (!kernel.setArg_lane_width  (lane_width  )) { return false; }
+				if (!kernel.setArg_lane_indexes(lane_indexes)) { return false; }
 				
 				size_t global_work[2] = { 2, 8*B2 };
-				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!kernel(queue, global_work)) { return false; }
 				
 				if (!lanes.read(queue, &result[0][0][0])) { return false; }
 				if (result[0][0][0] != 54) {
@@ -195,15 +202,15 @@ namespace BJpeg {
 		struct Test_decodeRaise : KernelsTest {
 			char const* getDescription() { return "Test decodeRaise"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource<MyOpenCL :: Kernel> kernel(program, "decodeRaise");
+				Resource kernel(kernels_var.decodeRaise, program);
 				if (!kernel) { return false; }
 				
 				constexpr uint32_t const lane_width = 64;
-				constexpr uint8_t const lane_count = 4;
+				constexpr uint8_t const lanes_count = 4;
 				constexpr uint8_t const depth = 5;
 				constexpr uint8_t  const prev_size_pow = 0;
 				uint32_t const x = ~(uint32_t)0;
-				uint32_t initial[depth][lane_count][lane_width] = {
+				uint32_t initial[depth][lanes_count][lane_width] = {
 					{
 						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
@@ -235,8 +242,8 @@ namespace BJpeg {
 						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 					},
 				};
-				uint32_t result  [depth][lane_count][lane_width] = {{{0}}};
-				uint32_t expected[depth][lane_count][lane_width] = {
+				uint32_t result  [depth][lanes_count][lane_width] = {{{0}}};
+				uint32_t expected[depth][lanes_count][lane_width] = {
 					{
 						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
@@ -269,21 +276,21 @@ namespace BJpeg {
 					},
 				};
 				
-				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lane_count * lane_width);
+				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
 				if (!lanes) { return false; }
 				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
 				
-				if (!kernel.setArg(lanes.buffer)) { return false; }
-				if (!kernel.setArg(lane_width)) { return false; }
-				if (!kernel.setArg(lane_count)) { return false; }
-				if (!kernel.setArg(prev_size_pow, 3)) { return false; }
+				if (!kernel.setArg_lanes(lanes)) { return false; }
+				if (!kernel.setArg_lane_width(lane_width)) { return false; }
+				if (!kernel.setArg_lanes_count(lanes_count)) { return false; }
+				if (!kernel.setArg_prev_size_pow(prev_size_pow)) { return false; }
 				
 				size_t global_work[2] = { 2, lane_width };
-				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!kernel(queue, global_work)) { return false; }
 				
 				if (!lanes.read(queue, &result[0][0][0])) { return false; }
 				for (uint32_t d = 0; d < depth; ++d) {
-					for (uint32_t l = 0; l < lane_count; ++l) {
+					for (uint32_t l = 0; l < lanes_count; ++l) {
 						for (uint32_t i = 0; i < lane_width; ++i) {
 							if (result[d][l][i] != expected[d][l][i]) {
 								Test :: getError() << "[" << d << "][" << l << "][" << i << "]: e=" << expected[d][l][i] << " v=" << result[d][l][i] << std :: endl;
@@ -299,16 +306,16 @@ namespace BJpeg {
 		struct Test_decodeLower : KernelsTest {
 			char const* getDescription() { return "Test decodeLower"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource<MyOpenCL :: Kernel> kernel(program, "decodeLower");
+				Resource kernel(kernels_var.decodeLower, program);
 				if (!kernel) { return false; }
 				Resource<BufferSetter> set_buf(program);
 				if (!set_buf) { return false; }
 				
 				constexpr uint32_t const lane_width = 64;
-				constexpr uint8_t const lane_count = 4;
+				constexpr uint8_t const lanes_count = 4;
 				constexpr uint8_t const depth = 5;
 				uint32_t const x = ~(uint32_t)0;
-				uint32_t initial[depth][lane_count][lane_width] = {
+				uint32_t initial[depth][lanes_count][lane_width] = {
 					{
 						{ 3, 2, 1, 4, 3, 2, 1, x, 4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 2, 1, 3, 2, 1, x, 4, 3, 2, 1, 1, 4, 3, 2, 1, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
 						{ 3, 2, 1, 4, 3, 2, 1, x, 4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 2, 1, 3, 2, 1, x, 4, 3, 2, 1, 1, 4, 3, 2, 1, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
@@ -340,53 +347,53 @@ namespace BJpeg {
 						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
 					},
 				};
-				uint32_t result  [lane_count][lane_width + 8] = {{{0}}};
-				uint32_t expected[lane_count][lane_width] = {
+				uint32_t result  [lanes_count][lane_width + 8] = {{{0}}};
+				uint32_t expected[lanes_count][lane_width] = {
 					{0,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,4,x,x,x,x,x,x,x,x,x,x,x,x,8,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 					{x,x,x,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,5,x,x,x,x,x,x,x,x,x,x,9,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 					{x,x,x,x,x,x,x,2,x,x,x,x,x,x,x,x,x,x,x,x,x,6,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 					{x,x,x,x,x,x,x,x,x,x,x,x,3,x,x,x,x,x,x,x,x,x,x,x,7,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 				};
 				
-				Resource<MyOpenCL :: Buffer<uint32_t>> positions(context, CL_MEM_READ_WRITE, lane_count * (lane_width + 8));
+				Resource<MyOpenCL :: Buffer<uint32_t>> positions(context, CL_MEM_READ_WRITE, lanes_count * (lane_width + 8));
 				if (!positions) { return false; }
 				if (!set_buf(queue, positions, x)) { return false; }
 				uint32_t zero = 0;
 				if (!positions.write(queue, &zero, 1)) { return false; }
-				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lane_count * lane_width);
+				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
 				if (!lanes) { return false; }
 				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
 				
-				if (!kernel.setArg(positions)) { return false; }
-				if (!kernel.setArg(lanes)) { return false; }
-				if (!kernel.setArg(lane_width)) { return false; }
-				if (!kernel.setArg(lane_count)) { return false; }
+				if (!kernel.setArg_positions  (positions)) { return false; }
+				if (!kernel.setArg_lanes      (lanes)) { return false; }
+				if (!kernel.setArg_lane_width (lane_width)) { return false; }
+				if (!kernel.setArg_lanes_count(lanes_count)) { return false; }
 				
 				uint8_t size_pow;
-				size_t global_work[2] = { lane_count, lane_width };
+				size_t global_work[2] = { lanes_count, lane_width };
 
 				size_pow = 3;
 				global_work[0] = 1;
-				if (!kernel.setArg(size_pow, 4)) { return false; }
-				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!kernel.setArg_size_pow(size_pow)) { return false; }
+				if (!kernel(queue, global_work)) { return false; }
 				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 2;
 				global_work[0] = 1;
-				if (!kernel.setArg(size_pow, 4)) { return false; }
-				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!kernel.setArg_size_pow(size_pow)) { return false; }
+				if (!kernel(queue, global_work)) { return false; }
 				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 1;
 				global_work[0] = 1;
-				if (!kernel.setArg(size_pow, 4)) { return false; }
-				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!kernel.setArg_size_pow(size_pow)) { return false; }
+				if (!kernel(queue, global_work)) { return false; }
 				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 0;
 				global_work[0] = 2;
-				if (!kernel.setArg(size_pow, 4)) { return false; }
-				if (!kernel(queue, 2, global_work)) { return false; }
+				if (!kernel.setArg_size_pow(size_pow)) { return false; }
+				if (!kernel(queue, global_work)) { return false; }
 				
 				if (!positions.read(queue, &result[0][0])) { return false; }
-				for (uint32_t l = 0; l < lane_count; ++l) {
+				for (uint32_t l = 0; l < lanes_count; ++l) {
 					for (uint32_t i = 0; i < 34; ++i) { //	hardcoded
 						if (result[l][i] != expected[l][i]) {
 							Test :: getError() << "[" << l << "][" << i << "]: e=" << expected[l][i] << " v=" << result[l][i] << std :: endl;
@@ -401,17 +408,17 @@ namespace BJpeg {
 		struct Test_positionsToIndexes : KernelsTest {
 			char const* getDescription() { return "Test positionsToIndexes"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource<MyOpenCL :: Kernel> kernel(program, "positionsToIndexes");
+				Resource kernel(kernels_var.positionsToIndexes, program);
 				if (!kernel) { return false; }
 				Resource<BufferSetter> set_buf(program);
 				if (!set_buf) { return false; }
 				
 				constexpr uint32_t const lane_width = 64;
-				constexpr uint8_t const lane_count = 4;
+				constexpr uint8_t const lanes_count = 4;
 				constexpr uint8_t const depth = 5;
 				uint32_t const x = ~(uint32_t)0;
 				
-				uint32_t initial[lane_count][lane_width + 8] = {
+				uint32_t initial[lanes_count][lane_width + 8] = {
 					{0,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,4,x,x,x,x,x,x,x,x,x,x,x,x,8,x,x,x,x, x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
 					{x,x,x,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,5,x,x,x,x,x,x,x,x,x,x,9,x,x,x, x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
 					{x,x,x,x,x,x,x,2,x,x,x,x,x,x,x,x,x,x,x,x,x,6,x,x,x,x,x,x,x,x,x,x,x,x,10,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
@@ -420,19 +427,19 @@ namespace BJpeg {
 				cl_uint2 result  [11] = {0};
 				cl_uint2 expected[11] = {{{0,0}}, {{1,3}}, {{2,7}}, {{3,12}}, {{0,16}}, {{1,19}}, {{2,21}}, {{3,24}}, {{0,29}}, {{1,30}}, {{2,34}}};
 				
-				Resource<MyOpenCL :: Buffer<uint32_t>> positions(context, CL_MEM_READ_WRITE, lane_count * (lane_width + 8));
+				Resource<MyOpenCL :: Buffer<uint32_t>> positions(context, CL_MEM_READ_WRITE, lanes_count * (lane_width + 8));
 				if (!positions) { return false; }
 				if (!positions.write(queue, &initial[0][0])) { return false; }
 				Resource<MyOpenCL :: Buffer<cl_uint2>> indexes(context, CL_MEM_READ_WRITE, 16);
 				if (!indexes) { return false; }
 				if (!indexes.write(queue, result)) { return false; }
 				
-				if (!kernel.setArg(positions)) { return false; }
-				if (!kernel.setArg(indexes)) { return false; }
-				if (!kernel.setArg(lane_width)) { return false; }
+				if (!kernel.setArg_positions (positions )) { return false; }
+				if (!kernel.setArg_indexes   (indexes   )) { return false; }
+				if (!kernel.setArg_lane_width(lane_width)) { return false; }
 				
-				size_t global_work[2] = { lane_count, lane_width };
-				if (!kernel(queue, 2, global_work)) { return false; }
+				size_t global_work[2] = { lanes_count, lane_width };
+				if (!kernel(queue, global_work)) { return false; }
 				if (!indexes.read(queue, &result[0])) { return false; }
 				
 				for (int i = 0; i <= 10; ++i) {
@@ -448,12 +455,12 @@ namespace BJpeg {
 		struct Test_decodeHuffman2 : KernelsTest {
 			char const* getDescription() { return "Test decodeHuffman2"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource<MyOpenCL :: Kernel> kernel(program, "decodeHuffman2");
+				Resource kernel(kernels_var.decodeHuffman2, program);
 				if (!kernel) { return false; }
 				
 				constexpr uint32_t const B2 = 14;
 				constexpr uint32_t const lane_width = 128;
-				constexpr uint8_t const lane_count = 3;
+				constexpr uint8_t const lanes_count = 3;
 				constexpr uint8_t const unit_count = 2;
 				constexpr uint8_t const depth = 5;
 				uint32_t const x = ~(uint32_t)0;
@@ -469,7 +476,7 @@ namespace BJpeg {
 					},
 				};
 				uint8_t payload_arr[] = {237, 195, 199, 49, 126, 100, 208, 114, 185, 102, 90, 179, 218, 255, 255, 255};
-				LaneInfo lane_infos_arr[lane_count] = {{0, 0, 0, 16, 16}, {1, 0, 0, 16, 16}, {2, 1, 1, 16, 16}, };
+				LaneInfo lane_infos_arr[lanes_count] = {{0, 0, 0, 16, 16}, {1, 0, 0, 16, 16}, {2, 1, 1, 16, 16}, };
 				cl_uint2 indexes_arr[unit_count] = {
 					{0, 0},
 					{2, 54},
@@ -489,30 +496,30 @@ namespace BJpeg {
 				
 				Resource<MyOpenCL :: Buffer<uint8_t>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
 				if (!payload) { return false; }
-				if (!payload.write(queue, &payload_arr[0])) { return false; }
-				Resource<MyOpenCL :: Buffer<HuffmanTree<CodingType :: DECODE>>> trees(context, CL_MEM_READ_ONLY, 2*4);
+				if (!payload.write(queue, payload_arr)) { return false; }
+				Resource<MyOpenCL :: Buffer<HuffmanTree<CodingType :: DECODE>[4]>> trees(context, CL_MEM_READ_ONLY, 2);
 				if (!trees) { return false; }
-				if (!trees.write(queue, &trees_arr[0][0])) { return false; }
-				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_ONLY, lane_count);
+				if (!trees.write(queue, trees_arr)) { return false; }
+				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_ONLY, lanes_count);
 				if (!lane_infos) { return false; }
-				if (!lane_infos.write(queue, &lane_infos_arr[0])) { return false; }
+				if (!lane_infos.write(queue, lane_infos_arr)) { return false; }
 				Resource<MyOpenCL :: Buffer<cl_uint2>> indexes(context, CL_MEM_READ_ONLY, 2);
 				if (!indexes) { return false; }
-				if (!indexes.write(queue, &indexes_arr[0])) { return false; }
-				Resource<MyOpenCL :: Buffer<int16_t>> result(context, CL_MEM_READ_WRITE, 2 * 64);
+				if (!indexes.write(queue, indexes_arr)) { return false; }
+				Resource<MyOpenCL :: Buffer<i16[64]>> result(context, CL_MEM_READ_WRITE, 2);
 				if (!result) { return false; }
 				
-				if (!kernel.setArg(payload)) { return false; }
-				if (!kernel.setArg(trees)) { return false; }
-				if (!kernel.setArg(lane_infos)) { return false; }
-				if (!kernel.setArg(lane_width)) { return false; }
-				if (!kernel.setArg(indexes)) { return false; }
-				if (!kernel.setArg(result)) { return false; }
+				if (!kernel.setArg_payload     (payload   )) { return false; }
+				if (!kernel.setArg_trees       (trees     )) { return false; }
+				if (!kernel.setArg_lane_infos  (lane_infos)) { return false; }
+				if (!kernel.setArg_lane_width  (lane_width)) { return false; }
+				if (!kernel.setArg_indexes     (indexes   )) { return false; }
+				if (!kernel.setArg_coefficients(result    )) { return false; }
 				
 				size_t global_work[1] = { unit_count };
-				if (!kernel(queue, 1, global_work)) { return false; }
+				if (!kernel(queue, global_work)) { return false; }
 				
-				if (!result.read(queue, &result_arr[0][0])) { return false; }
+				if (!result.read(queue, result_arr)) { return false; }
 				for (int uint_id = 0; uint_id < unit_count; ++uint_id) {
 					for (int i = 0; i < 64; ++i) {
 						auto ex   = expected  [uint_id][i];
@@ -550,30 +557,30 @@ namespace BJpeg {
 		struct Test_prepareMCUs : KernelsTest {
 			char const* getDescription() { return "Test prepareMCUs"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource<MyOpenCL :: Kernel> kernel(program, "prepareMCUs"); if (!kernel) { return false; }
-				using Args = CLContext<DECODE> :: Kernels :: prepareMCUsArgs;
+				Resource kernel(kernels_var.prepareMCUs, program); if (!kernel) { return false; }
 				
 				//                                                               A  B  B  C
 				auto coefficients_arr = inflateTo64Coefficients(std::vector<i16>{25,23,31,23, 31,28,27,27, 10,31,25,25, 18,27,28,29, 29,30,33,33});
 				auto expected_arr     = inflateTo64Coefficients(std::vector<i16>{25,23,54,23, 31,28,55,27, 10,31,56,25, 18,27,55,29, 29,30,63,33});
 				auto lane_infos_arr = std::vector{LaneInfo{.start_in_mcu = 1, .amount_in_mcu = 2}};
 				
-				size_t work[2] = {1, coefficients_arr.size() / 64};
+				size_t work[2] = {1, coefficients_arr.size()};
 				u8 mcu_length = 4;
 				
-				Resource<MyOpenCL :: Buffer<i16>> coefficients(context, CL_MEM_READ_WRITE, coefficients_arr.size()); if (!coefficients) { return false; }
-				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_WRITE, lane_infos_arr.size()); if (!lane_infos) { return false; }
+				Resource<MyOpenCL :: Buffer<i16[64]>> coefficients(context, CL_MEM_READ_WRITE, coefficients_arr.size()); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<LaneInfo>>  lane_infos(context, CL_MEM_READ_WRITE,   lane_infos_arr.size()); if (!  lane_infos) { return false; }
 				
 				if (!coefficients.write(queue, &coefficients_arr[0])) { return false; }
 				if (!  lane_infos.write(queue, &  lane_infos_arr[0])) { return false; }
 				
-				if (!kernel.setArg(coefficients, Args :: coefficients)) { return false; }
-				if (!kernel.setArg(lane_infos  , Args :: lane_infos  )) { return false; }
-				if (!kernel.setArg(mcu_length  , Args :: mcu_length  )) { return false; }
-				if (!kernel(queue, 2, work)) { return false; }
+				if (!kernel.setArg_coefficients(coefficients)) { return false; }
+				if (!kernel.setArg_lane_infos  (lane_infos  )) { return false; }
+				if (!kernel.setArg_mcu_length  (mcu_length  )) { return false; }
+				if (!kernel(queue, work)) { return false; }
 				
 				if (!coefficients.read(queue, &coefficients_arr[0])) { return false; }
 				for (int i = 0; i < coefficients_arr.size(); ++i) {
+					//	TODO for 64
 					if (coefficients_arr[i] != expected_arr[i]) {
 						Test :: getError() << "Error at " << i << ": Expected " << expected_arr[i] << " Got " << coefficients_arr[i];
 						return false;
@@ -583,14 +590,18 @@ namespace BJpeg {
 				return true;
 			}
 		};
+		template <int X> using PrefixSumKernel = void;
+		template <> using PrefixSumKernel<1> = void;
+		template <> using PrefixSumKernel<2> = void;
+		typedef <int Prefix
 		struct PrefixSumTest : KernelsTest {
 			char const* kernel_name;
 			char const* name;
 			u8 mcu_length;
 			u32 half_size;
 			std :: vector<LaneInfo> lane_infos;
-			std :: vector<i16> coefficients;
-			std :: vector<i16> expected;
+			std :: vector<i16[64]> coefficients;
+			std :: vector<i16[64]> expected;
 			PrefixSumTest(
 				char const* kernel_name,
 				char const* name,
@@ -611,7 +622,8 @@ namespace BJpeg {
 			
 			char const* getDescription() { return self.name; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource<MyOpenCL :: Kernel> kernel(program, self.kernel_name); if (!kernel) { return false; }
+				//	TODO
+				Resource kernel(kernels_var.elf, program); if (!kernel) { return false; }
 				
 				using Args = CLContext<DECODE> :: Kernels :: prefixSum1Args;
 				
@@ -648,22 +660,22 @@ namespace BJpeg {
 		struct Test_initializeBufferU32 : KernelsTest {
 			char const* getDescription() { return "Test initializeBufferU32"; }
 			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource<MyOpenCL :: Kernel> kernel(program, "initializeBufferU32"); if (!kernel) { return false; }
+				Resource kernel(kernels_var.initializeBufferU32, program); if (!kernel) { return false; }
 				
-				size_t amount = 1024;
+				size_t amount[1] = {1024};
 				uint32_t value1 = 42;
 				
-				Resource<MyOpenCL :: Buffer<uint32_t>> device_buffer(context, CL_MEM_READ_WRITE, amount); if (!device_buffer) { return false; }
+				Resource<MyOpenCL :: Buffer<uint32_t>> device_buffer(context, CL_MEM_READ_WRITE, amount[0]); if (!device_buffer) { return false; }
 				
 				if (!kernel.setArg(device_buffer.buffer)) { return false; }
 				if (!kernel.setArg(value1, 1)) { return false; }
-				if (!kernel(queue, 1, &amount)) { return false; }
+				if (!kernel(queue, amount)) { return false; }
 				
 				uint32_t value2 = 33;
 				if (!kernel.setArg(value2, 1)) { return false; }
-				size_t offset2 = 1;
-				size_t amount2 = 2;
-				if (!kernel(queue, 1, &amount2, &offset2)) { return false; }
+				size_t offset2[1] = {1};
+				size_t amount2[1] = {2};
+				if (!kernel(queue, amount2, offset2)) { return false; }
 				
 				uint32_t my_buffer[10];
 				

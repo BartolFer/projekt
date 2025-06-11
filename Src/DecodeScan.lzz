@@ -94,12 +94,6 @@ namespace BJpeg {
 			// decode
 			u8* payload = context.payload;
 			CLContext<DECODE> cl = context.cl;
-			using      decodeHuffman1Args = CLContext<DECODE> :: Kernels ::      decodeHuffman1Args;
-			using         decodeRaiseArgs = CLContext<DECODE> :: Kernels ::         decodeRaiseArgs;
-			using         decodeLowerArgs = CLContext<DECODE> :: Kernels ::         decodeLowerArgs;
-			using  positionsToIndexesArgs = CLContext<DECODE> :: Kernels ::  positionsToIndexesArgs;
-			using      decodeHuffman2Args = CLContext<DECODE> :: Kernels ::      decodeHuffman2Args;
-			using initializeBufferU32Args = CLContext<DECODE> :: Kernels :: initializeBufferU32Args;
 			
 			// load payload
 			u32 payload_length = 0;
@@ -128,17 +122,17 @@ namespace BJpeg {
 
 			// init buffers 
 			if (!cl.buffer.payload.write(cl.queue, payload, payload_length)) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.initializeBufferU32.setArg((u32)~0         , initializeBufferU32Args :: value )) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.initializeBufferU32.setArg(cl.buffer.lanes, initializeBufferU32Args :: buffer)) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.initializeBufferU32(cl.queue, 1, &cl.buffer.lanes.length)) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.initializeBufferU32.setArg(cl.buffer.positions, initializeBufferU32Args :: buffer)) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.initializeBufferU32(cl.queue, 1, &cl.buffer.positions.length)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32.setArg_value(~(u32)0)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32.setArg_buffer(cl.buffer.lanes)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32(cl.queue, &cl.buffer.lanes.length)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32.setArg(cl.buffer.positions)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32(cl.queue, &cl.buffer.positions.length)) { return DECODE_RESULT_ERR; }
 			
 			// start kernels
 			size_t decodeHuffman1_dim[2] = { Ns, job_size };
-			if (!cl.kernel.decodeHuffman1.setArg(payload_length, decodeHuffman1Args :: B2        )) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.decodeHuffman1.setArg(job_size      , decodeHuffman1Args :: lane_width)) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.decodeHuffman1(cl.queue, 2, decodeHuffman1_dim)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeHuffman1.setArg_B2(payload_length  )) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeHuffman1.setArg_lane_width(job_size)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeHuffman1(cl.queue, decodeHuffman1_dim)) { return DECODE_RESULT_ERR; }
 			
 			// copy from done lanes to lanes with same component
 			for (uint8_t i = 0; i < Ns; ++i) {
@@ -157,8 +151,8 @@ namespace BJpeg {
 				}
 			}
 			
-			if (!cl.kernel.decodeRaise.setArg(job_size   , decodeRaiseArgs :: lane_width )) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.decodeRaise.setArg(lanes_count, decodeRaiseArgs :: lanes_count)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeRaise.setArg_lane_width (job_size   )) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeRaise.setArg_lanes_count(lanes_count)) { return DECODE_RESULT_ERR; }
 			u8 depth = 1;
 			u32 every_nth = 1;
 			std :: cout << (u32)depth << " " << (u32)lanes_count << " " << (u32)job_size << std :: endl;
@@ -166,8 +160,8 @@ namespace BJpeg {
 				if (lanes_count % (every_nth * 2) == 0) { every_nth *= 2; }
 				size_t decodeRaise_dim[2] = {lanes_count / every_nth, job_size };
 				u8 prev_depth = depth - 1;
-				if (!cl.kernel.decodeRaise.setArg(prev_depth, decodeRaiseArgs :: prev_size_pow)) { return DECODE_RESULT_ERR; }
-				if (!cl.kernel.decodeRaise(cl.queue, 2, decodeRaise_dim)) { return DECODE_RESULT_ERR; }
+				if (!cl.kernel.decodeRaise.setArg_prev_size_pow(prev_depth)) { return DECODE_RESULT_ERR; }
+				if (!cl.kernel.decodeRaise(cl.queue, decodeRaise_dim)) { return DECODE_RESULT_ERR; }
 				
 				
 				u32 n;
@@ -182,22 +176,22 @@ namespace BJpeg {
 			cl.buffer.positions.write(cl.queue, &zero, 1);
 			//	return DECODE_RESULT_ERR;
 			
-			if (!cl.kernel.decodeLower.setArg(job_size   , decodeLowerArgs :: lane_width )) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.decodeLower.setArg(lanes_count, decodeLowerArgs :: lanes_count)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeLower.setArg_lane_width (job_size   )) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeLower.setArg_lanes_count(lanes_count)) { return DECODE_RESULT_ERR; }
 			for (; depth-- > 0;) {
 				if (lanes_count % (4 << depth) == 0) { every_nth /= 2; }
 				size_t decodeLower_dim[2] = {lanes_count / every_nth, job_size };
-				if (!cl.kernel.decodeLower.setArg(depth, decodeLowerArgs :: size_pow)) { return DECODE_RESULT_ERR; }
-				if (!cl.kernel.decodeLower(cl.queue, 2, decodeLower_dim)) { return DECODE_RESULT_ERR; }
+				if (!cl.kernel.decodeLower.setArg_size_pow(depth)) { return DECODE_RESULT_ERR; }
+				if (!cl.kernel.decodeLower(cl.queue, decodeLower_dim)) { return DECODE_RESULT_ERR; }
 			}
 			//	return DECODE_RESULT_ERR;
 			
 			size_t positionsToIndexes_dim[2] = {lanes_count, job_size};
-			if (!cl.kernel.positionsToIndexes.setArg(job_size, positionsToIndexesArgs :: lane_width)) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.positionsToIndexes(cl.queue, 2, positionsToIndexes_dim)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.positionsToIndexes.setArg_lane_width(job_size)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.positionsToIndexes(cl.queue, positionsToIndexes_dim)) { return DECODE_RESULT_ERR; }
 			
-			if (!cl.kernel.decodeHuffman2.setArg(job_size, decodeHuffman2Args :: lane_width)) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.decodeHuffman2(cl.queue, 1, &cl.img_size)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeHuffman2.setArg_lane_width(job_size)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.decodeHuffman2(cl.queue, &cl.img_size)) { return DECODE_RESULT_ERR; }
 			
 			if (!prefixSumCoefficients(cl.img_size / lanes_count, lanes_count, multilane_count, cl)) { return DECODE_RESULT_ERR; }
 			
@@ -207,28 +201,25 @@ namespace BJpeg {
 		
 		namespace {
 			bool prefixSumCoefficients(size_t mcu_count, u8 mcu_length, u8 multilane_count, CLContext<DECODE> cl) {
-				using prepareMCUsArgs = CLContext<DECODE> :: Kernels :: prepareMCUsArgs;
-				using  prefixSum1Args = CLContext<DECODE> :: Kernels ::  prefixSum1Args;
-				using  prefixSum2Args = CLContext<DECODE> :: Kernels ::  prefixSum2Args;
-				if (!cl.kernel.prepareMCUs.setArg(mcu_length, prepareMCUsArgs :: mcu_length)) { return false; }
-				if (!cl.kernel.prefixSum1.setArg(mcu_length, prefixSum1Args :: mcu_length)) { return false; }
-				if (!cl.kernel.prefixSum2.setArg(mcu_length, prefixSum2Args :: mcu_length)) { return false; }
+				if (!cl.kernel.prepareMCUs.setArg_mcu_length(mcu_length)) { return false; }
+				if (!cl.kernel.prefixSum1 .setArg_mcu_length(mcu_length)) { return false; }
+				if (!cl.kernel.prefixSum2 .setArg_mcu_length(mcu_length)) { return false; }
 				
 				if (multilane_count) {
 					size_t work[2] = {multilane_count, mcu_count};
-					if (!cl.kernel.prepareMCUs(cl.queue, 2, work)) { return false; }
+					if (!cl.kernel.prepareMCUs(cl.queue, work)) { return false; }
 				}
 				size_t work[1];
 				u32 half_size;
 				for (half_size = 1; 2 * half_size <= mcu_count; half_size *= 2) {
 					work[0] = mcu_count / (2 * half_size);
-					if (!cl.kernel.prefixSum1.setArg(half_size, prefixSum1Args :: half_size)) { return false; }
-					if (!cl.kernel.prefixSum1(cl.queue, 1, work)) { return false; }
+					if (!cl.kernel.prefixSum1.setArg_half_size(half_size)) { return false; }
+					if (!cl.kernel.prefixSum1(cl.queue, work)) { return false; }
 				}
 				for (half_size /= 4; half_size > 0; half_size /= 2) {
 					work[0] = (mcu_count - half_size) / (2 * half_size);
-					if (!cl.kernel.prefixSum2.setArg(half_size, prefixSum2Args :: half_size)) { return false; }
-					if (!cl.kernel.prefixSum2(cl.queue, 1, work)) { return false; }
+					if (!cl.kernel.prefixSum2.setArg_half_size(half_size)) { return false; }
+					if (!cl.kernel.prefixSum2(cl.queue, work)) { return false; }
 				}
 				
 				

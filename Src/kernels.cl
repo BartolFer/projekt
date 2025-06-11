@@ -1,4 +1,5 @@
 typedef uchar  u8;
+typedef uchar2 u8x2;
 typedef ushort u16;
 typedef uint   u32;
 typedef ulong  u64;
@@ -8,6 +9,11 @@ typedef short i16;
 typedef int   i32;
 typedef long  i64;
 typedef int2  i32x2;
+typedef union {float f; i32 i;} FI;
+typedef struct { u8 r, g, b, a; } RGBA;
+typedef struct { u8 arr[4]; } RGBA_ARR;
+
+#define x2(type, y, x, ...) ((type ## x2) ((x), (y)))
 
 typedef struct {
 	u16 left;
@@ -40,11 +46,11 @@ typedef struct {
 	u8 c_id;
 	u8 dc_huf;
 	u8 ac_huf;
-	u8 y;
-	u8 x;
+	u8 q_id;
+	u8 sf_y;
+	u8 sf_x;
 	u8 start_in_mcu;
 	u8 amount_in_mcu;
-	u8 _8;
 } LaneInfo;
 
 #define MAX_COMPONENTS 4
@@ -67,6 +73,10 @@ typedef struct {
 	| ((u32) payload[B + 2] << 000)            \
 )
 
+__constant u8 const from_zigzag[64] = { 0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63, };
+
+#define TAU (2 * M_PI_F)
+
 // started as [Ns][bb2 - b1]
 kernel void decodeHuffman1(
 	__global u8 payload[], 
@@ -75,7 +85,7 @@ kernel void decodeHuffman1(
 	__constant LaneInfo lane_infos[], 
 	__global u32 lanes[], 
 	u32 lane_width, 
-	__constant u8 lane_indexes[]
+	__constant u8 lane_indexes[] // do I need this? (couldn't get_global_id(0) be lane_id?)
 ) {
 	u8  C = get_global_id(0);
 	u32 i = get_global_id(1);
@@ -208,7 +218,7 @@ kernel void decodeHuffman2(
 	__constant LaneInfo lane_infos[], 
 	u32 lane_width, 
 	__global u32x2 indexes[], 
-	__global i16 coefficients[][64]
+	__global i32 coefficients[][64]
 ) {
 	u32 pos = get_global_id(0);
 	u32x2 id = indexes[pos];
@@ -222,7 +232,7 @@ kernel void decodeHuffman2(
 	__constant HuffmanTreeNode* huf_ac = trees[1][dc_huf];
 	// TODO coefficients_index
 	u32 coefficients_index = pos; // TODO + offset in image
-	__global i16* res = coefficients[coefficients_index];
+	__global i32* res = coefficients[coefficients_index];
 	
 	for (int i = 0; i < 64; ++i) {
 		res[i] = 0;
@@ -251,7 +261,7 @@ kernel void decodeHuffman2(
 			// ______ ________                    
 			//                     ______ ________
 			// b + SSSS + ? = 24
-			i16 data = READ_3B << (b + 8) >> (32 - SSSS);
+			i32 data = READ_3B << (b + 8) >> (32 - SSSS);
 			if ((data & (1U << (SSSS - 1))) == 0) {
 				// negative
 				data = data - (1 << SSSS) + 1;
@@ -288,7 +298,7 @@ kernel void decodeHuffman2(
 					// ______ ________                    
 					//                     ______ ________
 					// b + SSSS + ? = 24
-					i16 data = READ_3B << (b + 8) >> (32 - SSSS);
+					i32 data = READ_3B << (b + 8) >> (32 - SSSS);
 					if ((data & (1U << (SSSS - 1))) == 0) {
 						// negative
 						data = data - (1 << SSSS) + 1;
@@ -304,8 +314,8 @@ kernel void decodeHuffman2(
 }
 
 kernel void prepareMCUs(
-	__global i16 coefficients[][64], 
-	__global LaneInfo lane_infos[], 
+	__global i32 coefficients[][64], 
+	__constant LaneInfo lane_infos[], 
 	u8 mcu_length
 ) {
 	//	maybe use remaining 3 fields to store start + amount 
@@ -313,7 +323,7 @@ kernel void prepareMCUs(
 	u8 lane_id = get_global_id(0);
 	u32 i = get_global_id(1);
 	LaneInfo lane_info = lane_infos[lane_id];
-	i16 accumulator = 0;
+	i32 accumulator = 0;
 	u32 mcu_base = i * mcu_length + lane_info.start_in_mcu;
 	for (u8 j = 0; j < lane_info.amount_in_mcu; ++j) {
 		accumulator += coefficients[mcu_base + j][0];
@@ -322,8 +332,8 @@ kernel void prepareMCUs(
 }
 
 inline void addMCUsToRight(
-	__global i16 coefficients[][64],
-	__global LaneInfo lane_infos[], 
+	__global i32 coefficients[][64],
+	__constant LaneInfo lane_infos[], 
 	u32 a_index,
 	u32 b_index,
 	u8 mcu_length
@@ -332,7 +342,7 @@ inline void addMCUsToRight(
 	
 	//	or not
 	u16 last_component_id = ~0;
-	i16 a = 0x363f;
+	i32 a = 0x363f;
 	for (int i = mcu_length - 1; i >= 0; --i) {
 		LaneInfo lane_info = lane_infos[i];
 		if ((u16)lane_info.c_id != last_component_id) {
@@ -343,8 +353,8 @@ inline void addMCUsToRight(
 	}
 }
 kernel void prefixSum1(
-	__global i16 coefficients[][64],
-	__global LaneInfo lane_infos[], 
+	__global i32 coefficients[][64],
+	__constant LaneInfo lane_infos[], 
 	u32 half_size/* _pow? */,
 	u8 mcu_length
 ) {
@@ -354,8 +364,8 @@ kernel void prefixSum1(
 	addMCUsToRight(coefficients, lane_infos, a_index, b_index, mcu_length);
 }
 kernel void prefixSum2(
-	__global i16 coefficients[][64],
-	__global LaneInfo lane_infos[], 
+	__global i32 coefficients[][64],
+	__constant LaneInfo lane_infos[], 
 	u32 half_size/* _pow? */,
 	u8 mcu_length
 ) {
@@ -365,6 +375,112 @@ kernel void prefixSum2(
 	addMCUsToRight(coefficients, lane_infos, a_index, b_index, mcu_length);
 }
 
+kernel void unzigzag_quantization_dct/* 1 */(
+	__global FI coefficients[][8][8],
+	__constant u16 quantization_table[4][8][8],
+	__constant LaneInfo lane_infos[], 
+	u8 mcu_length
+) {
+	u32 index = get_global_id(0);
+	u8 const lane_id = index % mcu_length;
+	u8 const q_id = lane_infos[lane_id].q_id;
+	__private FI unzigzaged[8][8]; // wierdly, this might be able to be __local
+	
+	for (int i = 0; i < 64; ++i) {
+		unzigzaged[0][from_zigzag[i]].i = coefficients[index][0][i].i;
+	}
+	
+	for (int i = 0; i < 8; ++i) {
+		for (int j = 0; j < 8; ++j) {
+			unzigzaged[i][j].f = (float) unzigzaged[i][j].i * quantization_table[q_id][i][j];
+		}
+	}
+	
+	for (int y = 0; y < 8; ++y) {
+		for (int x = 0; x < 8; ++x) {
+			float sum = 0;
+			for (int u = 0; u < 8; ++u) {
+				float cu = u == 0 ? 1/sqrt(2.0f) : 1;
+				for (int v = 0; v < 8; ++v) {
+					float cv = v == 0 ? 1/sqrt(2.0f) : 1;
+					sum += cu * cv * unzigzaged[u][v].f * cos((2*x+1) * u * TAU / 32) * cos((2*y+1) * v * TAU / 32);
+				}
+			}
+			coefficients[index][y][x].f = sum / 4;
+		}
+	}
+}
+
+kernel void uninterleave_upsample/* 2 */(
+	__global float      coefficients[][64], 
+	__global RGBA_ARR   image[],
+	__constant LaneInfo lane_infos[], 
+	u8x2                max_sf,
+	u32x2               image_size,
+	u8                  mcu_length,
+	u8                  mcu_per_line,
+	u8                  component_count
+) {
+	//	this kernel is just copying stuff from one place to another (multiple anothers)
+	//	SF(h, w)
+	//	(y, x) -> downsample -> (YY, yy, XX, xx) -> 
+	
+	//	A A B C C D
+	//	A A B 
+	
+	//	A A B B C C D D
+	//	A A B B C C D D
+	
+	//	for component in mcu {
+	//		for (is, js) in range(max_sf) {
+	//			locate data unit based on (is, js) and sf
+	//			locate dst based (is, js) and global xy
+	//			for (yy, xx) in range(8)² {
+	//				get data [yy, xx] from data unit
+	//				copy to dst
+	//			}
+	//		}
+	//	}
+	
+	u32x2 mcu_yx = x2(u32, 
+		get_global_id(0),
+		get_global_id(1),
+	);
+	u32 mcu_index = mcu_yx.y * mcu_per_line + mcu_yx.x;
+	u32x2 base = x2(u32,
+		mcu_yx.y * max_sf.y * 8,
+		mcu_yx.x * max_sf.x * 8,
+	);
+	//	width = max_sf.x * mcu_per_line
+	//	y_global_base * max_sf.y
+	//	u32 mcu_per_line = image_size.x / 8 / max_sf.x;
+	//	we will copy [index] -> [mcu_yx.y * max_sf.y * 8 + ...][-||-] = [... * width + ...]
+	
+	//	MCU is responsible for area of height max_sf.y * 8 and width max_sf.x * 8
+	u8 lane_id = 0;
+	u32 data_unit_base = mcu_index * mcu_length + 0; //	TODO calculate data_unit_base
+	for (int component_index = 0; component_index < component_count; ++component_index) {
+		u8x2 component_sf = x2(u8, 
+			lane_infos[lane_id].sf_y,
+			lane_infos[lane_id].sf_x,
+		); //	TODO
+		for (int yy = 0; yy < max_sf.y * 8; ++yy) {
+			//	TODO calculate y and source (in mcu)
+			u32 y_of_data_unit_in_mcu = yy / 8 / (max_sf.y / component_sf.y);
+			for (int xx = 0; xx < max_sf.x * 8; ++xx) {
+				u8 c_id = lane_infos[lane_id].c_id; //	TODO
+				//	TODO calculate x and source (in mcu)
+				u32 x_of_data_unit_in_mcu = xx / 8 / (max_sf.x / component_sf.x);
+				u32 data_unit_index = y_of_data_unit_in_mcu * (max_sf.x / component_sf.x) + x_of_data_unit_in_mcu;
+				u32 src_index = data_unit_base + data_unit_index;
+				u32 dst_index = (base.y + yy) * image_size.x + (base.x + xx);
+				image[dst_index].arr[c_id] = coefficients[src_index][(yy % 8) * 8 + (xx % 8)]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
+			}
+		}
+		data_unit_base += component_sf.y * component_sf.x;
+		lane_id += component_sf.y * component_sf.x;
+	}
+}
 
 kernel void initializeBufferU32(__global u32 buffer[], u32 value) {
 	buffer[(u32)get_global_id(0)] = value;

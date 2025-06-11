@@ -104,4 +104,5 @@
 	"C_Cpp.default.includePath": [
 		"C:/Programs/Cuda/include"
 	],
+	"editor.guides.bracketPairs": true,
 }

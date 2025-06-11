@@ -4,6 +4,7 @@
 		#include <iostream>
 		#include <CL/cl.h>
 		#include <cstdint>
+		#include <type_traits>
 		#include "./Util.hpp"
 	#end
 	#src
@@ -13,6 +14,7 @@
 	#include <iostream>
 	#include <CL/cl.h>
 	#include <cstdint>
+	#include <type_traits>
 	#include "./Util.hpp"
 	#include "./MyOpenCL.hpp"
 #endif
@@ -84,10 +86,12 @@ namespace MyOpenCL {
 	
 	template <typename T> struct Buffer;
 	
+	template <size_t N>
 	struct Kernel {
 		cl_kernel kernel;
 		char const* name;
-		Kernel() : kernel(0), _next_index(0), name("null") {}
+		cl_uint _next_index;
+		_KernelBase() : kernel(0), _next_index(0), name("null") {}
 		
 		bool init(Program program, char const* name) {
 			cl_int err;
@@ -100,7 +104,6 @@ namespace MyOpenCL {
 			if (self.kernel) { clReleaseKernel(self.kernel); }
 		}
 		
-		cl_uint _next_index;
 		void resetArgs() {
 			self._next_index = 0;
 		}
@@ -121,18 +124,18 @@ namespace MyOpenCL {
 			return true;
 		}
 		
-		bool operator ()(Queue queue, size_t dimension, size_t* global_size) {
-			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, dimension, nullptr, global_size, nullptr, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, self.name << "Failed to enqueue kernel");
-			return true;
+		bool operator ()(Queue queue, size_t (&global_size)[N]) {
+			return self.callKernel(queue, global_size);
 		}
-		bool operator ()(Queue queue, size_t dimension, size_t* global_size, size_t* global_offset) {
-			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, dimension, global_offset, global_size, nullptr, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, self.name << "Failed to enqueue kernel");
-			return true;
+		bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N]) {
+			return self.callKernel(queue, global_size, global_offset);
 		}
-		bool operator ()(Queue queue, size_t dimension, size_t* global_size, size_t* global_offset, size_t* local_size) {
-			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, dimension, global_offset, global_size, local_size, 0, nullptr, nullptr);
+		bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N], size_t (&local_size)[N]) {
+			return self.callKernel(queue, global_size, global_offset, local_size);
+		}
+	private:
+		bool callKernel(Queue queue, size_t* global_size, size_t* global_offset = nullptr, size_t* local_size = nullptr) {
+			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, 1, global_offset, global_size, local_size, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, self.name << "Failed to enqueue kernel");
 			return true;
 		}
