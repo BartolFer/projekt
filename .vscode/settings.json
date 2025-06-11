@@ -5,6 +5,7 @@
 		"self=(*this)",
 		"record=struct __attribute__((packed))",
 		"TESTING",
+		"fun=",
 		"VSCODE_ONLY=",
 		//	"enum=enum struct",
 	],
@@ -81,25 +82,19 @@
 			{
 				"autoShowOutputPanel": "error",
 				"showElapsed": false,
-				"cmd": "python lzz.py lzz",
-				"match": "\\.lzz$",
+				"cmd": "make ide",
+				"match": "\\.zzc$",
 			},
 			{
 				"autoShowOutputPanel": "error",
 				"showElapsed": false,
-				"cmd": "python lzz.py lzz",
-				"match": "\\.hzz$",
-			},
-			{
-				"autoShowOutputPanel": "error",
-				"showElapsed": false,
-				"cmd": "python lzz.py lzz",
+				"cmd": "make ide",
 				"match": "\\.cl$",
 			},
 		]
 	},
 	"files.exclude": {
-		"Src/**/*.hpp": true
+		"Src/**/*.zzh": true
 	},
 	"C_Cpp.default.includePath": [
 		"C:/Programs/Cuda/include"

@@ -1,28 +1,16 @@
-#ifndef VSCODE_ONLY
-	#hdr
-		#pragma once
-		#include <cstdint>
-		#include "./Huffman.hpp"
-		#include "./Markers.hpp"
-		#include "./Util.hpp"
-		#include "./MyOpenCL.hpp"
-		#include "./Kernels.hpp"
-	#end
-	#src
-		#include "./kernels.cl.hpp"
-		#include <bit>
-	#end
-#else // if VSCODE
+#pragma region zzc hdr_decl
 	#include <cstdint>
-	#include "./Context.hpp"
-	#include "./Huffman.hpp"
-	#include "./Markers.hpp"
-	#include "./Util.hpp"
-	#include "./MyOpenCL.hpp"
-	#include "./Kernels.hpp"
-	#include "./kernels.cl.hpp"
+	#include "./Huffman.zzh"
+	#include "./Markers.zzh"
+	#include "./Util.zzh"
+	#include "./MyOpenCL.zzh"
+	#include "./Kernels.zzh"
+#pragma endregion zzc
+#pragma region zzc src_decl
 	#include <bit>
-#endif
+	#include "./kernels.cl.tmp.zzh"
+#pragma endregion zzc
+
 
 namespace BJpeg {
 	typedef uint16_t QuantizationTable[64];
@@ -39,10 +27,7 @@ namespace BJpeg {
 		uint8_t _padding;
 	};
 	
-	template <CodingType CODING_TYPE>
-	struct CLContext;
-	template <>
-	struct CLContext<CodingType :: DECODE> {
+	struct CLContextDecode {
 		MyOpenCL :: Context context            ;
 		MyOpenCL :: Queue   queue              ;
 		MyOpenCL :: Program program            ;
@@ -56,18 +41,15 @@ namespace BJpeg {
 			MyOpenCL :: Buffer<u32> positions;
 			MyOpenCL :: Buffer<u32x2> indexes;
 			MyOpenCL :: Buffer<i16[64]> coefficients;
-		};
-		Buffers buffer;
-		bool initialized;
+		} buffer;
+		bool initialized = false;
 		
 		size_t img_size;
 		size_t lane;
 		size_t row;
 		size_t lanes;
-
-		CLContext() : initialized(false) {}
 		
-		bool init(size_t file_size, size_t img_dimensions) {
+		fun bool init(size_t file_size, size_t img_dimensions) {
 			// TODO maybe return true to allow multiple initializations
 			if (initialized) { return false; }
 			size_t img_size = self.img_size  = MAX_COMPONENTS * img_dimensions;
@@ -130,7 +112,7 @@ namespace BJpeg {
 			self.initialized = true;
 			return true;
 		}
-		void finish() {
+		fun void finish() {
 			self.context.finish();
 			self.queue  .finish();
 			self.program.finish();
@@ -154,22 +136,20 @@ namespace BJpeg {
 		}
 	};
 
-	template <CodingType CODING_TYPE>
-	struct Context {};
-	template <> struct Context<DECODE> {
+	struct ContextDecode {
 		Marker :: SOFData sof_data;
 		uint16_t restart_interval;
 		u8 component_count;
 		uint8_t precision;
 		uint16_t X, Y;
 		ComponentData component_data[MAX_COMPONENTS];
-		CLContext<DECODE> cl;
+		CLContextDecode cl;
 		HuffmanTree<DECODE> huffman_tree[2][4];
 		QuantizationTable quantization_table[4];
 		u8* payload;
 		
 		
-		bool init() {
+		fun bool init() {
 			self.restart_interval = 0;
 			self.precision = 8;
 			if (!(self.payload = new u8[RECOMMENDED_SPACE])) {
@@ -178,29 +158,28 @@ namespace BJpeg {
 			
 			return true;
 		}
-		void finish() {
+		fun void finish() {
 			delete[] self.payload;
 			self.cl.finish();
 		}
 		
-		bool updatePayload(u8 payload[], size_t length) {
+		fun bool updatePayload(u8 payload[], size_t length) {
 			if (!self.cl.buffer.payload.write(self.cl.queue, payload, length)) { return false; }
 			return true;
 		}
-		bool updateHuffmanCL() {
+		fun bool updateHuffmanCL() {
 			if (!self.cl.buffer.trees.write(self.cl.queue, self.huffman_tree)) { return false; }
 			return true;
 		}
-		bool updateLaneInfos(LaneInfo lane_infos[MAX_LANE_COUNT]) {
+		fun bool updateLaneInfos(LaneInfo lane_infos[MAX_LANE_COUNT]) {
 			if (!self.cl.buffer.lane_infos.write(self.cl.queue, lane_infos)) { return false; }
 			return true;
 		}
-		bool updateLaneIndexes(u8 lane_indexes[MAX_COMPONENTS]) {
+		fun bool updateLaneIndexes(u8 lane_indexes[MAX_COMPONENTS]) {
 			if (!self.cl.buffer.lane_indexes.write(self.cl.queue, lane_indexes)) { return false; }
 			return true;
 		}
 	};
 	
-	typedef Context<CodingType :: DECODE> DecodeContext;
-	typedef Context<CodingType :: ENCODE> EncodeContext;
+	typedef ContextDecode DecodeContext;
 }

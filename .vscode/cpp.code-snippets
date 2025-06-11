@@ -15,27 +15,13 @@
 	// 	],
 	// 	"description": "Log output to console"
 	// }
-	"VSCODE ONLY": {
+	"ZZC region": {
 		"scope": "c,cpp",
-		"prefix": "aimport",
+		"prefix": "zzcregion",
 		"body": [
-			"#ifndef VSCODE_ONLY",
-			"\t#hdr",
-			"\t\t#pragma once",
-			"\t\t#include <iostream>",
-			"\t\t#include \"./a.hpp\"",
-			"\t#end",
-			"\t#src",
-			"\t\t#include <cstdint>",
-			"\t\t#include \"./b.hpp\"",
-			"\t#end",
-			"#else // if VSCODE",
-			"\t#include <iostream>",
-			"\t#include <cstdint>",
-			"\t#include \"./$TM_FILENAME_BASE.hpp\"",
-			"\t#include \"./a.hpp\"",
-			"\t#include \"./b.hpp\"",
-			"#endif",
+			"#pragma region zzc $1",
+			"\t$0",
+			"#pragma endregion zzc",
 		]
 	},
 }

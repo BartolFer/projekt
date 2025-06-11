@@ -6,3 +6,6 @@ RgbDisplay/OpenGlDep/
 RgbDisplay/test.rgb
 RgbDisplay/V.cpp
 Src/**/*.hpp
+Src/**/*.zzh
+__pycache__
+*.tmp.*
