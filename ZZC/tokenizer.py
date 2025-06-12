@@ -118,7 +118,7 @@ def getNextToken(zzc: str, index: int) -> tuple[Token, int]:
 	if c == '/' and d == "/":
 		token = '//';
 		last_was_exc = False;
-		for i in range(index + 1, len(zzc)):
+		for i in range(index + 2, len(zzc)):
 			(c, d) = (zzc + " ")[i : i + 2];
 			if c == "\n" and not last_was_exc: break;
 			last_was_exc = c == "\\";

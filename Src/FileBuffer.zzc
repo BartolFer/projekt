@@ -1,28 +1,18 @@
-#ifndef VSCODE_ONLY
-	#hdr
-		#pragma once
-		#include <iostream>
-		#include <cstdint>
-		#include <string>
-		#include "./Util.hpp"
-	#end
-	#src
-		#include <filesystem>
-		#include "./Test.hpp"
-	#end
-#else
-	#include <string>
+#include "./Util.zzh"
+#pragma region zzc hdr_decl
 	#include <iostream>
 	#include <cstdint>
+	#include <string>
+#pragma endregion zzc
+#pragma region zzc src_decl
 	#include <filesystem>
-	#include "./FileBuffer.hpp"
-	#include "./Util.hpp"
-	#include "./Test.hpp"
-#endif
+	#include "./Test.zzh"
+#pragma endregion zzc
+
 
 
 namespace BJpeg {
-	static size_t freadExactlly(u8* dst, size_t elm_size, size_t count, FILE* file) {
+	fun static size_t freadExactlly(u8* dst, size_t elm_size, size_t count, FILE* file) {
 		size_t amount_read = 0;
 		while (count) {
 			amount_read += fread(dst, elm_size, count, file);
@@ -36,19 +26,18 @@ namespace BJpeg {
 	namespace {
 		struct RAIIFileHandle {
 			FILE* const file;
-			RAIIFileHandle(ref<std :: string> path) : file(fopen(path.c_str(), "rb")) {}
-			~RAIIFileHandle() { fclose(self.file); }
-			operator bool() { return self.file != nullptr; }
+			fun RAIIFileHandle(std :: string& path) : file(fopen(path.c_str(), "rb")) {}
+			fun ~RAIIFileHandle() { fclose(self.file); }
+			fun operator bool() { return self.file != nullptr; }
 		};
 	}
 	
 	struct InputFileBuffer {
-		uintmax_t length;
-		u8* buffer;
+		uintmax_t length = 0;
+		u8* buffer = nullptr;
 		// std :: ifstream file;
-		InputFileBuffer() : length(0), buffer(nullptr) {}
 		
-		bool init(rref<std :: string> path) {
+		fun bool init(std :: string& path) {
 			self.length = std :: filesystem :: file_size(path);
 			self.buffer = new u8[self.length];
 			if (!self.buffer) { return false; }
@@ -57,10 +46,10 @@ namespace BJpeg {
 			if (fread(self.buffer, 1, self.length, file.file) != self.length) { return false; }
 			return true;
 		}
-		void finish() {
+		fun void finish() noexcept {
 			delete[] self.buffer;
 		}
-		uint8_t const& operator [](int index) {
+		fun uint8_t const& operator [](int index) {
 			return self.buffer[index];
 		}
 	};

@@ -154,6 +154,9 @@ for file in zzc_files:
 		if not token.relevant_info.is_zzc: continue;
 		parts = FilenameParts(token.relevant_info.filename);
 		token.raw = token.relevant_info.before_filename + parts.folder + parts.name + ".zzh" + token.relevant_info.after_filename;
+		for k in semantic.sematic_region_keys:
+			if getattr(token.region, k): setattr(token.region, k, token.raw);
+		pass
 	pass
 	with open(file.abs_file.inc, "w") as f:
 		f.write("#pragma once\n");

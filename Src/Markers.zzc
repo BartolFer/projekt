@@ -1,0 +1,77 @@
+#include "./Util.zzh"
+#include <cstdint>
+
+
+namespace BJpeg {
+	namespace Marker {
+		// Start Of Frame markers
+		struct SOFData {
+			u8 arithmetic; // huffman = 0
+			u8 differential;
+			enum Mode : u8 {
+				BASELINE    = 0b00,
+				SEQUENTIAL  = 0b01,
+				PROGRESSIVE = 0b10,
+				LOSSLESS    = 0b11,
+			} mode;
+			fun SOFData() = default;
+			fun SOFData(u8 sof) {
+				self.arithmetic   = (sof >> 3) & 1;
+				self.differential = (sof >> 2) & 1;
+				self.mode = (Mode) (sof && 0b11);
+			}
+			fun u8 toMarker() { return 0xC0 | (self.arithmetic << 3) | (self.differential << 2) | (int)self.mode; }
+		};
+		
+		// other
+		constexpr inline fun bool isSOF(u8 marker) { return 0xC0 <= marker && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC; }
+		
+		// Define Huffman table(s)
+		constexpr inline u8 const DHT = 0xC4; 
+		// Define arithmetic coding conditioning(s)
+		constexpr inline u8 const DAC = 0xCC; 
+		
+		// RSTn Restart with modulo 8 count n
+		constexpr inline fun u8 const RST(u8 n) { return 0xD0 + n; }
+		// RSTn Restart with modulo 8 count n
+		constexpr inline fun bool isRST(u8 rst) { return 0xD0 <= rst && rst <= 0xD7; }
+		
+		// Start of image
+		constexpr inline u8 const SOI = 0xD8; 
+		// End of image
+		constexpr inline u8 const EOI = 0xD9; 
+		// Start of scan
+		constexpr inline u8 const SOS = 0xDA; 
+		// Define quantization table(s)
+		constexpr inline u8 const DQT = 0xDB; 
+		// Define number of lines
+		constexpr inline u8 const DNL = 0xDC; 
+		// Define restart interval
+		constexpr inline u8 const DRI = 0xDD; 
+		// Define hierarchical progression
+		constexpr inline u8 const DHP = 0xDE; 
+		// Expand reference component(s)
+		constexpr inline u8 const EXP = 0xDF; 
+		
+		// APPn Reserved for application segments 
+		constexpr inline fun u8 const APP(u8 n) { return 0xE0 + n; }
+		// APPn Reserved for application segments 
+		constexpr inline fun bool isAPP(u8 app) { return 0xE0 <= app && app <= 0xEF; }
+		
+		// Reserved for JPEG extensions
+		constexpr inline u8 const JPG = 0xC8; 
+		// JPGn Reserved for JPEG extensions
+		constexpr inline fun u8 const JPGn(u8 n) { return 0xF0 + n; }
+		// JPGn Reserved for JPEG extensions
+		constexpr inline fun bool const isJPGn(u8 jpg) { return 0xF0 <= jpg && jpg <= 0xFD; }
+		
+		// Comment
+		constexpr inline u8 const COM = 0xFE; 
+		
+		// For temporary private use in arithmetic coding
+		constexpr inline u8 const TEM = 0x01; 
+		
+		// idk
+		constexpr inline u8 const FFF = 0xFF; 
+	}
+}
