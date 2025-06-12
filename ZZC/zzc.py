@@ -128,18 +128,14 @@ for file in zzc_files:
 	semantic.semanticAnalysis(file.tokens);
 	
 	#	file_id = random.randint(1<<32, (1<<64)-1);
-	with open(file.abs_file.hdr, "w") as f, open(file.abs_file.inc, "w") as i:
+	with open(file.abs_file.hdr, "w") as f:
 		f.write("#pragma once\n");
-		i.write("#pragma once\n");
 		for chunk in file_composer.compose(file.tokens, "hdr_decl"):
 			f.write(chunk);
-			i.write(chunk);
 		pass
 		f.write("\n");
-		i.write("\n");
 		for chunk in file_composer.compose(file.tokens, "hdr_impl"):
 			f.write(chunk);
-			i.write(chunk);
 		pass
 	pass
 	with open(file.abs_file.src, "w") as f:
@@ -149,6 +145,23 @@ for file in zzc_files:
 		pass
 		f.write("\n");
 		for chunk in file_composer.compose(file.tokens, "src_impl"):
+			f.write(chunk);
+		pass
+	pass
+	for token in file.tokens:
+		if token.typ != tokenizer.TokenType.MACRO: continue;
+		if token.macro_type != macro_processor.MacroType.INCLUDE: continue;
+		if not token.relevant_info.is_zzc: continue;
+		parts = FilenameParts(token.relevant_info.filename);
+		token.raw = token.relevant_info.before_filename + parts.folder + parts.name + ".zzh" + token.relevant_info.after_filename;
+	pass
+	with open(file.abs_file.inc, "w") as f:
+		f.write("#pragma once\n");
+		for chunk in file_composer.compose(file.tokens, "hdr_decl"):
+			f.write(chunk);
+		pass
+		f.write("\n");
+		for chunk in file_composer.compose(file.tokens, "hdr_impl"):
 			f.write(chunk);
 		pass
 	pass

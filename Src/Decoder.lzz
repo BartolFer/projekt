@@ -166,7 +166,7 @@ namespace BJpeg {
 				}
 				context.component_count = Nf;
 				if (!context.cl.init(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { return DECODE_RESULT_ERR; }
-				defer(context.cl.finish(););
+				defer {context.cl.finish();};
 				for (uint8_t i = 0; i < Nf; ++i) {
 					uint8_t C = DECODE_READ_U8;
 					if (C >= MAX_COMPONENTS) {

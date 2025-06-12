@@ -1,28 +1,15 @@
-#ifndef VSCODE_ONLY
-	#hdr
-		#define CL_TARGET_OPENCL_VERSION 300
-		#include <iostream>
-		#include <CL/cl.h>
-		#include <cstdint>
-		#include <type_traits>
-		#include "./Util.hpp"
-	#end
-	#src
-	#end
-#else // if VSCODE
-	#define CL_TARGET_OPENCL_VERSION 300
+#include "./Util.zzc"
+#pragma region zzc hdr
 	#include <iostream>
 	#include <CL/cl.h>
 	#include <cstdint>
 	#include <type_traits>
-	#include "./Util.hpp"
-	#include "./MyOpenCL.hpp"
-#endif
+#pragma endregion zzc
 
 #define ERROR_HANDLING(err, msg) if ((err) != CL_SUCCESS) { std :: cerr << "Error " << (err) << ": " << std :: flush /* << msg */ << std :: endl; return false; }
 
 namespace MyOpenCL {
-	bool getDeviceId(cl_device_id& device_id) {
+	fun bool getDeviceId(cl_device_id& device_id) {
 		cl_int err;
 		cl_platform_id platform;
 		char name[1024];
@@ -37,41 +24,38 @@ namespace MyOpenCL {
 		return true;
 	}
 	struct Context {
-		cl_context context;
-		Context() : context(0) {}
+		cl_context context = 0;
 		
-		bool init(cl_device_id const device_id) {
+		fun bool init(cl_device_id const device_id) {
 			cl_int err;
 			self.context = clCreateContext(nullptr, 1, &device_id, nullptr, nullptr, &err);
 			ERROR_HANDLING(err, "Failed to create context");
 			return true;
 		}
-		void finish() {
+		fun void finish() noexcept {
 			if (self.context) { clReleaseContext(self.context); }
 		}
 	};
 	
 	struct Queue {
-		cl_command_queue queue;
-		Queue() : queue(0) {}
+		cl_command_queue queue = 0;
 		
-		bool init(cl_device_id const device_id, Context context) {
+		fun bool init(cl_device_id const device_id, Context context) {
 			cl_int err;
 			cl_queue_properties const queue_prop = 0;
 			self.queue = clCreateCommandQueueWithProperties(context.context, device_id, &queue_prop, &err);
 			ERROR_HANDLING(err, "Failed to create command queue");
 			return true;
 		}
-		void finish() {
+		fun void finish() noexcept {
 			if (self.queue) { clReleaseCommandQueue(self.queue); }
 		}
 	};
 	
 	struct Program {
-		cl_program program;
-		Program() : program(0) {}
+		cl_program program = 0;
 		
-		bool init(cl_device_id device_id, Context context, char const* kernels) {
+		fun bool init(cl_device_id device_id, Context context, char const* kernels) {
 			cl_int err;
 			self.program = clCreateProgramWithSource(context.context, 1, &kernels, nullptr, &err);
 			ERROR_HANDLING(err, "Failed to create program");
@@ -79,62 +63,61 @@ namespace MyOpenCL {
 			ERROR_HANDLING(err, "Failed to build program");
 			return true;
 		}
-		void finish() {
+		fun void finish() noexcept {
 			if (self.program) { clReleaseProgram(self.program); }
 		}
 	};
 	
-	template <typename T> struct Buffer;
+	//	template <typename T> struct Buffer;
 	
 	template <size_t N>
 	struct Kernel {
-		cl_kernel kernel;
-		char const* name;
-		cl_uint _next_index;
-		_KernelBase() : kernel(0), _next_index(0), name("null") {}
+		cl_kernel kernel = 0;
+		char const* name = "null";
+		cl_uint _next_index = 0;
 		
-		bool init(Program program, char const* name) {
+		fun bool init(Program program, char const* name) {
 			cl_int err;
 			self.kernel = clCreateKernel(program.program, name, &err);
 			ERROR_HANDLING(err, "Failed to create kernel " << name);
 			self.name = name;
 			return true;
 		}
-		void finish() {
+		fun void finish() noexcept {
 			if (self.kernel) { clReleaseKernel(self.kernel); }
 		}
 		
-		void resetArgs() {
+		fun void resetArgs() {
 			self._next_index = 0;
 		}
-		template <typename T, ScopedEnum Enum> bool setArg(rref<T> arg, Enum index) { return self.setArg(arg, static_cast<int>(index)); }
-		template <typename T> bool setArg(Buffer<T>& arg               ) { return self.setArg(arg.buffer       ); }
-		template <typename T> bool setArg(Buffer<T>& arg, cl_uint index) { return self.setArg(arg.buffer, index); }
+		template <typename T, ScopedEnum Enum> fun bool setArg(T&&        arg, Enum    index) { return self.setArg(arg, static_cast<cl_uint>(index)); }
+		template <typename T>                  fun bool setArg(Buffer<T>& arg               ) { return self.setArg(arg.buffer       ); }
+		template <typename T>                  fun bool setArg(Buffer<T>& arg, cl_uint index) { return self.setArg(arg.buffer, index); }
 		template <BJpeg :: IsNotAResource T>
-		bool setArg(T& arg) {
+		fun bool setArg(T& arg) {
 			cl_int err = clSetKernelArg(self.kernel, self._next_index, sizeof(T), &arg);
 			ERROR_HANDLING(err, self.name << ": Failed to set argument (x) " << self._next_index << "   " << sizeof(T));
 			++self._next_index;
 			return true;
 		}
 		template <BJpeg :: IsNotAResource T>
-		bool setArg(T& arg, cl_uint index) {
+		fun bool setArg(T& arg, cl_uint index) {
 			cl_int err = clSetKernelArg(self.kernel, index, sizeof(T), &arg);
 			ERROR_HANDLING(err, self.name << ": Failed to set argument (n) " << index << "   " << sizeof(T));
 			return true;
 		}
 		
-		bool operator ()(Queue queue, size_t (&global_size)[N]) {
+		fun bool operator ()(Queue queue, size_t (&global_size)[N]) {
 			return self.callKernel(queue, global_size);
 		}
-		bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N]) {
+		fun bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N]) {
 			return self.callKernel(queue, global_size, global_offset);
 		}
-		bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N], size_t (&local_size)[N]) {
+		fun bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N], size_t (&local_size)[N]) {
 			return self.callKernel(queue, global_size, global_offset, local_size);
 		}
 	private:
-		bool callKernel(Queue queue, size_t* global_size, size_t* global_offset = nullptr, size_t* local_size = nullptr) {
+		fun bool callKernel(Queue queue, size_t* global_size, size_t* global_offset = nullptr, size_t* local_size = nullptr) {
 			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, 1, global_offset, global_size, local_size, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, self.name << "Failed to enqueue kernel");
 			return true;
@@ -143,67 +126,65 @@ namespace MyOpenCL {
 	
 	template <typename T>
 	struct Buffer {
-		cl_mem buffer;
+		cl_mem buffer = 0;
 		size_t length;
-		Buffer() : buffer(0) {}
 		
-		bool init(Context context, cl_mem_flags flags, size_t length, T* host = nullptr) {
+		fun bool init(Context context, cl_mem_flags flags, size_t length, T* host = nullptr) {
 			self.length = length;
 			cl_int err;
 			self.buffer = clCreateBuffer(context.context, flags, length * sizeof(T), host, &err);
 			ERROR_HANDLING(err, "Failed to create buffer");
 			return true;
 		}
-		void finish() {
+		fun void finish() noexcept {
 			if (self.buffer) { clReleaseMemObject(self.buffer); }
 		}
 		
-		bool write(Queue queue, T* buffer) {
+		fun bool write(Queue queue, T* buffer) {
 			cl_int err = clEnqueueWriteBuffer(queue.queue, self.buffer, CL_TRUE, 0, self.length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to write buffer - ");
 			return true;
 		}
-		bool write(Queue queue, T* buffer, size_t length) {
+		fun bool write(Queue queue, T* buffer, size_t length) {
 			cl_int err = clEnqueueWriteBuffer(queue.queue, self.buffer, CL_TRUE, 0, length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to write buffer l ");
 			return true;
 		}
-		bool write(Queue queue, T* buffer, size_t length, size_t offset) {
+		fun bool write(Queue queue, T* buffer, size_t length, size_t offset) {
 			cl_int err = clEnqueueWriteBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T), length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to write buffer o ");
 			return true;
 		}
-		bool write(Queue queue, void* buffer, size_t length, size_t offset, size_t part_length, size_t part_offset) {
+		fun bool write(Queue queue, void* buffer, size_t length, size_t offset, size_t part_length, size_t part_offset) {
 			cl_int err = clEnqueueWriteBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T) + part_offset, length * sizeof(T) + part_length, buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to write buffer o+");
 			return true;
 		}
-		bool read(Queue queue, T* buffer) {
+		fun bool read(Queue queue, T* buffer) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, 0, self.length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to read buffer -");
 			return true;
 		}
-		bool read(Queue queue, T* buffer, size_t length) {
+		fun bool read(Queue queue, T* buffer, size_t length) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, 0, length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to read buffer l ");
 			return true;
 		}
-		bool read(Queue queue, T* buffer, size_t length, size_t offset) {
+		fun bool read(Queue queue, T* buffer, size_t length, size_t offset) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T), length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to read buffer o ");
 			return true;
 		}
-		bool read(Queue queue, void* buffer, size_t length, size_t offset, size_t part_length, size_t part_offset) {
+		fun bool read(Queue queue, void* buffer, size_t length, size_t offset, size_t part_length, size_t part_offset) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T) + part_offset, length * sizeof(T) + part_length, buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to read buffer o+ ");
 			return true;
 		}
 		
-		bool copy(Queue queue, size_t length, size_t offset, Buffer<T> dst, size_t dst_offset) {
+		fun bool copy(Queue queue, size_t length, size_t offset, Buffer<T> dst, size_t dst_offset) {
 			cl_int err = clEnqueueCopyBuffer(queue.queue, self.buffer, dst.buffer, offset * sizeof(T), dst_offset * sizeof(T), length * sizeof(T), 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to read buffer o ");
+			ERROR_HANDLING(err, "Failed to copy buffer");
 			return true;
 		}
 	};
-	
 }

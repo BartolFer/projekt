@@ -1,8 +1,8 @@
+#include "./Util.zzh"
 #pragma region zzc hdr_decl
 	#include <cstdint>
 	#include "./Huffman.zzh"
 	#include "./Markers.zzh"
-	#include "./Util.zzh"
 	#include "./MyOpenCL.zzh"
 	#include "./Kernels.zzh"
 #pragma endregion zzc
@@ -115,7 +115,7 @@ namespace BJpeg {
 			self.initialized = true;
 			return true;
 		}
-		fun void finish() {
+		fun void finish() noexcept {
 			self.context.finish();
 			self.queue  .finish();
 			self.program.finish();
@@ -161,7 +161,7 @@ namespace BJpeg {
 			
 			return true;
 		}
-		fun void finish() {
+		fun void finish() noexcept {
 			delete[] self.payload;
 			self.cl.finish();
 		}
