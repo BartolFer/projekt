@@ -1,4 +1,3 @@
-#pragma once
 
 #include <concepts>
 
@@ -27,31 +26,31 @@ namespace BJpeg {
 	concept IsResource = requires(T t) {
 		requires std :: is_member_function_pointer_v<decltype(&T :: init)>;
 		requires std :: convertible_to<ReturnType<decltype(&T :: init)>, bool>;
-		{ t.finish() } /* noexcept /* (would be nice, but LZZ doesn't allow it) */;
+		{ t.finish() } noexcept;
 	};
 	template <typename T, typename... Args>
 	concept IsActualResource = requires(T t, Args... args) {
 		{ t.init(args...) } -> std :: convertible_to<bool>;
-		{ t.finish() } /* noexcept /* (would be nice, but LZZ doesn't allow it) */;
+		{ t.finish() } noexcept;
 	};
 	template <typename T> requires (IsResource<T>)
 	struct Resource : T {
 		bool _resource_ok = true;
 		template <typename... Args> requires (IsActualResource<T, Args...>)
-		explicit inline Resource(T t, Args&&... args) : T(t) {
+		fun explicit inline Resource(T t, Args&&... args) : T(t) {
 			self._resource_ok = self.init(args...);
 		}
 		template <typename... Args> requires (IsActualResource<T, Args...>)
-		explicit inline Resource(Args&&... args) {
+		fun explicit inline Resource(Args&&... args) {
 			self._resource_ok = self.init(args...);
 		}
-		~Resource() {
+		fun inline ~Resource() {
 			self.finish();
 		}
 		// Resource(Resource<T>) = delete;
-		Resource(Resource<T>&) = delete;
-		Resource(Resource<T>&&) = delete;
-		operator bool() { return self._resource_ok; }
+		fun Resource(Resource<T>&) = delete;
+		fun Resource(Resource<T>&&) = delete;
+		fun operator bool() { return self._resource_ok; }
 	};
 	
 	template <typename T> struct  IsAResource              : std :: false_type {};

@@ -221,6 +221,7 @@ def _var(tokens: list[SToken], index: int, index_comma: int, semantic_stack: Sem
 				pass
 			pass
 			if not eligible_for_name:
+				print(tokens[i - 5 : i + 5]);
 				raise ParseError; #	dissalow `Type var(args);` because it might be confused with `Type stuff (var);`
 				#	e.g. how do we know what is the name here int a (*b) (is it a initialized with *b or is it b as pointer to int a)
 				has_init = True;
@@ -852,7 +853,7 @@ def _function(tokens: list[SToken], index: int, index_kwd: int, endex: int, sema
 pass
 def _operatorSkip(tokens: list[SToken], index_kwd: int, endex: int):
 	for (i, token) in SimpleSliceIter(tokens, index_kwd + 1, endex):
-		if token.typ == TokenType.SYMBOL: break;
+		if token.typ != TokenType.WHITESPACE: break;
 	pass
 	if tokens[i].raw == "(":
 		i = _tokenIndex(tokens, ")", i) + 1;
@@ -982,10 +983,10 @@ def _enum_struct_skip(tokens: list[SToken], index_kwd, endex) -> int:
 	return index_kwd + 1;
 pass
 def _enum(tokens: list[SToken], index: int, index_kwd: int, endex: int, semantic_stack: SemanticStack, fwd: FwdRegistry, has_var: bool) -> int:
-	endex = _tokenIndex(tokens, "}", index_kwd + 1) + 1;
+	endex_scope_p1 = _tokenIndex(tokens, "}", index_kwd + 1) + 1;
 	
 	index_name = None; #	good enough, we treat name same as we treat kwd anyway
-	for (i, token) in (it := SimpleSliceIter(tokens, index_kwd + 1, endex)):
+	for (i, token) in (it := SimpleSliceIter(tokens, index_kwd + 1, endex_scope_p1)):
 		if token.typ in EPHERMALS: continue;
 		if is_notaname(token): it.setNext(is_notaname.skip(tokens, i));
 		if token.typ == TokenType.SYMBOL: break;
@@ -997,16 +998,21 @@ def _enum(tokens: list[SToken], index: int, index_kwd: int, endex: int, semantic
 	has_name = index_name is not None;
 	
 	if has_name:
-		for (i, token) in SimpleSliceIter(tokens, index, endex):
+		for (i, token) in SimpleSliceIter(tokens, index, endex_scope_p1):
 			if semantic_stack.anonymous: token.region.src_decl = token.raw;
 			else                       : token.region.hdr_decl = token.raw;
 		pass
 		if has_var:
 			tokens[index_name].should_be_included_in_var = True;
 			tokens[index_kwd ].should_be_included_in_var = True;
+		else:
+			for (i, token) in SimpleSliceIter(tokens, endex_scope_p1, endex):
+				if semantic_stack.anonymous: token.region.src_decl = token.raw;
+				else                       : token.region.hdr_decl = token.raw;
+			pass
 		pass
 	elif has_var:
-		for (i, token) in SimpleSliceIter(tokens, index, endex):
+		for (i, token) in SimpleSliceIter(tokens, index, endex_scope_p1):
 			token.should_be_included_in_var = True;
 		pass
 	else:
@@ -1015,7 +1021,7 @@ def _enum(tokens: list[SToken], index: int, index_kwd: int, endex: int, semantic
 			else                       : token.region.hdr_decl = token.raw;
 		pass
 	pass
-	return endex;
+	return endex_scope_p1;
 pass
 
 def _struct(tokens: list[SToken], index: int, index_kwd: int, endex: int, semantic_stack: SemanticStack, fwd: FwdRegistry, has_var: bool) -> int:

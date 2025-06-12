@@ -67,7 +67,7 @@ def compile(command: ConfigCommand, input: str, output: str):
 	if result.returncode != 0:
 		sys.stderr.write(result.stderr);
 		sys.stderr.write("\n" + "=" * 80 + "\n");
-		raise ParseError(input);
+		raise ParseError(cmd);
 	pass
 pass
 
