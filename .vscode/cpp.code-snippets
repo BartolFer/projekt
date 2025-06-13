@@ -19,7 +19,7 @@
 		"scope": "c,cpp",
 		"prefix": "zzcregion",
 		"body": [
-			"#pragma region zzc $1",
+			"#pragma region zzc ${1|hdr_decl,src_decl,hdr_impl,src_impl,cpp,zzc,ide,hdr,src|}",
 			"\t$0",
 			"#pragma endregion zzc",
 		]

@@ -101,10 +101,10 @@ def semanticAnalysis(tokens: list[RToken]):
 				if v: setattr(reg, k, raw);
 				else: setattr(reg, k, "");
 			pass
-			if token.ephermal:
-				token.ephermal = False;
-				token.region.fwd = raw;
-			pass
+			#	if token.ephermal:
+			#		token.ephermal = False;
+			#		token.region.fwd = raw;
+			#	pass
 		pass
 	pass
 pass
@@ -297,11 +297,11 @@ def _var(tokens: list[SToken], index: int, index_comma: int, semantic_stack: Sem
 			pass
 		elif context == 0b00001:
 			region.hdr_decl = decl;
-			region.hdr_impl = impl;
-			if extern_insert == i:
-				tokens[extern_insert].region.hdr_decl = added_extern + tokens[extern_insert].region.hdr_decl;
-				added_extern = "";
-			pass
+			#	region.hdr_impl = impl;
+			#	if extern_insert == i:
+			#		tokens[extern_insert].region.hdr_decl = added_extern + tokens[extern_insert].region.hdr_decl;
+			#		added_extern = "";
+			#	pass
 		elif context == 0b00010:
 			region.src_decl = raw;
 		elif context == 0b00011:
@@ -341,11 +341,11 @@ def _var(tokens: list[SToken], index: int, index_comma: int, semantic_stack: Sem
 			pass
 		elif context == 0b10001:
 			region.src_decl = decl;
-			region.src_impl = impl;
-			if extern_insert == i:
-				tokens[extern_insert].region.src_decl = added_extern + tokens[extern_insert].region.src_decl;
-				added_extern = "";
-			pass
+			#	region.src_impl = impl;
+			#	if extern_insert == i:
+			#		tokens[extern_insert].region.src_decl = added_extern + tokens[extern_insert].region.src_decl;
+			#		added_extern = "";
+			#	pass
 		elif context == 0b10010:
 			region.src_decl = raw;
 		elif context == 0b10011:
@@ -386,7 +386,7 @@ def _var(tokens: list[SToken], index: int, index_comma: int, semantic_stack: Sem
 		if   context == 0b00000:
 			region.src_impl = raw;
 		elif context == 0b00001:
-			region.hdr_impl = raw;
+			region.hdr_decl = raw;
 		elif context == 0b00010:
 			region.src_decl = raw;
 		elif context == 0b00011:
@@ -419,7 +419,7 @@ def _var(tokens: list[SToken], index: int, index_comma: int, semantic_stack: Sem
 		elif context == 0b10000:
 			region.src_impl = raw;
 		elif context == 0b10001:
-			region.src_impl = raw;
+			region.src_decl = raw;
 		elif context == 0b10010:
 			region.src_decl = raw;
 		elif context == 0b10011:
@@ -1046,7 +1046,7 @@ def _struct(tokens: list[SToken], index: int, index_kwd: int, endex: int, semant
 	
 	endex_fwd = None;
 	for (index_scope, token) in (it := SimpleSliceIter(tokens, i, endex)):
-		if token.raw == ":":
+		if token.raw == ":" and endex_fwd is None:
 			endex_fwd = index_scope;
 			continue;
 		pass

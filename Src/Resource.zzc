@@ -3,6 +3,7 @@
 
 
 
+#pragma region zzc hdr_decl
 namespace BJpeg {
 	template <typename>
 	struct FunctionTraits;
@@ -57,4 +58,5 @@ namespace BJpeg {
 	template <typename T> struct  IsAResource<Resource<T>> : std ::  true_type {};
 	template <typename T> concept IsNotAResource = !IsAResource<T>::value;
 }
+#pragma endregion zzc
 

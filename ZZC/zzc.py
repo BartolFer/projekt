@@ -170,8 +170,9 @@ for file in zzc_files:
 	pass
 pass
 #	TODO saved for later when building
-#	for file in zzc_files:
-#		compile(config.compiler.cpp.obj, file.abs_file.src, file.abs_file.obj);
-#	pass
-#	compile(config.compiler.target, [file.abs_file.obj for file in zzc_files], config.paths.exe);
+#	actually, it's useful to have information if it can be built
+for file in zzc_files:
+	compile(config.compiler.cpp.obj, file.abs_file.src, file.abs_file.obj);
+pass
+compile(config.compiler.target, [file.abs_file.obj for file in zzc_files], config.paths.exe);
 

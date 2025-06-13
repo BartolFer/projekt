@@ -48,7 +48,9 @@ namespace BJpeg {
 }
 
 
-fun void* operator new(size_t size) noexcept { return std :: malloc(size); }
+fun void* operator new(size_t size) /* noexcept */ { return std :: malloc(size); }
+	//	my implementation is `noexcept`, but stdlib declares it as `throws(std::bad_alloc)`
+	//	so I can't redeclare differently
 
 
 

@@ -58,7 +58,7 @@ namespace BJpeg {
 							while (index < end) {
 								uint8_t table_class, table_dest; DECODE_READ_U4(table_class, table_dest);
 								if (table_class > 1 || table_dest > 3) { return DECODE_RESULT_ERR; }
-								HuffmanTree<CodingType :: DECODE>& huffman = context.huffman_tree[table_class][table_dest];
+								HuffmanTree& huffman = context.huffman_tree[table_class][table_dest];
 								huffman.reset();
 								uint16_t last_assigned_index = 0;
 								uint32_t const counts_start = index - 1; // because of 1-indexing

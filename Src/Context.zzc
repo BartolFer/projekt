@@ -37,7 +37,7 @@ namespace BJpeg {
 		Kernels kernel;
 		struct Buffers {
 			MyOpenCL :: Buffer<u8> payload;
-			MyOpenCL :: Buffer<HuffmanTree<CodingType :: DECODE>[4]> trees;
+			MyOpenCL :: Buffer<HuffmanTree[4]> trees;
 			MyOpenCL :: Buffer<LaneInfo> lane_infos;
 			MyOpenCL :: Buffer<u32> lanes;
 			MyOpenCL :: Buffer<u8> lane_indexes;
@@ -147,7 +147,7 @@ namespace BJpeg {
 		uint16_t X, Y;
 		ComponentData component_data[MAX_COMPONENTS];
 		CLContextDecode cl;
-		HuffmanTree<DECODE> huffman_tree[2][4];
+		HuffmanTree huffman_tree[2][4];
 		QuantizationTable quantization_table[4];
 		u8* payload;
 		

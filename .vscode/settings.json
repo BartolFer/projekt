@@ -94,7 +94,8 @@
 		]
 	},
 	"files.exclude": {
-		"Src/**/*.zzh": true
+		"Src/**/*.zzh": true,
+		"Src/**/*.tmp.zzc": true,
 	},
 	"C_Cpp.default.includePath": [
 		"C:/Programs/Cuda/include"
