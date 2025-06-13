@@ -174,5 +174,5 @@ pass
 for file in zzc_files:
 	compile(config.compiler.cpp.obj, file.abs_file.src, file.abs_file.obj);
 pass
-compile(config.compiler.target, [file.abs_file.obj for file in zzc_files], config.paths.exe);
+#	compile(config.compiler.target, [file.abs_file.obj for file in zzc_files], config.paths.exe);
 

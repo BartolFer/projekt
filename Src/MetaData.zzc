@@ -1,0 +1,5 @@
+
+pack MetaData {
+	int width, height;
+	int n_channels;
+};

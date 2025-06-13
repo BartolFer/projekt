@@ -1,6 +1,5 @@
 
 #pragma region zzc hdr_decl
-	#pragma once
 	#include <vector>
 	#include <iostream>
 #pragma endregion zzc

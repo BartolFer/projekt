@@ -3,7 +3,7 @@
 		"CL_TARGET_OPENCL_VERSION=300",
 		"depend(...)=",
 		"self=(*this)",
-		"record=struct __attribute__((packed))",
+		"pack=struct __attribute__((packed))",
 		"TESTING",
 		"fun=",
 		"VSCODE_ONLY=",

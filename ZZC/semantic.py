@@ -487,6 +487,17 @@ def _function(tokens: list[SToken], index: int, index_kwd: int, endex: int, sema
 	semantic_stack.inline += inline;
 	if index_name is None: raise ParseError;
 	
+	#	handle destructor
+	token = tokens[index_name]
+	for j in reversed(range(index, index_name)):
+		t = tokens[j];
+		if t.typ in EPHERMALS: continue;
+		if t.raw == "~":
+			token.raw = "~" + token.raw;
+			t.raw = "";
+		pass
+	pass
+	
 	if tokens[i].raw != "(": raise ParseError;
 	index_args = i;
 	endex_args = _findClosingNormal(tokens, index_args);

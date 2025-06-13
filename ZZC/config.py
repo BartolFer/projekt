@@ -136,6 +136,7 @@ class ConfigCompiler:
 		
 		self.c   = _ConfigCompilerForLanguage(x["c"  ], vars);
 		self.cpp = _ConfigCompilerForLanguage(x["c++"], vars);
+		self.target = ConfigCommand(x["target"], vars);
 	pass
 pass
 class Config:
