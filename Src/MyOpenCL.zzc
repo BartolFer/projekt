@@ -5,8 +5,11 @@
 	#include <cstdint>
 	#include <type_traits>
 #pragma endregion zzc
+#pragma region zzc src_decl
+	#include <typeinfo>
+#pragma endregion zzc
 
-#define ERROR_HANDLING(err, msg) if ((err) != CL_SUCCESS) { std :: cerr << "Error " << (err) << ": " << std :: flush /* << msg */ << std :: endl; return false; }
+#define ERROR_HANDLING(err, msg) if ((err) != CL_SUCCESS) { std :: cerr << "Error " << (err) << ": " << std :: flush << msg << std :: endl; return false; }
 
 namespace MyOpenCL {
 	fun bool getDeviceId(cl_device_id& device_id) {
@@ -103,7 +106,7 @@ namespace MyOpenCL {
 		template <BJpeg :: IsNotAResource T>
 		fun bool setArg(T& arg, cl_uint index) {
 			cl_int err = clSetKernelArg(self.kernel, index, sizeof(T), &arg);
-			ERROR_HANDLING(err, self.name << ": Failed to set argument (n) " << index << "   " << sizeof(T));
+			ERROR_HANDLING(err, self.name << ": Failed to set argument (n) " << index << "   " << sizeof(T) << "    " << (typeid(T).name()));
 			return true;
 		}
 		

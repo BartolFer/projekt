@@ -110,7 +110,7 @@ namespace BJpeg {
 					},
 				};
 				uint8_t payload_arr[] = {237, 195, 199, 49, 126, 100, 208, 114, 185, 102, 90, 179, 218, 255, 255, 255};
-				LaneInfo lane_infos_arr[lanes_count] = {{0, 0, 0, 16, 16}, {1, 0, 0, 16, 16}, {2, 1, 1, 16, 16}, };
+				LaneInfo lane_infos_arr[lanes_count] = {{.dc_huf=0, .ac_huf=0}, {.dc_huf=0, .ac_huf=0}, {.dc_huf=1, .ac_huf=1}, };
 
 				uint32_t initial[depth][lanes_count][lane_width] = {
 					{
@@ -170,6 +170,7 @@ namespace BJpeg {
 				if (!kernel(queue, global_work)) { return false; }
 				
 				if (!lanes.read(queue, &result[0][0][0])) { return false; }
+				//	PRINT_X_MATRIX(result[0], lanes_count, lane_width);
 				if (result[0][0][0] != 54) {
 					Test :: getError() << "[0][0][0]: e=" << 54 << " v=" << result[0][0][0] << std :: endl;
 					return false;
