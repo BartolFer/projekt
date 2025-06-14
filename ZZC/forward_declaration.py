@@ -28,9 +28,10 @@ class FwdRegistry:
 	def getAll(self, tokens: list[SToken], dst: str) -> Iterable[str]:
 		if not self.indexes_tokens: return;
 		a = self.scope_start;
-		b = max(self.indexes_tokens);
+		b = max(self.indexes_tokens) + 1;
 		if a == 0:
-			for (i, token) in SimpleSliceIter(tokens, a, b + 1):
+			b = len(tokens);
+			for (i, token) in SimpleSliceIter(tokens, a, b):
 				if token.ephermal: yield token.raw;
 				elif i in self.indexes_tokens:
 					if   dst == "hdr" and (token.region.hdr_decl or token.region.hdr_impl):
@@ -43,7 +44,7 @@ class FwdRegistry:
 				else: yield whitespaceReplacement(token.raw);
 			pass
 		else:
-			for (i, token) in SimpleSliceIter(tokens, a, b + 1):
+			for (i, token) in SimpleSliceIter(tokens, a, b):
 				if token.ephermal: yield token.raw;
 				elif i in self.indexes_tokens: yield token.region.fwd or whitespaceReplacement(token.raw); #	might not even need this check, since stuff has fwd if and only if it is added to some fwd
 				else: yield whitespaceReplacement(token.raw);

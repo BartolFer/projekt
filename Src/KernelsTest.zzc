@@ -1,31 +1,18 @@
 #ifdef TESTING
-
-#ifndef VSCODE_ONLY
-	#hdr
-		#include <cstdint>
-		#include "./Test.hpp"
-		#include "./kernels.cl.hpp"
-	#end
-	#src
-		#include <iostream>
-		#include <vector>
-		#include "./MyOpenCL.hpp"
-		#include "./Util.hpp"
-		#include "./Huffman.hpp"
-		#include "./Context.hpp"
-	#end
-#else // if VSCODE
+#include "./Util.zzh"
+#pragma region zzc hdr_decl
 	#include <cstdint>
-	#include "./Test.hpp"
-	#include "./kernels.cl.hpp"
+	#include "./Test.zzh"
+	#include "./kernels.cl.tmp.zzh"
+#pragma endregion zzc
+#pragma region zzc src_decl
 	#include <iostream>
 	#include <vector>
-	#include "./MyOpenCL.hpp"
-	#include "./Util.hpp"
-	#include "./Huffman.hpp"
-	#include "./Context.hpp"
-	#include "./KernelsTest.hpp"
-#endif
+	#include "./MyOpenCL.zzh"
+	#include "./Huffman.zzh"
+	#include "./Context.zzh"
+#pragma endregion zzc
+
 
 #define PRINT_ARRAY_10(arr) "["\
 	<< ((arr)[0]) << ", " \
@@ -57,8 +44,8 @@ namespace BJpeg {
 	namespace {
 		Kernels kernels_var;
 		
-		std :: vector<i16[64]> inflateTo64Coefficients(std :: vector<i16> dc_coefficients) {
-			std :: vector<i16[64]> result; result.reserve(64 * dc_coefficients.size());
+		fun std :: vector<std :: array<i16, 64>> inflateTo64Coefficients(std :: vector<i16> dc_coefficients) {
+			std :: vector<std :: array<i16, 64>> result; result.reserve(64 * dc_coefficients.size());
 			int index = 0;
 			for (auto x : dc_coefficients) {
 				result[index][0] = x;
@@ -71,8 +58,8 @@ namespace BJpeg {
 		}
 		
 		struct KernelsTest : Test {
-			virtual bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) = 0;
-			virtual bool test() {
+			fun virtual bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) = 0;
+			fun virtual bool test() {
 				cl_device_id device_id;
 				if (!MyOpenCL :: getDeviceId(device_id)) { return false; }
 				
@@ -86,9 +73,9 @@ namespace BJpeg {
 		
 		struct BufferSetter {
 			MyOpenCL :: Kernel<1> kernel;
-			bool init(MyOpenCL :: Program program) { return self.kernel.init(program, "initializeBufferU32"); }
-			void finish() { self.kernel.finish(); }
-			bool operator ()(MyOpenCL :: Queue queue, MyOpenCL :: Buffer<uint32_t> buffer, uint32_t value) {
+			fun bool init(MyOpenCL :: Program program) { return self.kernel.init(program, "initializeBufferU32"); }
+			fun void finish() noexcept { self.kernel.finish(); }
+			fun bool operator ()(MyOpenCL :: Queue queue, MyOpenCL :: Buffer<uint32_t> buffer, uint32_t value) {
 				self.kernel.resetArgs();
 				if (!self.kernel.setArg(buffer)) { return false; }
 				if (!self.kernel.setArg(value)) { return false; }
@@ -100,8 +87,8 @@ namespace BJpeg {
 			}
 		};
 		struct Test_decodeHuffman1 : KernelsTest {
-			char const* getDescription() { return "Test decodeHuffman1"; }
-			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+			fun char const* getDescription() { return "Test decodeHuffman1"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				Resource kernel(kernels_var.decodeHuffman1, program);
 				if (!kernel) { return false; }
 				
@@ -200,8 +187,8 @@ namespace BJpeg {
 			}
 		};
 		struct Test_decodeRaise : KernelsTest {
-			char const* getDescription() { return "Test decodeRaise"; }
-			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+			fun char const* getDescription() { return "Test decodeRaise"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				Resource kernel(kernels_var.decodeRaise, program);
 				if (!kernel) { return false; }
 				
@@ -304,8 +291,8 @@ namespace BJpeg {
 			}
 		};
 		struct Test_decodeLower : KernelsTest {
-			char const* getDescription() { return "Test decodeLower"; }
-			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+			fun char const* getDescription() { return "Test decodeLower"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				Resource kernel(kernels_var.decodeLower, program);
 				if (!kernel) { return false; }
 				Resource<BufferSetter> set_buf(program);
@@ -406,8 +393,8 @@ namespace BJpeg {
 			}
 		};
 		struct Test_positionsToIndexes : KernelsTest {
-			char const* getDescription() { return "Test positionsToIndexes"; }
-			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+			fun char const* getDescription() { return "Test positionsToIndexes"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				Resource kernel(kernels_var.positionsToIndexes, program);
 				if (!kernel) { return false; }
 				Resource<BufferSetter> set_buf(program);
@@ -453,8 +440,8 @@ namespace BJpeg {
 			}
 		};
 		struct Test_decodeHuffman2 : KernelsTest {
-			char const* getDescription() { return "Test decodeHuffman2"; }
-			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+			fun char const* getDescription() { return "Test decodeHuffman2"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				Resource kernel(kernels_var.decodeHuffman2, program);
 				if (!kernel) { return false; }
 				
@@ -555,8 +542,8 @@ namespace BJpeg {
 			}
 		};
 		struct Test_prepareMCUs : KernelsTest {
-			char const* getDescription() { return "Test prepareMCUs"; }
-			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+			fun char const* getDescription() { return "Test prepareMCUs"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				Resource kernel(kernels_var.prepareMCUs, program); if (!kernel) { return false; }
 				
 				//                                                               A  B  B  C
@@ -570,7 +557,7 @@ namespace BJpeg {
 				Resource<MyOpenCL :: Buffer<i16[64]>> coefficients(context, CL_MEM_READ_WRITE, coefficients_arr.size()); if (!coefficients) { return false; }
 				Resource<MyOpenCL :: Buffer<LaneInfo>>  lane_infos(context, CL_MEM_READ_WRITE,   lane_infos_arr.size()); if (!  lane_infos) { return false; }
 				
-				if (!coefficients.write(queue, &coefficients_arr[0])) { return false; }
+				if (!coefficients.write(queue, (i16(*)[64])&coefficients_arr[0][0])) { return false; }
 				if (!  lane_infos.write(queue, &  lane_infos_arr[0])) { return false; }
 				
 				if (!kernel.setArg_coefficients(coefficients)) { return false; }
@@ -578,32 +565,32 @@ namespace BJpeg {
 				if (!kernel.setArg_mcu_length  (mcu_length  )) { return false; }
 				if (!kernel(queue, work)) { return false; }
 				
-				if (!coefficients.read(queue, &coefficients_arr[0])) { return false; }
+				if (!coefficients.read(queue, (i16(*)[64])&coefficients_arr[0][0])) { return false; }
 				for (int i = 0; i < coefficients_arr.size(); ++i) {
-					//	TODO for 64
-					if (coefficients_arr[i] != expected_arr[i]) {
-						Test :: getError() << "Error at " << i << ": Expected " << expected_arr[i] << " Got " << coefficients_arr[i];
-						return false;
+					for (int j = 0; j < 64; ++j) {
+						if (coefficients_arr[i][j] != expected_arr[i][j]) {
+							Test :: getError() << "Error at " << i << ", " << j << ": Expected " << expected_arr[i][j] << " Got " << coefficients_arr[i][j];
+							return false;
+						}
 					}
 				}
 				
 				return true;
 			}
 		};
-		template <int X> using PrefixSumKernel = void;
-		template <> using PrefixSumKernel<1> = void;
-		template <> using PrefixSumKernel<2> = void;
-		typedef <int Prefix
+		template <int PrefixId> requires (PrefixId == 1 || PrefixId == 2) struct _PrefixSumKernel    {};
+		template <            >                                           struct _PrefixSumKernel<1> { static inline auto kernel = kernels_var.prefixSum1; };
+		template <            >                                           struct _PrefixSumKernel<2> { static inline auto kernel = kernels_var.prefixSum2; };
+		template <int PrefixId> requires (PrefixId == 1 || PrefixId == 2) auto prefixSum = _PrefixSumKernel<PrefixId> :: kernel;
+		template <int PrefixId>
 		struct PrefixSumTest : KernelsTest {
-			char const* kernel_name;
 			char const* name;
 			u8 mcu_length;
 			u32 half_size;
 			std :: vector<LaneInfo> lane_infos;
-			std :: vector<i16[64]> coefficients;
-			std :: vector<i16[64]> expected;
-			PrefixSumTest(
-				char const* kernel_name,
+			std :: vector<std :: array<i16, 64>> coefficients;
+			std :: vector<std :: array<i16, 64>> expected;
+			fun inline PrefixSumTest(
 				char const* name,
 				u8 mcu_length,
 				u32 half_size,
@@ -611,7 +598,6 @@ namespace BJpeg {
 				std :: vector<i16> coefficients,
 				std :: vector<i16> expected
 			) :
-				kernel_name(kernel_name),
 				name(name),
 				mcu_length(mcu_length),
 				half_size(half_size),
@@ -620,37 +606,36 @@ namespace BJpeg {
 				expected(inflateTo64Coefficients(expected))
 			{}
 			
-			char const* getDescription() { return self.name; }
-			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				//	TODO
-				Resource kernel(kernels_var.elf, program); if (!kernel) { return false; }
-				
-				using Args = CLContext<DECODE> :: Kernels :: prefixSum1Args;
+			fun char const* getDescription() { return self.name; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+				Resource kernel(prefixSum<PrefixId>, program); if (!kernel) { return false; }
 				
 				if (self.coefficients.size() != self.expected.size()) { return false; }
 				if (self.lane_infos.size() != mcu_length) { return false; }
 				if (self.coefficients.size() / 64 % mcu_length != 0) { return false; }
 				size_t n = self.coefficients.size() / 64 / mcu_length;
 				
-				Resource<MyOpenCL :: Buffer<i16     >> coefficients(context, CL_MEM_READ_WRITE, self.coefficients.size()); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<i16[64] >> coefficients(context, CL_MEM_READ_WRITE, self.coefficients.size()); if (!coefficients) { return false; }
 				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos  (context, CL_MEM_READ_WRITE, self.lane_infos  .size()); if (!lane_infos  ) { return false; }
 				
-				if (!coefficients.write(queue, &self.coefficients[0])) { return false; }
+				if (!coefficients.write(queue, (i16(*)[64])&self.coefficients[0][0])) { return false; }
 				if (!lane_infos  .write(queue, &self.lane_infos  [0])) { return false; }
 				
-				if (!kernel.setArg(coefficients, Args :: coefficients)) { return false; }
-				if (!kernel.setArg(lane_infos  , Args :: lane_infos  )) { return false; }
-				if (!kernel.setArg(mcu_length  , Args :: mcu_length  )) { return false; }
-				if (!kernel.setArg(half_size   , Args :: half_size   )) { return false; }
+				if (!kernel.setArg_coefficients(coefficients)) { return false; }
+				if (!kernel.setArg_lane_infos  (lane_infos  )) { return false; }
+				if (!kernel.setArg_half_size   (mcu_length  )) { return false; }
+				if (!kernel.setArg_mcu_length  (half_size   )) { return false; }
 				
-				size_t amount = n / (2 * half_size);
-				if (!kernel(queue, 1, &amount)) { return false; }
+				size_t amount[1] = {n / (2 * half_size)};
+				if (!kernel(queue, amount)) { return false; }
 				
-				if (!coefficients.read(queue, &self.coefficients[0])) { return false; }
+				if (!coefficients.read(queue, (i16(*)[64])&self.coefficients[0][0])) { return false; }
 				for (int i = 0; i < self.coefficients.size(); ++i) {
-					if (self.coefficients[i] != self.expected[i]) {
-						Test :: getError() << "Error at " << i << ": Expected " << self.expected[i] << " Got " << self.coefficients[i];
-						return false;
+					for (int j = 0; j < 64; ++j) {
+						if (self.coefficients[i][j] != self.expected[i][j]) {
+							Test :: getError() << "Error at " << i << ", " << j << ": Expected " << self.expected[i][j] << " Got " << self.coefficients[i][j];
+							return false;
+						}
 					}
 				}
 				
@@ -658,8 +643,8 @@ namespace BJpeg {
 			}
 		};
 		struct Test_initializeBufferU32 : KernelsTest {
-			char const* getDescription() { return "Test initializeBufferU32"; }
-			bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+			fun char const* getDescription() { return "Test initializeBufferU32"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				Resource kernel(kernels_var.initializeBufferU32, program); if (!kernel) { return false; }
 				
 				size_t amount[1] = {1024};
@@ -695,40 +680,38 @@ namespace BJpeg {
 			}
 		};
 		
-		namespace { 
-			Test_decodeHuffman1      test_decodeHuffman1     ;
-			Test_decodeRaise         test_decodeRaise        ;
-			Test_decodeLower         test_decodeLower        ;
-			Test_positionsToIndexes  test_positionsToIndexes ;
-			Test_decodeHuffman2      test_decodeHuffman2     ;
-			Test_prepareMCUs         test_prepareMCUs        ;
-			//	PrefixSumTest{kernel_name, name, mcu_length, half_size, lane_infos, coefficients, expected, },
-			PrefixSumTest test_prefixSum1_1_15 = {"prefixSum1", "Test prefixSum1 1 15", 1, 2, std::vector{LaneInfo{1}}, 
-				std::vector<i16>{19, 29, 23, 33, 11, 11, 11, 30, 12, 26, 31, 11, 12, 21, 29}, 
-				std::vector<i16>{19, 29, 23, 62, 11, 11, 11, 41, 12, 26, 31, 37, 12, 21, 29}
-			};
-			PrefixSumTest test_prefixSum1_1_16 = {"prefixSum1", "Test prefixSum1 1 16", 1, 2, std::vector{LaneInfo{1}}, 
-				std::vector<i16>{28, 22, 11, 24, 26, 26, 11, 33, 26, 30, 21, 12, 24, 32, 24, 18}, 
-				std::vector<i16>{28, 22, 11, 46, 26, 26, 11, 59, 26, 30, 21, 42, 24, 32, 24, 50}
-			};
-			PrefixSumTest test_prefixSum1_1_17 = {"prefixSum1", "Test prefixSum1 1 17", 1, 2, std::vector{LaneInfo{1}}, 
-				std::vector<i16>{27, 26, 21, 23, 27, 30, 21, 24, 32, 21, 27, 15, 15, 14, 18, 32, 13}, 
-				std::vector<i16>{27, 26, 21, 49, 27, 30, 21, 54, 32, 21, 27, 36, 15, 14, 18, 46, 13}
-			};
-			PrefixSumTest test_prefixSum1_1_18 = {"prefixSum1", "Test prefixSum1 1 18", 1, 2, std::vector{LaneInfo{1}}, 
-				std::vector<i16>{31, 21, 14, 26, 10, 19, 28, 22, 10, 24, 30, 32, 28, 22, 25, 25, 26, 29}, 
-				std::vector<i16>{31, 21, 14, 47, 10, 19, 28, 41, 10, 24, 30, 56, 28, 22, 25, 47, 26, 29}
-			};
+		Test_decodeHuffman1      test_decodeHuffman1     ;
+		Test_decodeRaise         test_decodeRaise        ;
+		Test_decodeLower         test_decodeLower        ;
+		Test_positionsToIndexes  test_positionsToIndexes ;
+		Test_decodeHuffman2      test_decodeHuffman2     ;
+		Test_prepareMCUs         test_prepareMCUs        ;
+		//	PrefixSumTest{kernel_name, name, mcu_length, half_size, lane_infos, coefficients, expected, },
+		PrefixSumTest<1> test_prefixSum1_1_15 = {"Test prefixSum1 1 15", 1, 2, std::vector{LaneInfo{1}}, 
+			std::vector<i16>{19, 29, 23, 33, 11, 11, 11, 30, 12, 26, 31, 11, 12, 21, 29}, 
+			std::vector<i16>{19, 29, 23, 62, 11, 11, 11, 41, 12, 26, 31, 37, 12, 21, 29}
+		};
+		PrefixSumTest<1> test_prefixSum1_1_16 = {"Test prefixSum1 1 16", 1, 2, std::vector{LaneInfo{1}}, 
+			std::vector<i16>{28, 22, 11, 24, 26, 26, 11, 33, 26, 30, 21, 12, 24, 32, 24, 18}, 
+			std::vector<i16>{28, 22, 11, 46, 26, 26, 11, 59, 26, 30, 21, 42, 24, 32, 24, 50}
+		};
+		PrefixSumTest<1> test_prefixSum1_1_17 = {"Test prefixSum1 1 17", 1, 2, std::vector{LaneInfo{1}}, 
+			std::vector<i16>{27, 26, 21, 23, 27, 30, 21, 24, 32, 21, 27, 15, 15, 14, 18, 32, 13}, 
+			std::vector<i16>{27, 26, 21, 49, 27, 30, 21, 54, 32, 21, 27, 36, 15, 14, 18, 46, 13}
+		};
+		PrefixSumTest<1> test_prefixSum1_1_18 = {"Test prefixSum1 1 18", 1, 2, std::vector{LaneInfo{1}}, 
+			std::vector<i16>{31, 21, 14, 26, 10, 19, 28, 22, 10, 24, 30, 32, 28, 22, 25, 25, 26, 29}, 
+			std::vector<i16>{31, 21, 14, 47, 10, 19, 28, 41, 10, 24, 30, 56, 28, 22, 25, 47, 26, 29}
+		};
 
-			PrefixSumTest test_prefixSum1_4 = {"prefixSum1", "Test prefixSum1 4", 4, 1, std::vector{LaneInfo{1}, LaneInfo{2}, LaneInfo{2}, LaneInfo{3}, }, 
-				//	MCU = ABBC
-				//	NCU = (A, B, BB, C)
-				// NCU1 + NCU2 = (A1+A2, BB1+B2, BB1+BB2, C1+C2)
-				std::vector<i16>{25,23,31,23, 31,28,27,27, 10,31,25,25, 18,27,28,29, 29,30,33,33},
-				std::vector<i16>{25,23,31,23, 56,59,58,50, 10,31,25,25, 28,52,53,54, 29,30,33,33}
-			};
-			Test_initializeBufferU32 test_initializeBufferU32;
-		}
+		PrefixSumTest<1> test_prefixSum1_4 = {"Test prefixSum1 4", 4, 1, std::vector{LaneInfo{1}, LaneInfo{2}, LaneInfo{2}, LaneInfo{3}, }, 
+			//	MCU = ABBC
+			//	NCU = (A, B, BB, C)
+			// NCU1 + NCU2 = (A1+A2, BB1+B2, BB1+BB2, C1+C2)
+			std::vector<i16>{25,23,31,23, 31,28,27,27, 10,31,25,25, 18,27,28,29, 29,30,33,33},
+			std::vector<i16>{25,23,31,23, 56,59,58,50, 10,31,25,25, 28,52,53,54, 29,30,33,33}
+		};
+		Test_initializeBufferU32 test_initializeBufferU32;
 	}
 }
 
