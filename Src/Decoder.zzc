@@ -1,36 +1,20 @@
-#ifndef VSCODE_ONLY
-	#hdr
-		#pragma once
-		#include <cstdint>
-		#include <type_traits>
-		// #include <cstddef>
-		#include "./Util.hpp"
-		#include "./FileBuffer.hpp"
-		#include "./Context.hpp"
-	#end
-	#src
-		#include <string.h>
-		#include <iostream>
-		#include "./DecodeScan.hpp"
-		#include "./Huffman.hpp"
-		#include "./Markers.hpp"
-	#end
-#else // if VSCODE
+#include "./DecoderMacro.zzh"
+#include "./Util.zzh"
+#pragma region zzc hdr_decl
 	#include <cstdint>
 	#include <type_traits>
 	// #include <cstddef>
+	#include "./FileBuffer.zzh"
+	#include "./Context.zzh"
+#pragma endregion zzc
+#pragma region zzc src_decl
 	#include <string.h>
 	#include <iostream>
-	#include "./Decoder.hpp"
-	#include "./Util.hpp"
-	#include "./FileBuffer.hpp"
-	#include "./Context.hpp"
-	#include "./DecodeScan.hpp"
-	#include "./Huffman.hpp"
-	#include "./Markers.hpp"
-#endif
+	#include "./DecodeScan.zzh"
+	#include "./Huffman.zzh"
+	#include "./Markers.zzh"
+#pragma endregion zzc
 
-#include "./DecoderMacro.hzz"
 
 namespace BJpeg {
 	namespace Decode {

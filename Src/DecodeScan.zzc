@@ -1,38 +1,22 @@
-#ifndef VSCODE_ONLY
-	#hdr
-		#pragma once
-		#include <cstdint>
-		#include <type_traits>
-		// #include <cstddef>
-		#include "./Util.hpp"
-		#include "./FileBuffer.hpp"
-		#include "./Context.hpp"
-	#end
-	#src
-		#include <string.h>
-		#include <iostream>
-		#include <bit>
-		#include "./Huffman.hpp"
-		#include "./Markers.hpp"
-		#include "./Test.hpp"
-	#end
-#else // if VSCODE
+#include "./Util.zzh"
+#include "./DecoderMacro.zzh"
+#pragma region zzc hdr_decl
 	#include <cstdint>
 	#include <type_traits>
 	// #include <cstddef>
+	#include "./FileBuffer.zzh"
+	#include "./Context.zzh"
+#pragma endregion zzc
+#pragma region zzc src_decl
 	#include <string.h>
 	#include <iostream>
 	#include <bit>
-	#include "./DecodeScan.hpp"
-	#include "./Util.hpp"
-	#include "./FileBuffer.hpp"
-	#include "./Context.hpp"
-	#include "./Huffman.hpp"
-	#include "./Markers.hpp"
-	#include "./Test.hpp"
-#endif
+	#include "./Huffman.zzh"
+	#include "./Markers.zzh"
+	#include "./Test.zzh"
+#pragma endregion zzc
 
-#include "./DecoderMacro.hzz"
+
 
 #define RESET_SCAN_CONTEXT() do for (int ci = 0; ci < MAX_COMPONENTS; ++ci) { auto C = component_order[ci]; context.component_data[C].predictor = 0; } while (0)
 
@@ -66,8 +50,9 @@ namespace BJpeg {
 							.c_id = C,
 							.dc_huf = component_data.dc_entropy_table,
 							.ac_huf = component_data.ac_entropy_table,
-							.y = y,
-							.x = x,
+							.q_id = component_data.quantization_table,
+							.sf_y = component_data.sampling_factor_y,
+							.sf_x = component_data.sampling_factor_x,
 						};
 						++lanes_count;
 					}
@@ -93,7 +78,7 @@ namespace BJpeg {
 			
 			// decode
 			u8* payload = context.payload;
-			CLContext<DECODE> cl = context.cl;
+			CLContextDecode cl = context.cl;
 			
 			// load payload
 			u32 payload_length = 0;
@@ -121,11 +106,12 @@ namespace BJpeg {
 			u32 job_size = payload_length * 8;
 
 			// init buffers 
+			MyOpenCL :: Kernel<1> kk;
 			if (!cl.buffer.payload.write(cl.queue, payload, payload_length)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.initializeBufferU32.setArg_value(~(u32)0)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.initializeBufferU32.setArg_buffer(cl.buffer.lanes)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.initializeBufferU32(cl.queue, &cl.buffer.lanes.length)) { return DECODE_RESULT_ERR; }
-			if (!cl.kernel.initializeBufferU32.setArg(cl.buffer.positions)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.initializeBufferU32.setArg_buffer(cl.buffer.positions)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.initializeBufferU32(cl.queue, &cl.buffer.positions.length)) { return DECODE_RESULT_ERR; }
 			
 			// start kernels
@@ -200,7 +186,7 @@ namespace BJpeg {
 		}
 		
 		namespace {
-			bool prefixSumCoefficients(size_t mcu_count, u8 mcu_length, u8 multilane_count, CLContext<DECODE> cl) {
+			fun bool prefixSumCoefficients(size_t mcu_count, u8 mcu_length, u8 multilane_count, CLContextDecode cl) {
 				if (!cl.kernel.prepareMCUs.setArg_mcu_length(mcu_length)) { return false; }
 				if (!cl.kernel.prefixSum1 .setArg_mcu_length(mcu_length)) { return false; }
 				if (!cl.kernel.prefixSum2 .setArg_mcu_length(mcu_length)) { return false; }

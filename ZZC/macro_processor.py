@@ -165,11 +165,15 @@ def prepareForPreprocess(tokens: list[RToken]) -> Iterable[str]:
 				yield f"<:::{index}>";
 			elif token.macro_type == MacroType.ENDREGION:
 				yield f"<:::{index}>";
-			elif reg.cpp or reg.any_dst:
-				yield f"<:::{index}>";
 			else:
-				yield token.raw;
-				if reg.any_dst: yield f"\n<:::{index}>";
+				context = booleansToInt(reg.zzc, reg.cpp or reg.any_dst);
+				if   context == 0b00: yield token.raw;
+				elif context == 0b01: yield f"<:::{index}>";
+				elif context == 0b10: yield token.raw;
+				else:
+					yield token.raw;
+					yield f"\n<:::{index}>";
+				pass
 			pass
 		elif token.typ == TokenType.COMMENT:
 			yield f"<:::{index}>"; #	TODO do we need this?

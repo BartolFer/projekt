@@ -110,15 +110,12 @@ namespace MyOpenCL {
 			return true;
 		}
 		
-		fun bool operator ()(Queue queue, size_t (&global_size)[N]) {
-			return self.callKernel(queue, global_size);
-		}
-		fun bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N]) {
-			return self.callKernel(queue, global_size, global_offset);
-		}
-		fun bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N], size_t (&local_size)[N]) {
-			return self.callKernel(queue, global_size, global_offset, local_size);
-		}
+		fun                                         bool operator ()(Queue queue, size_t (&global_size)[N]) {                                                      return self.callKernel(queue, global_size);                            }
+		fun                                         bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N]) {                          return self.callKernel(queue, global_size, global_offset);             }
+		fun                                         bool operator ()(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N], size_t (&local_size)[N]) { return self.callKernel(queue, global_size, global_offset, local_size); }
+		template <size_t = N> requires (N == 1) fun bool operator ()(Queue queue, size_t* global_size) {                                                           return self.callKernel(queue, global_size);                            }
+		template <size_t = N> requires (N == 1) fun bool operator ()(Queue queue, size_t* global_size, size_t* global_offset) {                                    return self.callKernel(queue, global_size, global_offset);             }
+		template <size_t = N> requires (N == 1) fun bool operator ()(Queue queue, size_t* global_size, size_t* global_offset, size_t* local_size) {                return self.callKernel(queue, global_size, global_offset, local_size); }
 	private:
 		fun bool callKernel(Queue queue, size_t* global_size, size_t* global_offset = nullptr, size_t* local_size = nullptr) {
 			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, 1, global_offset, global_size, local_size, 0, nullptr, nullptr);

@@ -80,9 +80,7 @@ namespace BJpeg {
 				if (!self.kernel.setArg(buffer)) { return false; }
 				if (!self.kernel.setArg(value)) { return false; }
 				
-				size_t work[1] = { buffer.length };
-				if (!self.kernel (queue, work)) { return false; }
-				//	if (!self.kernel (queue, &buffer.length)) { return false; } // because we can't have nice things
+				if (!self.kernel(queue, &buffer.length)) { return false; }
 				return true;
 			}
 		};
