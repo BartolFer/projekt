@@ -4,11 +4,26 @@ import contextlib;
 import json;
 from collections import defaultdict;
 import random;
+import time;
 
 from common import *;
 from file_names import *;
 from config import config;
 import tokenizer, macro_processor, semantic, file_composer;
+
+class Timer:
+	def __init__(self):
+		self.t = time.monotonic();
+	pass
+	def __repr__(self):
+		y = time.monotonic();
+		d = y - self.t;
+		self.t = y;
+		d = round(d);
+		(m, s) = divmod(d, 60);
+		return f"{m:02}:{s:02}";
+	pass
+pass
 
 #	typs = ["-zzc", "-src", "-hdr"];
 #	files = {};
@@ -71,6 +86,18 @@ def compile(command: ConfigCommand, input: str, output: str):
 	pass
 pass
 
+timer = Timer();
+total = Timer();
+timing = False;
+	#	index: 00:00
+	#	1st  : 00:00
+	#	pp   : 00:02
+	#	2nd  : 00:02
+	#	obj  : 00:15
+	#	exe  : 00:00
+	#	total: 00:19
+
+
 zzc_files: list[File] = [];
 for (base, folders, files) in os.walk(root + "/" + config.paths.zzc):
 	for filename in files:
@@ -80,6 +107,8 @@ for (base, folders, files) in os.walk(root + "/" + config.paths.zzc):
 		pass
 	pass
 pass
+
+if timing: print("index:", timer, flush = True);
 
 #	if config.is_new:
 #		for file in zzc_files:
@@ -115,9 +144,11 @@ for file in zzc_files:
 		pass
 	pass
 pass
+if timing: print("1st  :", timer, flush = True);
 for file in zzc_files:
 	compile(config.compiler.cpp.preprocess, file.abs_file.macro_temp_1, file.abs_file.macro_temp_2);
 pass
+if timing: print("pp   :", timer, flush = True);
 for file in zzc_files:
 	with open(file.abs_file.macro_temp_2) as f: raw = f.read();
 	raw = "".join(macro_processor.processMarkers(raw, file.tokens));
@@ -169,10 +200,12 @@ for file in zzc_files:
 		pass
 	pass
 pass
-#	TODO saved for later when building
-#	actually, it's useful to have information if it can be built
+if timing: print("2nd  :", timer, flush = True);
 for file in zzc_files:
 	compile(config.compiler.cpp.obj, file.abs_file.src, file.abs_file.obj);
 pass
+if timing: print("obj  :", timer, flush = True);
 compile(config.compiler.target, [file.abs_file.obj for file in zzc_files], config.paths.exe);
 
+if timing: print("exe  :", timer, flush = True);
+if timing: print("total:", total, flush = True);

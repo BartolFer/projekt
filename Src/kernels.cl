@@ -226,10 +226,9 @@ kernel void decodeHuffman2(
 	u32 i       = id.y;
 	// u32 p = lane_id * lane_width + i;
 	LaneInfo lane_info = lane_infos[lane_id];
-	u32 dc_huf = lane_info.dc_huf;
 	u32 lane_index = lane_id * lane_width + i;
-	__constant HuffmanTreeNode* huf_dc = trees[0][dc_huf];
-	__constant HuffmanTreeNode* huf_ac = trees[1][dc_huf];
+	__constant HuffmanTreeNode* huf_dc = trees[0][lane_info.dc_huf];
+	__constant HuffmanTreeNode* huf_ac = trees[1][lane_info.ac_huf];
 	// TODO coefficients_index
 	u32 coefficients_index = pos; // TODO + offset in image
 	__global i32* res = coefficients[coefficients_index];

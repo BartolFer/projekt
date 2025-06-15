@@ -43,7 +43,7 @@ namespace BJpeg {
 			MyOpenCL :: Buffer<u8> lane_indexes;
 			MyOpenCL :: Buffer<u32> positions;
 			MyOpenCL :: Buffer<u32x2> indexes;
-			MyOpenCL :: Buffer<i16[64]> coefficients;
+			MyOpenCL :: Buffer<i32[64]> coefficients;
 		} buffer;
 		bool initialized = false;
 		

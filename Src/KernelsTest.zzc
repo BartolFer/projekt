@@ -44,11 +44,17 @@ namespace BJpeg {
 	namespace {
 		Kernels kernels_var;
 		
-		fun std :: vector<std :: array<i16, 64>> inflateTo64Coefficients(std :: vector<i16> dc_coefficients) {
-			std :: vector<std :: array<i16, 64>> result; result.reserve(64 * dc_coefficients.size());
+		template <typename T>
+		struct Arr64 { 
+			T arr[64]; 
+			fun inline T& operator [](int i) { return self.arr[i]; }
+		};
+		
+		fun std :: vector<Arr64<i32>> inflateTo64Coefficients(std :: vector<i32> dc_coefficients) {
+			std :: vector<Arr64<i32>> result; result.resize(dc_coefficients.size());
 			int index = 0;
-			for (auto x : dc_coefficients) {
-				result[index][0] = x;
+			for (int index = 0; index < dc_coefficients.size(); ++index) {
+				result[index][0] = dc_coefficients[index];
 				for (int i = 1; i < 64; ++i) {
 					result[index][i] = i;
 					//	or any random value (but consistent between calls (we want that coefficients and expected have same ACs (in prefixSum test)))
@@ -462,7 +468,7 @@ namespace BJpeg {
 					},
 				};
 				uint8_t payload_arr[] = {237, 195, 199, 49, 126, 100, 208, 114, 185, 102, 90, 179, 218, 255, 255, 255};
-				LaneInfo lane_infos_arr[lanes_count] = {{0, 0, 0, 16, 16}, {1, 0, 0, 16, 16}, {2, 1, 1, 16, 16}, };
+				LaneInfo lane_infos_arr[lanes_count] = {{.dc_huf=0, .ac_huf=0}, {.dc_huf=0, .ac_huf=0}, {.dc_huf=1, .ac_huf=1}, };
 				cl_uint2 indexes_arr[unit_count] = {
 					{0, 0},
 					{2, 54},
@@ -478,7 +484,7 @@ namespace BJpeg {
 					//	1110-11 01110-00011 110001-110 0110-0010 11111100 110010-011 0100
 					//	0-00 111001-0101 110010-1100 110010-1101 0101 10011-110 110101
 					//	11111111111111111111111
-				int16_t result_arr[unit_count][64];
+				i32 result_arr[unit_count][64];
 				
 				Resource<MyOpenCL :: Buffer<uint8_t>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
 				if (!payload) { return false; }
@@ -492,7 +498,7 @@ namespace BJpeg {
 				Resource<MyOpenCL :: Buffer<cl_uint2>> indexes(context, CL_MEM_READ_ONLY, 2);
 				if (!indexes) { return false; }
 				if (!indexes.write(queue, indexes_arr)) { return false; }
-				Resource<MyOpenCL :: Buffer<i16[64]>> result(context, CL_MEM_READ_WRITE, 2);
+				Resource<MyOpenCL :: Buffer<i32[64]>> result(context, CL_MEM_READ_WRITE, 2);
 				if (!result) { return false; }
 				
 				if (!kernel.setArg_payload     (payload   )) { return false; }
@@ -506,13 +512,13 @@ namespace BJpeg {
 				if (!kernel(queue, global_work)) { return false; }
 				
 				if (!result.read(queue, result_arr)) { return false; }
-				for (int uint_id = 0; uint_id < unit_count; ++uint_id) {
+				for (int unit_id = 0; unit_id < unit_count; ++unit_id) {
 					for (int i = 0; i < 64; ++i) {
-						auto ex   = expected  [uint_id][i];
-						int16_t r = result_arr[uint_id][i];
+						auto ex   = expected  [unit_id][i];
+						int16_t r = result_arr[unit_id][i];
 						if (ex.SSSS == 0) {
 							if (r != 0) {
-								Test :: getError() << "[" << uint_id << "][" << i << "]: 0 e=" << ex.SSSS << "|" << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
+								Test :: getError() << "[" << unit_id << "][" << i << "]: 0 e=" << ex.SSSS << "|" << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
 								return false;
 							}
 						} else {
@@ -521,16 +527,16 @@ namespace BJpeg {
 							int mask = M - 1;
 							if (m <= r && r < M) {
 								if (r & mask != ex.bits) {
-									Test :: getError() << "[" << uint_id << "][" << i << "]: + e=" << ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
+									Test :: getError() << "[" << unit_id << "][" << i << "]: + e=" << (u16) ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
 									return false;
 								}
 							} else if (-M < r && r <= -m) {
 								if ((r - 1) & mask != ex.bits) {
-									Test :: getError() << "[" << uint_id << "][" << i << "]: - e=" << ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
+									Test :: getError() << "[" << unit_id << "][" << i << "]: - e=" << (u16) ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
 									return false;
 								}
 							} else {
-								Test :: getError() << "[" << uint_id << "][" << i << "]: SSSS e=" << ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
+								Test :: getError() << "[" << unit_id << "][" << i << "]: SSSS e=" << (u16) ex.SSSS << "|" << std::hex << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
 								return false;
 							}
 						}
@@ -546,17 +552,17 @@ namespace BJpeg {
 				Resource kernel(kernels_var.prepareMCUs, program); if (!kernel) { return false; }
 				
 				//                                                               A  B  B  C
-				auto coefficients_arr = inflateTo64Coefficients(std::vector<i16>{25,23,31,23, 31,28,27,27, 10,31,25,25, 18,27,28,29, 29,30,33,33});
-				auto expected_arr     = inflateTo64Coefficients(std::vector<i16>{25,23,54,23, 31,28,55,27, 10,31,56,25, 18,27,55,29, 29,30,63,33});
+				auto coefficients_arr = inflateTo64Coefficients(std::vector<i32>{25,23,31,23, 31,28,27,27, 10,31,25,25, 18,27,28,29, 29,30,33,33});
+				auto expected_arr     = inflateTo64Coefficients(std::vector<i32>{25,23,54,23, 31,28,55,27, 10,31,56,25, 18,27,55,29, 29,30,63,33});
 				auto lane_infos_arr = std::vector{LaneInfo{.start_in_mcu = 1, .amount_in_mcu = 2}};
 				
-				size_t work[2] = {1, coefficients_arr.size()};
 				u8 mcu_length = 4;
+				size_t work[2] = {1, coefficients_arr.size() / mcu_length};
 				
-				Resource<MyOpenCL :: Buffer<i16[64]>> coefficients(context, CL_MEM_READ_WRITE, coefficients_arr.size()); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<i32[64]>> coefficients(context, CL_MEM_READ_WRITE, coefficients_arr.size()); if (!coefficients) { return false; }
 				Resource<MyOpenCL :: Buffer<LaneInfo>>  lane_infos(context, CL_MEM_READ_WRITE,   lane_infos_arr.size()); if (!  lane_infos) { return false; }
 				
-				if (!coefficients.write(queue, (i16(*)[64])&coefficients_arr[0][0])) { return false; }
+				if (!coefficients.write(queue, &coefficients_arr[0].arr)) { return false; }
 				if (!  lane_infos.write(queue, &  lane_infos_arr[0])) { return false; }
 				
 				if (!kernel.setArg_coefficients(coefficients)) { return false; }
@@ -564,7 +570,7 @@ namespace BJpeg {
 				if (!kernel.setArg_mcu_length  (mcu_length  )) { return false; }
 				if (!kernel(queue, work)) { return false; }
 				
-				if (!coefficients.read(queue, (i16(*)[64])&coefficients_arr[0][0])) { return false; }
+				if (!coefficients.read(queue, &coefficients_arr[0].arr)) { return false; }
 				for (int i = 0; i < coefficients_arr.size(); ++i) {
 					for (int j = 0; j < 64; ++j) {
 						if (coefficients_arr[i][j] != expected_arr[i][j]) {
@@ -587,15 +593,15 @@ namespace BJpeg {
 			u8 mcu_length;
 			u32 half_size;
 			std :: vector<LaneInfo> lane_infos;
-			std :: vector<std :: array<i16, 64>> coefficients;
-			std :: vector<std :: array<i16, 64>> expected;
+			std :: vector<Arr64<i32>> coefficients;
+			std :: vector<Arr64<i32>> expected;
 			fun inline PrefixSumTest(
 				char const* name,
 				u8 mcu_length,
 				u32 half_size,
 				std :: vector<LaneInfo> lane_infos,
-				std :: vector<i16> coefficients,
-				std :: vector<i16> expected
+				std :: vector<i32> coefficients,
+				std :: vector<i32> expected
 			) :
 				name(name),
 				mcu_length(mcu_length),
@@ -607,28 +613,32 @@ namespace BJpeg {
 			
 			fun char const* getDescription() { return self.name; }
 			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
-				Resource kernel(prefixSum<PrefixId>, program); if (!kernel) { return false; }
+				#ifdef VSCODE_ONLY
+					Resource<typename Kernels::prefixSum1> kernel(kernels_var.prefixSum1, program);
+				#else
+					Resource kernel(prefixSum<PrefixId>, program); if (!kernel) { return false; }
+				#endif
 				
 				if (self.coefficients.size() != self.expected.size()) { return false; }
 				if (self.lane_infos.size() != mcu_length) { return false; }
 				if (self.coefficients.size() / 64 % mcu_length != 0) { return false; }
-				size_t n = self.coefficients.size() / 64 / mcu_length;
+				size_t n = self.coefficients.size() / mcu_length;
 				
-				Resource<MyOpenCL :: Buffer<i16[64] >> coefficients(context, CL_MEM_READ_WRITE, self.coefficients.size()); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<i32[64] >> coefficients(context, CL_MEM_READ_WRITE, self.coefficients.size()); if (!coefficients) { return false; }
 				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos  (context, CL_MEM_READ_WRITE, self.lane_infos  .size()); if (!lane_infos  ) { return false; }
 				
-				if (!coefficients.write(queue, (i16(*)[64])&self.coefficients[0][0])) { return false; }
+				if (!coefficients.write(queue, &self.coefficients[0].arr)) { return false; }
 				if (!lane_infos  .write(queue, &self.lane_infos  [0])) { return false; }
 				
 				if (!kernel.setArg_coefficients(coefficients)) { return false; }
 				if (!kernel.setArg_lane_infos  (lane_infos  )) { return false; }
-				if (!kernel.setArg_half_size   (mcu_length  )) { return false; }
-				if (!kernel.setArg_mcu_length  (half_size   )) { return false; }
+				if (!kernel.setArg_half_size   (half_size   )) { return false; }
+				if (!kernel.setArg_mcu_length  (mcu_length  )) { return false; }
 				
 				size_t amount[1] = {n / (2 * half_size)};
 				if (!kernel(queue, amount)) { return false; }
 				
-				if (!coefficients.read(queue, (i16(*)[64])&self.coefficients[0][0])) { return false; }
+				if (!coefficients.read(queue, &self.coefficients[0].arr)) { return false; }
 				for (int i = 0; i < self.coefficients.size(); ++i) {
 					for (int j = 0; j < 64; ++j) {
 						if (self.coefficients[i][j] != self.expected[i][j]) {
@@ -685,30 +695,30 @@ namespace BJpeg {
 		Test_positionsToIndexes  test_positionsToIndexes ;
 		Test_decodeHuffman2      test_decodeHuffman2     ;
 		Test_prepareMCUs         test_prepareMCUs        ;
-		//	PrefixSumTest{kernel_name, name, mcu_length, half_size, lane_infos, coefficients, expected, },
+		//	PrefixSumTest{name, mcu_length, half_size, lane_infos, coefficients, expected, },
 		PrefixSumTest<1> test_prefixSum1_1_15 = {"Test prefixSum1 1 15", 1, 2, std::vector{LaneInfo{1}}, 
-			std::vector<i16>{19, 29, 23, 33, 11, 11, 11, 30, 12, 26, 31, 11, 12, 21, 29}, 
-			std::vector<i16>{19, 29, 23, 62, 11, 11, 11, 41, 12, 26, 31, 37, 12, 21, 29}
+			std::vector<i32>{19, 29, 23, 33, 11, 11, 11, 30, 12, 26, 31, 11, 12, 21, 29}, 
+			std::vector<i32>{19, 29, 23, 62, 11, 11, 11, 41, 12, 26, 31, 37, 12, 21, 29}
 		};
 		PrefixSumTest<1> test_prefixSum1_1_16 = {"Test prefixSum1 1 16", 1, 2, std::vector{LaneInfo{1}}, 
-			std::vector<i16>{28, 22, 11, 24, 26, 26, 11, 33, 26, 30, 21, 12, 24, 32, 24, 18}, 
-			std::vector<i16>{28, 22, 11, 46, 26, 26, 11, 59, 26, 30, 21, 42, 24, 32, 24, 50}
+			std::vector<i32>{28, 22, 11, 24, 26, 26, 11, 33, 26, 30, 21, 12, 24, 32, 24, 18}, 
+			std::vector<i32>{28, 22, 11, 46, 26, 26, 11, 59, 26, 30, 21, 42, 24, 32, 24, 50}
 		};
 		PrefixSumTest<1> test_prefixSum1_1_17 = {"Test prefixSum1 1 17", 1, 2, std::vector{LaneInfo{1}}, 
-			std::vector<i16>{27, 26, 21, 23, 27, 30, 21, 24, 32, 21, 27, 15, 15, 14, 18, 32, 13}, 
-			std::vector<i16>{27, 26, 21, 49, 27, 30, 21, 54, 32, 21, 27, 36, 15, 14, 18, 46, 13}
+			std::vector<i32>{27, 26, 21, 23, 27, 30, 21, 24, 32, 21, 27, 15, 15, 14, 18, 32, 13}, 
+			std::vector<i32>{27, 26, 21, 49, 27, 30, 21, 54, 32, 21, 27, 36, 15, 14, 18, 46, 13}
 		};
 		PrefixSumTest<1> test_prefixSum1_1_18 = {"Test prefixSum1 1 18", 1, 2, std::vector{LaneInfo{1}}, 
-			std::vector<i16>{31, 21, 14, 26, 10, 19, 28, 22, 10, 24, 30, 32, 28, 22, 25, 25, 26, 29}, 
-			std::vector<i16>{31, 21, 14, 47, 10, 19, 28, 41, 10, 24, 30, 56, 28, 22, 25, 47, 26, 29}
+			std::vector<i32>{31, 21, 14, 26, 10, 19, 28, 22, 10, 24, 30, 32, 28, 22, 25, 25, 26, 29}, 
+			std::vector<i32>{31, 21, 14, 47, 10, 19, 28, 41, 10, 24, 30, 56, 28, 22, 25, 47, 26, 29}
 		};
 
 		PrefixSumTest<1> test_prefixSum1_4 = {"Test prefixSum1 4", 4, 1, std::vector{LaneInfo{1}, LaneInfo{2}, LaneInfo{2}, LaneInfo{3}, }, 
 			//	MCU = ABBC
 			//	NCU = (A, B, BB, C)
 			// NCU1 + NCU2 = (A1+A2, BB1+B2, BB1+BB2, C1+C2)
-			std::vector<i16>{25,23,31,23, 31,28,27,27, 10,31,25,25, 18,27,28,29, 29,30,33,33},
-			std::vector<i16>{25,23,31,23, 56,59,58,50, 10,31,25,25, 28,52,53,54, 29,30,33,33}
+			std::vector<i32>{25,23,31,23, 31,28,27,27, 10,31,25,25, 18,27,28,29, 29,30,33,33},
+			std::vector<i32>{25,23,31,23, 56,59,58,50, 10,31,25,25, 28,52,53,54, 29,30,33,33}
 		};
 		Test_initializeBufferU32 test_initializeBufferU32;
 	}
