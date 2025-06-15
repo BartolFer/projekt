@@ -417,7 +417,7 @@ kernel void uninterleave_upsample/* 2 */(
 	u8x2                max_sf,
 	u32x2               image_size,
 	u8                  mcu_length,
-	u8                  mcu_per_line,
+	u32                 mcu_per_line,
 	u8                  component_count
 ) {
 	//	this kernel is just copying stuff from one place to another (multiple anothers)
@@ -473,7 +473,7 @@ kernel void uninterleave_upsample/* 2 */(
 				u32 data_unit_index = y_of_data_unit_in_mcu * (max_sf.x / component_sf.x) + x_of_data_unit_in_mcu;
 				u32 src_index = data_unit_base + data_unit_index;
 				u32 dst_index = (base.y + yy) * image_size.x + (base.x + xx);
-				image[dst_index].arr[c_id] = coefficients[src_index][(yy % 8) * 8 + (xx % 8)]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
+				image[dst_index].arr[c_id] = coefficients[src_index][(yy / (max_sf.y / component_sf.y) % 8) * 8 + (xx / (max_sf.x / component_sf.x) % 8)]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
 			}
 		}
 		data_unit_base += component_sf.y * component_sf.x;

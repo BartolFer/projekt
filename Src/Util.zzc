@@ -62,6 +62,7 @@ namespace BJpeg {
 	typedef cl_ushort u16;
 	typedef cl_uint   u32;
 	typedef cl_ulong  u64;
+	typedef cl_uchar2 u8x2;
 	typedef cl_uint2  u32x2;
 	typedef cl_char  i8;
 	typedef cl_short i16;

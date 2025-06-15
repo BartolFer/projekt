@@ -651,6 +651,105 @@ namespace BJpeg {
 				return true;
 			}
 		};
+		struct Test_uninterleave_upsample : KernelsTest {
+			fun char const* getDescription() { return "Test uninterleave_upsample"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+				Resource kernel(kernels_var.uninterleave_upsample, program); if (!kernel) { return false; }
+				
+				constexpr u8 mcu_length = 4;
+				constexpr u8 Y = 6;
+				constexpr u8 X = 4;
+				constexpr u8 SF_Y = 2;
+				constexpr u8 SF_X = 1;
+				constexpr u8x2 max_sf = {1, 2};
+				constexpr u32x2 image_size = {X*8, Y*8};
+				constexpr u32 mcu_per_line = X/SF_X;
+				constexpr u8 component_count = 3;
+				constexpr i32 SENTINEL = 0xDD;
+				static_assert(Y % SF_Y == 0);
+				static_assert(X % SF_X == 0);
+				size_t work[2] = {Y/SF_Y, X/SF_X};
+				//	AABC
+				//	6x4 units (40x32)
+				//	A1 B c   A1 B c
+				//	A2 B c   A2 B c
+				float coefficients_arr[Y/SF_Y * X/SF_X * mcu_length][64] = {
+					{0xA0}, {0xA1}, {0xB2}, {0xC3},   {0xA4}, {0xA5}, {0xB6}, {0xC7},   {0xA8}, {0xA9}, {0xBA}, {0xCB},   {0xAC}, {0xA0}, {0xB1}, {0xC2},   
+					{0xA3}, {0xA4}, {0xB5}, {0xC6},   {0xA7}, {0xA8}, {0xB9}, {0xCA},   {0xAB}, {0xAC}, {0xB0}, {0xC1},   {0xA2}, {0xA3}, {0xB4}, {0xC5},   
+					{0xA6}, {0xA7}, {0xB8}, {0xC9},   {0xAA}, {0xAB}, {0xBC}, {0xC0},   {0xA1}, {0xA2}, {0xB3}, {0xC4},   {0xA5}, {0xA6}, {0xB7}, {0xC8},   
+				};
+				RGBA result_arr  [Y*8*2][X*8]; memset(result_arr, SENTINEL, sizeof(result_arr));
+				RGBA expected_arr[Y*8][X*8] = {{0}};
+				for (int i = 0; i < Y/SF_Y; ++i) {
+					for (int j = 0; j < X/SF_X; ++j) {
+						int ci = (i * X/SF_X + j) * mcu_length;
+						u8 a1 = coefficients_arr[ci + 0][0];
+						u8 a2 = coefficients_arr[ci + 1][0];
+						u8 b  = coefficients_arr[ci + 2][0];
+						u8 c  = coefficients_arr[ci + 3][0];
+						expected_arr[i*2*8+0][j*8].r = a1;
+						expected_arr[i*2*8+8][j*8].r = a2;
+						expected_arr[i*2*8+0][j*8].g = b;
+						expected_arr[i*2*8+1][j*8].g = b;
+						expected_arr[i*2*8+0][j*8].b = c;
+						expected_arr[i*2*8+1][j*8].b = c;
+					}
+				}
+				LaneInfo lane_infos_arr[mcu_length] = {
+					{.c_id = 0, .sf_y=2, .sf_x=1, .start_in_mcu = 1, .amount_in_mcu = 2},
+					{.c_id = 0, .sf_y=2, .sf_x=1},
+					{.c_id = 1, .sf_y=1, .sf_x=1},
+					{.c_id = 2, .sf_y=1, .sf_x=1},
+				};
+				
+				
+				Resource<MyOpenCL :: Buffer<float[64]>> coefficients(context, CL_MEM_READ_WRITE, Y/SF_Y * X/SF_X * mcu_length); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<LaneInfo>>    lane_infos(context, CL_MEM_READ_WRITE, mcu_length                  ); if (!  lane_infos) { return false; }
+				Resource<MyOpenCL :: Buffer<RGBA>>            result(context, CL_MEM_READ_WRITE, Y * X * 64 * 2              ); if (!      result) { return false; }
+				
+				if (!coefficients.write(queue, &coefficients_arr[0])) { return false; }
+				if (!  lane_infos.write(queue, &  lane_infos_arr[0])) { return false; }
+				if (!      result.write(queue, &   result_arr[0][0])) { return false; }
+				
+				if (!kernel.setArg_coefficients   (coefficients   )) { return false; }
+				if (!kernel.setArg_image          (result         )) { return false; }
+				if (!kernel.setArg_lane_infos     (lane_infos     )) { return false; }
+				if (!kernel.setArg_max_sf         (max_sf         )) { return false; }
+				if (!kernel.setArg_image_size     (image_size     )) { return false; }
+				if (!kernel.setArg_mcu_length     (mcu_length     )) { return false; }
+				if (!kernel.setArg_mcu_per_line   (mcu_per_line   )) { return false; }
+				if (!kernel.setArg_component_count(component_count)) { return false; }
+
+				if (!kernel(queue, work)) { return false; }
+				
+				if (!result.read(queue, &result_arr[0][0])) { return false; }
+				//	for (int i = 0; i < Y*8; ++i) {
+				//		for (int j = 0; j < X*8; ++j) {
+				//			if (result_arr[i][j].r == 0xB2) { printf("R %d %d    ", i, j); }
+				//			if (result_arr[i][j].g == 0xB2) { printf("G %d %d    ", i, j); }
+				//			if (result_arr[i][j].b == 0xB2) { printf("B %d %d    ", i, j); }
+				//			if (result_arr[i][j].a == 0xB2) { printf("A %d %d    ", i, j); }
+				//		}
+				//	} printf("!\n");
+				for (int i = Y*8; i < Y*8*2; ++i) {
+					for (int j = 0; j < X*8; ++j) {
+						if (result_arr[i][j].r != SENTINEL            ) { Test :: getError() << "Error at " << i << ", " << j << " R2: Expected " << std::hex << (u16) SENTINEL             << " Got " << std::hex << (u16) result_arr[i][j].r << "!"; return false; }
+						if (result_arr[i][j].g != SENTINEL            ) { Test :: getError() << "Error at " << i << ", " << j << " G2: Expected " << std::hex << (u16) SENTINEL             << " Got " << std::hex << (u16) result_arr[i][j].g << "!"; return false; }
+						if (result_arr[i][j].b != SENTINEL            ) { Test :: getError() << "Error at " << i << ", " << j << " B2: Expected " << std::hex << (u16) SENTINEL             << " Got " << std::hex << (u16) result_arr[i][j].b << "!"; return false; }
+						if (result_arr[i][j].a != SENTINEL            ) { Test :: getError() << "Error at " << i << ", " << j << " A2: Expected " << std::hex << (u16) SENTINEL             << " Got " << std::hex << (u16) result_arr[i][j].a << "!"; return false; }
+					}
+				}
+				for (int i = 0; i < Y*8; ++i) {
+					for (int j = 0; j < X*8; ++j) {
+						if (result_arr[i][j].r != expected_arr[i][j].r) { Test :: getError() << "Error at " << i << ", " << j << " R:  Expected " << std::hex << (u16) expected_arr[i][j].r << " Got " << std::hex << (u16) result_arr[i][j].r << "!"; return false; }
+						if (result_arr[i][j].g != expected_arr[i][j].g) { Test :: getError() << "Error at " << i << ", " << j << " G:  Expected " << std::hex << (u16) expected_arr[i][j].g << " Got " << std::hex << (u16) result_arr[i][j].g << "!"; return false; }
+						if (result_arr[i][j].b != expected_arr[i][j].b) { Test :: getError() << "Error at " << i << ", " << j << " B:  Expected " << std::hex << (u16) expected_arr[i][j].b << " Got " << std::hex << (u16) result_arr[i][j].b << "!"; return false; }
+						if (result_arr[i][j].a != SENTINEL            ) { Test :: getError() << "Error at " << i << ", " << j << " A:  Expected " << std::hex << (u16) SENTINEL             << " Got " << std::hex << (u16) result_arr[i][j].a << "!"; return false; }
+					}
+				}
+				return true;
+			}
+		};
 		struct Test_initializeBufferU32 : KernelsTest {
 			fun char const* getDescription() { return "Test initializeBufferU32"; }
 			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
@@ -720,6 +819,8 @@ namespace BJpeg {
 			std::vector<i32>{25,23,31,23, 31,28,27,27, 10,31,25,25, 18,27,28,29, 29,30,33,33},
 			std::vector<i32>{25,23,31,23, 56,59,58,50, 10,31,25,25, 28,52,53,54, 29,30,33,33}
 		};
+		
+		Test_uninterleave_upsample test_uninterleave_upsample;
 		Test_initializeBufferU32 test_initializeBufferU32;
 	}
 }
