@@ -3,10 +3,9 @@ import os, json;
 from common import *;
 
 def configModuleInit(_root):
-	global root, CONFIG_NAME, CACHE_NAME, config;
+	global root, CONFIG_NAME, config;
 	root = _root;
 	CONFIG_NAME = root + "/.zzc.config.json";
-	CACHE_NAME  = root + "/.zzc.cache.json";
 
 	if os.path.exists(CONFIG_NAME):
 		with open(CONFIG_NAME) as file:

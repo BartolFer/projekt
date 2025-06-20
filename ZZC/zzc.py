@@ -9,6 +9,7 @@ import time;
 from common import *;
 from file_names import *;
 from config import config;
+from cache import *;
 import tokenizer, macro_processor, semantic, file_composer;
 
 class Timer:
@@ -19,61 +20,13 @@ class Timer:
 		y = time.monotonic();
 		d = y - self.t;
 		self.t = y;
-		d = round(d);
+		d = round(d * 1000);
+		(d, ms) = divmod(d, 1000);
 		(m, s) = divmod(d, 60);
-		return f"{m:02}:{s:02}";
+		return f"{m:02}:{s:02}.{ms:03}";
 	pass
 pass
 
-#	typs = ["-zzc", "-src", "-hdr"];
-#	files = {};
-#	args = iter(sys.argv[1 : ]);
-#	for (i, typ) in enumerate(args):
-#		index = 2 * i + 1;
-#		path = next(args);
-#		if typ not in typs: raise ValueError(f"File type must be one of {typs} (at {index} <{typ}>)");
-#		files[typ] = path;
-#	pass
-#	if any(typ not in files.keys() for typ in typs): raise ValueError(f"Must name all of the files: {typs}");
-
-
-#	zzc_name = files["-zzc"];
-#	src_name = files["-src"];
-#	hdr_name = files["-hdr"];
-#	with \
-#		open(zzc_name, "r") as zzc_file, \
-#		open(src_name, "w") as src_file, \
-#		open(hdr_name, "w") as hdr_file, \
-#	NULL_CONTEXT_MANAGER as _:
-#		parser.generateSrcAndHdr(zzc_file, src_file, hdr_file);
-#	pass
-
-
-#	def buildDependancies() -> tuple[dict[File, list[File]], dict[File, set[File]]]:
-#		#	step 1: inflate
-#		inflated = {k: v.copy() for (k, v) in config.dependancies.items()};
-#		for (file, dependancy) in inflated.items():
-#			i = 0;
-#			while i < len(dependancy):
-#				dep = dependancy[i];
-#				dependancy.extend(d for d in inflated.get(dep, []) if d not in dependancy)
-#				i += 1;
-#			pass
-#		pass
-#		reversed = defaultdict(set);
-#		for (file, dependancies) in config.dependancies.items():
-#			for f in dependancies:
-#				reversed[f].add(file);
-#			pass
-#		pass
-#		return (inflated, reversed);
-#	pass
-def tokenize(file: File):
-	with open(file.path) as f:
-		raw = f.read();
-	pass
-	file.tokens = list(tokenizer.tokenize(raw));
-pass
 
 def compile(command: ConfigCommand, input: str, output: str):
 	cmd = command({"in": input, "out": output});
@@ -86,9 +39,38 @@ def compile(command: ConfigCommand, input: str, output: str):
 	pass
 pass
 
+def step1(file: File):
+	if file.tokens is not None: return;
+	with open(file.abs_file.path) as f: raw = f.read();
+	file.tokens = list(tokenizer.tokenize(raw));
+	macro_processor.transformIntoRTokens(file.tokens);
+	with open(file.abs_file.macro_temp_1, "w") as f:
+		for chunk in macro_processor.prepareForPreprocess(file.tokens):
+			f.write(chunk);
+		pass
+	pass
+pass
+def updateCache(file: File):
+	direct_dependancy = cache.direct_dependancies[file] = [];
+	dirname = config.paths.zzc + "/" + (os.path.dirname(file.path) or ".");
+	#	print(repr(dirname), "        ", root + "/" + config.paths.zzc);
+	#	dirname = os.path.relpath(dirname1, root + "/" + config.paths.zzc);
+	for token in file.tokens:
+		if token.typ != tokenizer.TokenType.MACRO: continue;
+		if token.macro_type != macro_processor.MacroType.INCLUDE: continue;
+		if not token.relevant_info.is_zzc: continue;
+		filename = token.relevant_info.filename;
+		if filename.endswith(".zzh"): filename = filename[ : -4] + ".zzc";
+		f = File(dirname + "/" + filename);
+		if f not in direct_dependancy: direct_dependancy.append(f);
+		#	print(dirname, file.path, f.path, sep="         ");
+	pass
+	#	print(file, direct_dependancy);
+pass
+
 timer = Timer();
 total = Timer();
-timing = False;
+timing = True;
 	#	index: 00:00
 	#	1st  : 00:00
 	#	pp   : 00:02
@@ -107,49 +89,39 @@ for (base, folders, files) in os.walk(root + "/" + config.paths.zzc):
 		pass
 	pass
 pass
-
 if timing: print("index:", timer, flush = True);
 
-#	if config.is_new:
-#		for file in zzc_files:
-#			tokenize(file);
-#			macro_processor.transformIntoRTokens(file.tokens);
-#		pass
-#		for file in zzc_files:
-#			config.dependancies[file] = [file.relativeFile(token.relevant_info.filename) for token in file.tokens if token.typ == tokenizer.TokenType.MACRO and token.relevant_info.is_zzc]
-#		pass
-#		files_to_upadte = zzc_files;
-#	else:
-#		(inflated, reversed) = buildDependancies();
-#		...
-#		files_to_upadte = [file for file in zzc_files if]
-#		#	also, do 1st tokenization and RToken transform here
-#	pass
-
-#	ok, so, plan!
-#	we complete File class to have automatic paths for different file types
-#	we will create dependancy table (+reverse?)
-#	see which files need to be updated
-#	update step 1: macro preprocess all
-#	update step 2: semantic
-
-
+outdated = [file for file in zzc_files if isOutdated(file)];
+if not outdated: sys.exit(0);
 for file in zzc_files:
-	with open(file.abs_file.path) as f: raw = f.read();
-	file.tokens = list(tokenizer.tokenize(raw));
-	macro_processor.transformIntoRTokens(file.tokens);
-	with open(file.abs_file.macro_temp_1, "w") as f:
-		for chunk in macro_processor.prepareForPreprocess(file.tokens):
-			f.write(chunk);
-		pass
+	if file in outdated: continue;
+	if file in cache.direct_dependancies.keys(): continue;
+	step1(file);
+	updateCache(file);
+pass
+for file in outdated:
+	step1(file);
+	updateCache(file);
+pass
+cache.direct_dependancies = {file: [d for d in deps if d in zzc_files] for (file, deps) in cache.direct_dependancies.items() if file in zzc_files};
+(dependancies, reversed_dependancies) = buildDependancies();
+cache.save();
+if timing: print("cache:", timer, flush = True);
+
+for file in outdated:
+	if file not in reversed_dependancies.keys(): continue;
+	for f in reversed_dependancies[file]:
+		if f not in outdated: outdated.append(f);
 	pass
 pass
+
+for file in outdated: step1(file);
 if timing: print("1st  :", timer, flush = True);
-for file in zzc_files:
+for file in outdated:
 	compile(config.compiler.cpp.preprocess, file.abs_file.macro_temp_1, file.abs_file.macro_temp_2);
 pass
 if timing: print("pp   :", timer, flush = True);
-for file in zzc_files:
+for file in outdated:
 	with open(file.abs_file.macro_temp_2) as f: raw = f.read();
 	raw = "".join(macro_processor.processMarkers(raw, file.tokens));
 	#	if "Test" in file.path: print("===\n" + raw + "\n___");
@@ -201,7 +173,7 @@ for file in zzc_files:
 	pass
 pass
 if timing: print("2nd  :", timer, flush = True);
-for file in zzc_files:
+for file in outdated:
 	compile(config.compiler.cpp.obj, file.abs_file.src, file.abs_file.obj);
 pass
 if timing: print("obj  :", timer, flush = True);

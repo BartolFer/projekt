@@ -86,7 +86,7 @@ namespace BJpeg {
 								if (Pq == 0) { for (uint8_t i = 0; i < 64; ++i) { table[i] = DECODE_READ_U8; } } 
 								else         { for (uint8_t i = 0; i < 64; ++i) { DECODE_READ_U16(table[i]); } }
 							}
-							// TODO quantization CL
+							if (!context.updateQTableCL()) { return DECODE_RESULT_ERR; }
 						} break;
 						case Marker :: DRI: {
 							DECODE_READ_U16(context.restart_interval);
@@ -149,8 +149,8 @@ namespace BJpeg {
 					return DECODE_RESULT_ERR;
 				}
 				context.component_count = Nf;
-				if (!context.cl.init(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { return DECODE_RESULT_ERR; }
-				defer {context.cl.finish();};
+				if (!context.cl.initBuffers(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { return DECODE_RESULT_ERR; }
+				defer {context.cl.finishBuffers();};
 				for (uint8_t i = 0; i < Nf; ++i) {
 					uint8_t C = DECODE_READ_U8;
 					if (C >= MAX_COMPONENTS) {

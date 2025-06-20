@@ -3,7 +3,7 @@
 #include "./Test.zzh"
 #include "./FileBuffer.zzh"
 #include "./Context.zzh"
-//	#include "./Decoder.zzh"
+#include "./Decoder.zzh"
 
 
 uint8_t BJpeg :: recomended_space_pow = 26; // 64 MiB
@@ -18,18 +18,19 @@ fun int main() {
 	//		return EXIT_FAILURE;
 	//	}
 	#ifdef TESTING
-		return 
+		//	return 
 		Test :: runTests() ? EXIT_SUCCESS : EXIT_FAILURE;
 	#endif
 	
 	//	Resource<InputFileBuffer> file("D:/Personal/nastava/projekt/Temp/J32_1_small.jpg");
-	//	//	Resource<InputFileBuffer> file("D:/temp/Zugpsitze_mountain.jpg");
-	//	if (!file   ) { std :: cerr << "!file"    << std :: endl; return 1; }
-	//	DecodeContext context;
-	//	//	if (!context) { std :: cerr << "!context" << std :: endl; return 1; }
-	//	
-	//	auto res = Decode :: image(context, file, 0);
-	//	std :: cout << "res = " << res << std :: endl;
+	std :: string path = "D:/temp/Zugpsitze_mountain.jpg";
+	Resource<InputFileBuffer> file(path);
+	if (!file   ) { std :: cerr << "!file"    << std :: endl; return 1; }
+	Resource<DecodeContext> context;
+	if (!context) { std :: cerr << "!context" << std :: endl; return 1; }
+	
+	auto res = Decode :: image(context, file, 0);
+	std :: cout << "res = " << res << std :: endl;
 	
 	// InputFileBuffer file(recomended_space_pow, "D:/temp/Zugpsitze_mountain.jpg");
 	// auto& context = *new Context<CodingType :: DECODE>;

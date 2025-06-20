@@ -101,10 +101,6 @@ def semanticAnalysis(tokens: list[RToken]):
 				if v: setattr(reg, k, raw);
 				else: setattr(reg, k, "");
 			pass
-			#	if token.ephermal:
-			#		token.ephermal = False;
-			#		token.region.fwd = raw;
-			#	pass
 		pass
 	pass
 pass
@@ -221,7 +217,6 @@ def _var(tokens: list[SToken], index: int, index_comma: int, semantic_stack: Sem
 				pass
 			pass
 			if not eligible_for_name:
-				print(tokens[i - 5 : i + 5]);
 				raise ParseError; #	dissalow `Type var(args);` because it might be confused with `Type stuff (var);`
 				#	e.g. how do we know what is the name here int a (*b) (is it a initialized with *b or is it b as pointer to int a)
 				has_init = True;
@@ -297,6 +292,7 @@ def _var(tokens: list[SToken], index: int, index_comma: int, semantic_stack: Sem
 			pass
 		elif context == 0b00001:
 			region.hdr_decl = decl;
+			#	commented out because constexpr doesn't support it
 			#	region.hdr_impl = impl;
 			#	if extern_insert == i:
 			#		tokens[extern_insert].region.hdr_decl = added_extern + tokens[extern_insert].region.hdr_decl;
@@ -341,6 +337,7 @@ def _var(tokens: list[SToken], index: int, index_comma: int, semantic_stack: Sem
 			pass
 		elif context == 0b10001:
 			region.src_decl = decl;
+			#	commented out because constexpr doesn't support it
 			#	region.src_impl = impl;
 			#	if extern_insert == i:
 			#		tokens[extern_insert].region.src_decl = added_extern + tokens[extern_insert].region.src_decl;
@@ -895,7 +892,6 @@ def _namespace(tokens: list[SToken], index: int, index_kwd: int, endex: int, sem
 	endex_scope = _findClosingNormal(tokens, index_scope);
 	
 	for (i, token) in chain(SimpleSliceIter(tokens, index, index_scope + 1), [(endex_scope, tokens[endex_scope])]):
-		#	print(repr(token.raw));
 		token.ephermal = True;
 		token.region.src_decl = token.raw;
 		token.region.src_impl = token.raw;

@@ -17,11 +17,14 @@ def cl_to_zzc(filename: str):
 	endex_slash = filename.rindex("/") + 1 if "/" in filename else 0;
 	index_dot = filename.index(".", endex_slash) if "/" in filename else len(filename);
 	name = filename[endex_slash : index_dot];
+	dst_filename = filename + ".tmp.zzc";
+	
+	if os.path.exists(dst_filename) and os.stat(filename).st_mtime < os.stat(dst_filename).st_mtime: return;
 	
 	with open(filename) as file: cl = file.read();
 	c_str = json.dumps(cl);
 	
-	with open(filename + ".tmp.zzc", "w") as file:
+	with open(dst_filename, "w") as file:
 		print(f"namespace BJpeg {{ char const* {name} = {c_str}; }}", file = file);
 	pass
 pass

@@ -38,12 +38,42 @@ namespace BJpeg {
 		struct Buffers {
 			MyOpenCL :: Buffer<u8> payload;
 			MyOpenCL :: Buffer<HuffmanTree[4]> trees;
+			MyOpenCL :: Buffer<QuantizationTable> qtables;
 			MyOpenCL :: Buffer<LaneInfo> lane_infos;
 			MyOpenCL :: Buffer<u32> lanes;
 			MyOpenCL :: Buffer<u8> lane_indexes;
 			MyOpenCL :: Buffer<u32> positions;
 			MyOpenCL :: Buffer<u32x2> indexes;
 			MyOpenCL :: Buffer<i32[64]> coefficients;
+			
+			fun bool initConst(MyOpenCL :: Context context) {
+				if (!self.trees       .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , 2             )) { return false; }
+				if (!self.qtables     .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , 4             )) { return false; }
+				return true;
+			}
+			fun void finishConst() noexcept {
+				self.trees       .finish();
+				self.qtables     .finish();
+			}
+			fun bool init(MyOpenCL :: Context context, size_t file_size, size_t lanes, size_t row, size_t img_size) {
+				if (!self.payload     .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , file_size     )) { return false; }
+				if (!self.lane_infos  .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , MAX_LANE_COUNT)) { return false; }
+				if (!self.lanes       .init(context, CL_MEM_HOST_READ_ONLY  | CL_MEM_READ_WRITE, lanes         )) { return false; }
+				if (!self.lane_indexes.init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , MAX_COMPONENTS)) { return false; }
+				if (!self.positions   .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, row           )) { return false; }
+				if (!self.indexes     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, img_size      )) { return false; }
+				if (!self.coefficients.init(context,                          CL_MEM_WRITE_ONLY, img_size      )) { return false; }
+				return true;
+			}
+			fun void finish() noexcept {
+				self.payload     .finish();
+				self.lane_infos  .finish();
+				self.lanes       .finish();
+				self.lane_indexes.finish();
+				self.positions   .finish();
+				self.indexes     .finish();
+				self.coefficients.finish();
+			}
 		} buffer;
 		bool initialized = false;
 		
@@ -52,7 +82,26 @@ namespace BJpeg {
 		size_t row;
 		size_t lanes;
 		
-		fun bool init(size_t file_size, size_t img_dimensions) {
+		fun bool initCl() {
+			cl_device_id device_id;
+			if (!MyOpenCL :: getDeviceId(device_id)) { return false; }
+			if (!self.context.init(device_id)) { return false; }
+			if (!self.queue  .init(device_id, self.context)) { return false; }
+			if (!self.program.init(device_id, self.context, kernels)) { return false; }
+			
+			if (!self.kernel.init(self.program)) { return false; }
+			if (!self.buffer.initConst(self.context)) { return false; }
+			return true;
+		}
+		fun void finishCl() noexcept {
+			self.buffer .finishConst();
+			self.kernel .finish();
+			self.program.finish();
+			self.queue  .finish();
+			self.context.finish();
+		}
+		
+		fun bool initBuffers(size_t file_size, size_t img_dimensions) {
 			// TODO maybe return true to allow multiple initializations
 			if (initialized) { return false; }
 			size_t img_size = self.img_size  = MAX_COMPONENTS * img_dimensions;
@@ -60,30 +109,7 @@ namespace BJpeg {
 			size_t row      = self.row       = 10 * lane;
 			size_t lanes    = self.lanes     = row * std :: bit_width(img_size);
 			
-			cl_device_id device_id;
-			if (!MyOpenCL :: getDeviceId(device_id)) { return false; }
-			if (!self.context.init(device_id)) { return false; }
-			if (!self.queue  .init(device_id, self.context)) { return false; }
-			if (!self.program.init(device_id, self.context, kernels)) { return false; }
-			
-			if (!self.kernel.decodeHuffman1     .init(self.program)) { return false; }
-			if (!self.kernel.decodeRaise        .init(self.program)) { return false; }
-			if (!self.kernel.decodeLower        .init(self.program)) { return false; }
-			if (!self.kernel.positionsToIndexes .init(self.program)) { return false; }
-			if (!self.kernel.decodeHuffman2     .init(self.program)) { return false; }
-			if (!self.kernel.initializeBufferU32.init(self.program)) { return false; }
-			if (!self.kernel.prepareMCUs        .init(self.program)) { return false; }
-			if (!self.kernel.prefixSum1         .init(self.program)) { return false; }
-			if (!self.kernel.prefixSum2         .init(self.program)) { return false; }
-			
-			if (!self.buffer.payload     .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , file_size     )) { return false; }
-			if (!self.buffer.trees       .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , 2             )) { return false; }
-			if (!self.buffer.lane_infos  .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , MAX_LANE_COUNT)) { return false; }
-			if (!self.buffer.lanes       .init(self.context, CL_MEM_HOST_READ_ONLY  | CL_MEM_READ_WRITE, lanes         )) { return false; }
-			if (!self.buffer.lane_indexes.init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , MAX_COMPONENTS)) { return false; }
-			if (!self.buffer.positions   .init(self.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, row           )) { return false; }
-			if (!self.buffer.indexes     .init(self.context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, img_size      )) { return false; }
-			if (!self.buffer.coefficients.init(self.context,                          CL_MEM_WRITE_ONLY, img_size      )) { return false; }
+			if (!self.buffer.init(self.context, file_size, lanes, row, img_size)) { return false; }
 			
 			if (!self.kernel.decodeHuffman1.setArg_payload      (self.buffer.payload      )) { return false; }
 			if (!self.kernel.decodeHuffman1.setArg_trees        (self.buffer.trees        )) { return false; }
@@ -112,50 +138,45 @@ namespace BJpeg {
 			if (!self.kernel.prefixSum2 .setArg_coefficients (self.buffer.coefficients )) { return false; }
 			if (!self.kernel.prefixSum2 .setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
 			
+			if (!self.kernel.unzigzag_quantization_dct.setArg_coefficients      (self.buffer.coefficients)) { return false; }
+			if (!self.kernel.unzigzag_quantization_dct.setArg_quantization_table(self.buffer.qtables     )) { return false; }
+			if (!self.kernel.unzigzag_quantization_dct.setArg_lane_infos        (self.buffer.lane_infos  )) { return false; }
+			
+			if (!self.kernel.uninterleave_upsample.setArg_coefficients   (self.buffer.coefficients   )) { return false; }
+			//	TODO 
+			//	if (!self.kernel.uninterleave_upsample.setArg_image_temp   (self.buffer.imt   )) { return false; }
+			if (!self.kernel.uninterleave_upsample.setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
+			
+			//	TODO
+			//	if (!self.kernel.YCbCr_to_RGB.setArg_image_temp   (self.buffer.imt   )) { return false; }
+			//	if (!self.kernel.YCbCr_to_RGB.setArg_image   (self.buffer.im   )) { return false; }
+			
 			self.initialized = true;
 			return true;
 		}
-		fun void finish() noexcept {
-			self.context.finish();
-			self.queue  .finish();
-			self.program.finish();
-			self.kernel.decodeHuffman1     .finish();
-			self.kernel.decodeRaise        .finish();
-			self.kernel.decodeLower        .finish();
-			self.kernel.positionsToIndexes .finish();
-			self.kernel.decodeHuffman2     .finish();
-			self.kernel.initializeBufferU32.finish();
-			self.kernel.prepareMCUs        .finish();
-			self.kernel.prefixSum1         .finish();
-			self.kernel.prefixSum2         .finish();
-			self.buffer.payload     .finish();
-			self.buffer.trees       .finish();
-			self.buffer.lane_infos  .finish();
-			self.buffer.lanes       .finish();
-			self.buffer.lane_indexes.finish();
-			self.buffer.positions   .finish();
-			self.buffer.indexes     .finish();
-			self.buffer.coefficients.finish();
+		fun void finishBuffers() noexcept {
+			self.buffer.finish();
 		}
 	};
 
 	struct ContextDecode {
 		Marker :: SOFData sof_data;
-		uint16_t restart_interval;
+		uint16_t restart_interval = 0;
 		u8 component_count;
-		uint8_t precision;
+		uint8_t precision = 8;
 		uint16_t X, Y;
 		ComponentData component_data[MAX_COMPONENTS];
 		CLContextDecode cl;
 		HuffmanTree huffman_tree[2][4];
 		QuantizationTable quantization_table[4];
-		u8* payload;
+		u8* payload = nullptr;
 		
 		
 		fun bool init() {
-			self.restart_interval = 0;
-			self.precision = 8;
 			if (!(self.payload = new u8[RECOMMENDED_SPACE])) {
+				return false;
+			}
+			if (!self.cl.initCl()) {
 				return false;
 			}
 			
@@ -163,7 +184,7 @@ namespace BJpeg {
 		}
 		fun void finish() noexcept {
 			delete[] self.payload;
-			self.cl.finish();
+			self.cl.finishCl();
 		}
 		
 		fun bool updatePayload(u8 payload[], size_t length) {
@@ -172,6 +193,10 @@ namespace BJpeg {
 		}
 		fun bool updateHuffmanCL() {
 			if (!self.cl.buffer.trees.write(self.cl.queue, self.huffman_tree)) { return false; }
+			return true;
+		}
+		fun bool updateQTableCL() {
+			if (!self.cl.buffer.qtables.write(self.cl.queue, self.quantization_table)) { return false; }
 			return true;
 		}
 		fun bool updateLaneInfos(LaneInfo lane_infos[MAX_LANE_COUNT]) {

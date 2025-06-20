@@ -236,7 +236,6 @@ def processMarkers(raw: str, original_tokens: list[Token]) -> Iterable[str]:
 			accumulated_line = "";
 		pass
 	pass
-	#	print("===", raw);
 	
 	string_indexes = list(_quickFindStrings(raw));
 	if "<:::>" not in raw: return [raw];
@@ -286,18 +285,14 @@ def transformMacroTokensAfterPreprocess(tokens: list[RToken]):
 pass
 
 def _markerIndex(raw: str, sub: str, index_start: int, string_indexes: list[tuple[int, int]]) -> int:
-	#	print(string_indexes);
 	while True:
-		#	print(index_start, repr(raw[index_start : index_start + 20]), end = "    ");
 		index = raw.index(sub, index_start);
-		#	print(index);
 		if any(a < index < b for (a, b) in string_indexes):
 			index_start = index + 1;
 		else:
 			break;
 		pass
 	pass
-	#	print("found");
 	return index;
 pass
 def _quickFindStrings(raw: str) -> Iterable[tuple[int, int]]:

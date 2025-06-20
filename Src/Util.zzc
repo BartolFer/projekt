@@ -37,6 +37,10 @@ using rref = T&&;
 			f();
 		}
 	};
+	
+	#define clog(fmt, ...) printf(fmt "\n", ## __VA_ARGS__); fflush(stdout);
+	#define log(...) std :: cout << __VA_ARGS__ << std :: endl;
+	
 #pragma endregion zzc
 
 template <typename E>

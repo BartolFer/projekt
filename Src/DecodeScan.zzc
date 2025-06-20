@@ -97,13 +97,14 @@ namespace BJpeg {
 						running = false;
 						break;
 					}
-				} 
+				}
 				payload[payload_length] = x;
 			}
 			for (int i = 0; i < 100; ++i) {
 				payload[payload_length+i] = ~0;
 			}
 			u32 job_size = payload_length * 8;
+			
 
 			// init buffers 
 			MyOpenCL :: Kernel<1> kk;
@@ -141,7 +142,7 @@ namespace BJpeg {
 			if (!cl.kernel.decodeRaise.setArg_lanes_count(lanes_count)) { return DECODE_RESULT_ERR; }
 			u8 depth = 1;
 			u32 every_nth = 1;
-			std :: cout << (u32)depth << " " << (u32)lanes_count << " " << (u32)job_size << std :: endl;
+			clog("depth0 = %u   lanes_count = %u   job_size = %u", depth, lanes_count, job_size);
 			for (; true; ++depth) {
 				if (lanes_count % (every_nth * 2) == 0) { every_nth *= 2; }
 				size_t decodeRaise_dim[2] = {lanes_count / every_nth, job_size };
@@ -157,7 +158,7 @@ namespace BJpeg {
 					break;
 				}
 			}
-			std :: cout << depth << "k" << std :: endl;
+			clog("depth = %d!", depth);
 			u32 zero = 0;
 			cl.buffer.positions.write(cl.queue, &zero, 1);
 			//	return DECODE_RESULT_ERR;
@@ -179,8 +180,27 @@ namespace BJpeg {
 			if (!cl.kernel.decodeHuffman2.setArg_lane_width(job_size)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.decodeHuffman2(cl.queue, &cl.img_size)) { return DECODE_RESULT_ERR; }
 			
-			if (!prefixSumCoefficients(cl.img_size / lanes_count, lanes_count, multilane_count, cl)) { return DECODE_RESULT_ERR; }
+			size_t const mcu_count = cl.img_size / lanes_count;
+			if (!prefixSumCoefficients(mcu_count, lanes_count, multilane_count, cl)) { return DECODE_RESULT_ERR; }
 			
+			{
+				printf("Starting DCT\n"); fflush(stdout);
+				size_t work[1] = {mcu_count};
+				if (!cl.kernel.unzigzag_quantization_dct.setArg_mcu_length(lanes_count)) { return DECODE_RESULT_ERR; }
+				if (!cl.kernel.unzigzag_quantization_dct(cl.queue, work)) { return DECODE_RESULT_ERR; }
+				float* arr = new float[64 * mcu_count];
+				arr[0] = 884;
+				defer { delete[] arr; };
+				i32 (*phantom)[64] = reinterpret_cast<i32(*)[64]>(arr);
+				if (!cl.buffer.coefficients.read(cl.queue, phantom, mcu_count)) { return DECODE_RESULT_ERR; }
+				float min, max; min = max = arr[0];
+				for (int i = 1; i < 64 * mcu_count; ++i) {
+					float x = arr[i];
+					if (x < min) { min = x; }
+					if (x > max) { max = x; }
+				}
+				printf("min max after dct\n%f\n%f\n", min, max); fflush(stdout);
+			}
 			
 			return DECODE_RESULT_OK;
 		}

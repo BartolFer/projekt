@@ -11,7 +11,11 @@ typedef long  i64;
 typedef int2  i32x2;
 typedef union {float f; i32 i;} FI;
 typedef struct { u8 r, g, b, a; } RGBA;
+typedef struct { float r, g, b, a; } RGBAF;
 typedef struct { u8 arr[4]; } RGBA_ARR;
+typedef struct { float arr[4]; } RGBAF_ARR;
+
+#define costau(...) cospi(2.0f * (__VA_ARGS__))
 
 #define x2(type, y, x, ...) ((type ## x2) ((x), (y)))
 
@@ -399,10 +403,10 @@ kernel void unzigzag_quantization_dct/* 1 */(
 		for (int x = 0; x < 8; ++x) {
 			float sum = 0;
 			for (int u = 0; u < 8; ++u) {
-				float cu = u == 0 ? 1/sqrt(2.0f) : 1;
+				float cu = u == 0 ? M_SQRT1_2_F : 1;
 				for (int v = 0; v < 8; ++v) {
-					float cv = v == 0 ? 1/sqrt(2.0f) : 1;
-					sum += cu * cv * unzigzaged[u][v].f * cos((2*x+1) * u * TAU / 32) * cos((2*y+1) * v * TAU / 32);
+					float cv = v == 0 ? M_SQRT1_2_F : 1;
+					sum += cu * cv * unzigzaged[u][v].f * costau((2*x+1) * u / 32) * costau((2*y+1) * v / 32);
 				}
 			}
 			coefficients[index][y][x].f = sum / 4;
@@ -412,7 +416,7 @@ kernel void unzigzag_quantization_dct/* 1 */(
 
 kernel void uninterleave_upsample/* 2 */(
 	__global float      coefficients[][64], 
-	__global RGBA_ARR   image[],
+	__global RGBAF_ARR  image_temp[],
 	__constant LaneInfo lane_infos[], 
 	u8x2                max_sf,
 	u32x2               image_size,
@@ -473,12 +477,29 @@ kernel void uninterleave_upsample/* 2 */(
 				u32 data_unit_index = y_of_data_unit_in_mcu * (max_sf.x / component_sf.x) + x_of_data_unit_in_mcu;
 				u32 src_index = data_unit_base + data_unit_index;
 				u32 dst_index = (base.y + yy) * image_size.x + (base.x + xx);
-				image[dst_index].arr[c_id] = coefficients[src_index][(yy / (max_sf.y / component_sf.y) % 8) * 8 + (xx / (max_sf.x / component_sf.x) % 8)]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
+				image_temp[dst_index].arr[c_id] = coefficients[src_index][(yy / (max_sf.y / component_sf.y) % 8) * 8 + (xx / (max_sf.x / component_sf.x) % 8)]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
 			}
 		}
 		data_unit_base += component_sf.y * component_sf.x;
 		lane_id += component_sf.y * component_sf.x;
 	}
+}
+kernel void YCbCr_to_RGB/* 2 */(
+	__global RGBAF    image_temp[],
+	__global RGBA     image[],
+	u32               image_width
+) {
+	int i = get_global_id(0);
+	int j = get_global_id(1);
+	RGBAF YCbCr_temp = image_temp[i * image_width + j];
+	float3 YCbCr = (float3) (YCbCr_temp.r, YCbCr_temp.g, YCbCr_temp.b);
+	YCbCr -= (float3)(16, 128, 128);
+	RGBAF result;
+	result.r = dot((float3) (1.164f,  0.000f,  1.596f), YCbCr); if (result.r < 0) { result.r = 0; } else if (result.r > 255) { result.r = 255; }
+	result.g = dot((float3) (1.164f, -0.392f, -0.813f), YCbCr); if (result.g < 0) { result.g = 0; } else if (result.g > 255) { result.g = 255; }
+	result.b = dot((float3) (1.164f,  2.017f,  0.000f), YCbCr); if (result.b < 0) { result.b = 0; } else if (result.b > 255) { result.b = 255; }
+	result.a = 255; //	TODO
+	image[i * image_width + j] = (RGBA) {result.r, result.g, result.b, result.a};
 }
 
 kernel void initializeBufferU32(__global u32 buffer[], u32 value) {

@@ -60,7 +60,7 @@ configModuleInit(root);
 from config import config;
 
 class File:
-	tokens: list[SMacroToken];
+	tokens: list[SMacroToken] = None;
 	abs_file: AbsFile
 	def __init__(self, path: str):
 		#	print(root + "/" + config.paths.zzc);
@@ -89,6 +89,8 @@ class File:
 	
 	def __hash__(self): return hash(self.path);
 	def __eq__(self, other): return type(other) is File and self.path == other.path;
+	
+	def __repr__(self): return self.path;
 pass
 class AbsFile:
 	_base: File;

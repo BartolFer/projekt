@@ -7,11 +7,15 @@ C/C++ precompiler to separate source and header files.
 Write all your code inside `.zzc` files and it will generate `.hpp` and `.cpp` files for you.  
 It is similar to LZZ, but more modern and flexible.  
 
-C++ files should end with `.zzc` and C files with `.zc` (Although, for now, C is probably supported).  
+C++ files should end with `.zzc` and C files with `.zc` (Although, for now, C is only probably supported).  
 
 To use it, run `python zzc.py your/project/root`.  
 For each `.zzc` file, it will generate: `.hpp`, `.cpp`, `.zzh`, `.tmp.1.cpp`, `.tmp.2.cpp`, and `.zzc.o` files.  
-At the moment, those files are generated in the same place as the `.zzc` file, but I plan to add separation in the future.  
+
+This app will generate `your/project/root/.zzc.cache.json` file. I recommend adding it to your `.gitignore`.  
+This file serves only to preserve information between calls.  
+You can delete it (that may prolong the next compilation).  
+You shouldn't modify it (unless you know what you're doing, but your modifications may be overridden).  
 
 ### .zzc.config.json  
 
@@ -144,7 +148,6 @@ struct S {
 
 ## Planned features  
 
-* Generate only if needed (currently, all files are recompiled every time, even if nothing has changed)  
 * Similar to `#pragma region zzc` tags, macros for the same purpose:  
 ```c++
 fun void f() hdr_impl({ 
@@ -160,7 +163,7 @@ There are also some edge cases which are allowed in normal C/C++, but are not he
 
 * You must use `fun` to write functions.  
 * If you use static members of a template, they either must be inline, or you separate declaration and implementation yourself.  
-* You can't write an in-class definition of a pure virtual method (`struct S { fun virtual void f() = 0 `~~`{/*not allowed*/}`~~`};`).  
+* You can't write an in-class definition of a pure virtual method of a template class (`template <...> struct S { fun virtual void f() = 0 `~~`{/*not allowed*/}`~~`};`).  
 * Default arguments of a class template are not included in the forward declaration of a class, so they can be only used after definition.  
   (Or you can forward declare yourself with default arguments, and not put them in definition).  
 * `extern "C"` is not supported (I forgot, but I'm lazy).  
