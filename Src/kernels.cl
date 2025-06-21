@@ -1,9 +1,10 @@
-typedef uchar  u8;
-typedef uchar2 u8x2;
-typedef ushort u16;
-typedef uint   u32;
-typedef ulong  u64;
-typedef uint2  u32x2;
+typedef uchar   u8;
+typedef uchar2  u8x2;
+typedef ushort  u16;
+typedef ushort2 u16x2;
+typedef uint    u32;
+typedef ulong   u64;
+typedef uint2   u32x2;
 typedef char  i8;
 typedef short i16;
 typedef int   i32;
@@ -24,9 +25,7 @@ typedef struct {
 	u16 right_or_data;
 } HuffmanTreeNode;
 typedef HuffmanTreeNode HuffmanTree[256 + 255 + 1];
-typedef ushort2 u16Pair;
-typedef uchar2 u8Pair;
-u8Pair decodeHuffman(__constant HuffmanTree huf, u16 code) {
+u8x2 decodeHuffman(__constant HuffmanTree huf, u16 code) {
 	u16 index = 0;
 	HuffmanTreeNode node = huf[0];
 	u8 res_depth = 0;
@@ -42,7 +41,7 @@ u8Pair decodeHuffman(__constant HuffmanTree huf, u16 code) {
 	if (node.left != 0) {
 		++res_depth; // = 17
 	}
-	return (u8Pair) {res_depth, (u8)node.right_or_data};
+	return (u8x2) (res_depth, (u8)node.right_or_data);
 }
 
 #define LANE_ERROR_VALUE UINT_MAX
@@ -112,7 +111,7 @@ kernel void decodeHuffman1(
 		//    .b
 		// aaaaaaaa aaaaaaaa aaaaaaaa
 		u16 code = READ_3B >> (8 - b);
-		u8Pair d_s = decodeHuffman(huf_dc, code);
+		u8x2 d_s = decodeHuffman(huf_dc, code);
 		if (d_s.x == 17) {
 			lanes[lane_index] = LANE_ERROR_VALUE;
 			return;
@@ -130,7 +129,7 @@ kernel void decodeHuffman1(
 			}
 			// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
 			u16 code = READ_3B >> (8 - b);
-			u8Pair d_s = decodeHuffman(huf_ac, code);
+			u8x2 d_s = decodeHuffman(huf_ac, code);
 			if (d_s.x == 17) {
 				lanes[lane_index] = LANE_ERROR_VALUE;
 				return;
@@ -248,7 +247,7 @@ kernel void decodeHuffman2(
 		u32 b = bb & 7;
 		// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
 		u16 code = READ_3B >> (8 - b);
-		u8Pair d_s = decodeHuffman(huf_dc, code);
+		u8x2 d_s = decodeHuffman(huf_dc, code);
 		// TODO store symbol
 		// TODO read d_s.y bits
 		// store +- (1 << d_s.y) + those bits (but transformed)
@@ -280,7 +279,7 @@ kernel void decodeHuffman2(
 			u32 b = bb & 7;
 			// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
 			u16 code = READ_3B >> (8 - b);
-			u8Pair d_s = decodeHuffman(huf_ac, code);
+			u8x2 d_s = decodeHuffman(huf_ac, code);
 			// TODO store symbol
 			if (d_s.y == 0x00) {
 				// rest are 0
@@ -317,7 +316,7 @@ kernel void decodeHuffman2(
 }
 
 kernel void prepareMCUs(
-	__global i32 coefficients[][64], 
+	__global i32 coefficients[][8][8], 
 	__constant LaneInfo lane_infos[], 
 	u8 mcu_length
 ) {
@@ -329,13 +328,13 @@ kernel void prepareMCUs(
 	i32 accumulator = 0;
 	u32 mcu_base = i * mcu_length + lane_info.start_in_mcu;
 	for (u8 j = 0; j < lane_info.amount_in_mcu; ++j) {
-		accumulator += coefficients[mcu_base + j][0];
-		coefficients[mcu_base + j][0] = accumulator;
+		accumulator += coefficients[mcu_base + j][0][0];
+		coefficients[mcu_base + j][0][0] = accumulator;
 	}
 }
 
 inline void addMCUsToRight(
-	__global i32 coefficients[][64],
+	__global i32 coefficients[][8][8],
 	__constant LaneInfo lane_infos[], 
 	u32 a_index,
 	u32 b_index,
@@ -350,13 +349,13 @@ inline void addMCUsToRight(
 		LaneInfo lane_info = lane_infos[i];
 		if ((u16)lane_info.c_id != last_component_id) {
 			last_component_id = lane_info.c_id;
-			a = coefficients[a_index + i][0];
+			a = coefficients[a_index + i][0][0];
 		}
-		coefficients[b_index + i][0] += a;
+		coefficients[b_index + i][0][0] += a;
 	}
 }
 kernel void prefixSum1(
-	__global i32 coefficients[][64],
+	__global i32 coefficients[][8][8],
 	__constant LaneInfo lane_infos[], 
 	u32 half_size/* _pow? */,
 	u8 mcu_length
@@ -367,7 +366,7 @@ kernel void prefixSum1(
 	addMCUsToRight(coefficients, lane_infos, a_index, b_index, mcu_length);
 }
 kernel void prefixSum2(
-	__global i32 coefficients[][64],
+	__global i32 coefficients[][8][8],
 	__constant LaneInfo lane_infos[], 
 	u32 half_size/* _pow? */,
 	u8 mcu_length
@@ -415,7 +414,7 @@ kernel void unzigzag_quantization_dct/* 1 */(
 }
 
 kernel void uninterleave_upsample/* 2 */(
-	__global float      coefficients[][64], 
+	__global float      coefficients[][8][8], 
 	__global RGBAF_ARR  image_temp[],
 	__constant LaneInfo lane_infos[], 
 	u8x2                max_sf,
@@ -477,7 +476,7 @@ kernel void uninterleave_upsample/* 2 */(
 				u32 data_unit_index = y_of_data_unit_in_mcu * (max_sf.x / component_sf.x) + x_of_data_unit_in_mcu;
 				u32 src_index = data_unit_base + data_unit_index;
 				u32 dst_index = (base.y + yy) * image_size.x + (base.x + xx);
-				image_temp[dst_index].arr[c_id] = coefficients[src_index][(yy / (max_sf.y / component_sf.y) % 8) * 8 + (xx / (max_sf.x / component_sf.x) % 8)]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
+				image_temp[dst_index].arr[c_id] = coefficients[src_index][yy / (max_sf.y / component_sf.y) % 8][xx / (max_sf.x / component_sf.x) % 8]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
 			}
 		}
 		data_unit_base += component_sf.y * component_sf.x;

@@ -11,19 +11,22 @@ uint8_t BJpeg :: recomended_space_pow = 26; // 64 MiB
 	// this is just a value that is used in a lot of buffers
 
 
-fun int main() {
+fun int main(int argc, char* argv[]) {
+	if (argc > 2) {
+		printf("Usage: <exe> path/to/file.jpg\n");
+		exit(EXIT_FAILURE);
+	}
+	std :: string path = argc == 2 ? argv[1] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.jpg";
+	
 	using namespace BJpeg;
 	//	if (recomended_space_pow < 8) {
 	//		std :: cerr << "Recommended space is at least 256B (2^8)" << std :: endl;
 	//		return EXIT_FAILURE;
 	//	}
 	#ifdef TESTING
-		//	return 
-		Test :: runTests() ? EXIT_SUCCESS : EXIT_FAILURE;
+		if (!Test :: runTests()) { return EXIT_FAILURE; }
 	#endif
 	
-	//	Resource<InputFileBuffer> file("D:/Personal/nastava/projekt/Temp/J32_1_small.jpg");
-	std :: string path = "D:/temp/Zugpsitze_mountain.jpg";
 	Resource<InputFileBuffer> file(path);
 	if (!file   ) { std :: cerr << "!file"    << std :: endl; return 1; }
 	Resource<DecodeContext> context;

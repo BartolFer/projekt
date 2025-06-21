@@ -16,7 +16,7 @@
 
 
 namespace BJpeg {
-	typedef uint16_t QuantizationTable[64];
+	typedef uint16_t QuantizationTable[8][8];
 	struct ComponentData {
 		// commputation
 		uint16_t predictor;
@@ -44,7 +44,7 @@ namespace BJpeg {
 			MyOpenCL :: Buffer<u8> lane_indexes;
 			MyOpenCL :: Buffer<u32> positions;
 			MyOpenCL :: Buffer<u32x2> indexes;
-			MyOpenCL :: Buffer<i32[64]> coefficients;
+			MyOpenCL :: Buffer<FI[8][8]> coefficients;
 			
 			fun bool initConst(MyOpenCL :: Context context) {
 				if (!self.trees       .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , 2             )) { return false; }

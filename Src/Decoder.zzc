@@ -81,7 +81,7 @@ namespace BJpeg {
 							for (uint32_t end = index - 2 + segment_length; index < end; ) {
 								uint8_t Pq, Tq; DECODE_READ_U4(Pq, Tq);
 								if (Tq > 3) { return DECODE_RESULT_ERR; }
-								uint16_t* table = context.quantization_table[Tq];
+								uint16_t* table = &context.quantization_table[Tq][0][0];
 								// or just memcpy + index update // but not actually (it complicates things, but is done once per image (not worth it))
 								if (Pq == 0) { for (uint8_t i = 0; i < 64; ++i) { table[i] = DECODE_READ_U8; } } 
 								else         { for (uint8_t i = 0; i < 64; ++i) { DECODE_READ_U16(table[i]); } }

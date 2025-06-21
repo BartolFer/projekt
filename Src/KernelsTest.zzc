@@ -46,17 +46,19 @@ namespace BJpeg {
 		
 		template <typename T>
 		struct Arr64 { 
-			T arr[64]; 
-			fun inline T& operator [](int i) { return self.arr[i]; }
+			T arr[8][8]; 
+			fun inline T& operator [](int i) { return self.arr[0][i]; }
+			struct Index2D {int i, j;};
+			fun inline T& operator [](Index2D index) { return self.arr[index.i][index.j]; }
 		};
 		
-		fun std :: vector<Arr64<i32>> inflateTo64Coefficients(std :: vector<i32> dc_coefficients) {
-			std :: vector<Arr64<i32>> result; result.resize(dc_coefficients.size());
+		fun std :: vector<Arr64<FI>> inflateTo64Coefficients(std :: vector<i32> dc_coefficients) {
+			std :: vector<Arr64<FI>> result; result.resize(dc_coefficients.size());
 			int index = 0;
 			for (int index = 0; index < dc_coefficients.size(); ++index) {
-				result[index][0] = dc_coefficients[index];
+				result[index][0].i = dc_coefficients[index];
 				for (int i = 1; i < 64; ++i) {
-					result[index][i] = i;
+					result[index][i].i = i;
 					//	or any random value (but consistent between calls (we want that coefficients and expected have same ACs (in prefixSum test)))
 				}
 			}
@@ -86,7 +88,7 @@ namespace BJpeg {
 				if (!self.kernel.setArg(buffer)) { return false; }
 				if (!self.kernel.setArg(value)) { return false; }
 				
-				if (!self.kernel(queue, &buffer.length)) { return false; }
+				if (!self.kernel.call(queue, &buffer.length)) { return false; }
 				return true;
 			}
 		};
@@ -171,7 +173,7 @@ namespace BJpeg {
 				if (!kernel.setArg_lane_indexes(lane_indexes)) { return false; }
 				
 				size_t global_work[2] = { 2, 8*B2 };
-				if (!kernel(queue, global_work)) { return false; }
+				if (!kernel.call(queue, global_work)) { return false; }
 				
 				if (!lanes.read(queue, &result[0][0][0])) { return false; }
 				//	PRINT_X_MATRIX(result[0], lanes_count, lane_width);
@@ -278,7 +280,7 @@ namespace BJpeg {
 				if (!kernel.setArg_prev_size_pow(prev_size_pow)) { return false; }
 				
 				size_t global_work[2] = { 2, lane_width };
-				if (!kernel(queue, global_work)) { return false; }
+				if (!kernel.call(queue, global_work)) { return false; }
 				
 				if (!lanes.read(queue, &result[0][0][0])) { return false; }
 				for (uint32_t d = 0; d < depth; ++d) {
@@ -367,22 +369,22 @@ namespace BJpeg {
 				size_pow = 3;
 				global_work[0] = 1;
 				if (!kernel.setArg_size_pow(size_pow)) { return false; }
-				if (!kernel(queue, global_work)) { return false; }
+				if (!kernel.call(queue, global_work)) { return false; }
 				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 2;
 				global_work[0] = 1;
 				if (!kernel.setArg_size_pow(size_pow)) { return false; }
-				if (!kernel(queue, global_work)) { return false; }
+				if (!kernel.call(queue, global_work)) { return false; }
 				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 1;
 				global_work[0] = 1;
 				if (!kernel.setArg_size_pow(size_pow)) { return false; }
-				if (!kernel(queue, global_work)) { return false; }
+				if (!kernel.call(queue, global_work)) { return false; }
 				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 0;
 				global_work[0] = 2;
 				if (!kernel.setArg_size_pow(size_pow)) { return false; }
-				if (!kernel(queue, global_work)) { return false; }
+				if (!kernel.call(queue, global_work)) { return false; }
 				
 				if (!positions.read(queue, &result[0][0])) { return false; }
 				for (uint32_t l = 0; l < lanes_count; ++l) {
@@ -431,7 +433,7 @@ namespace BJpeg {
 				if (!kernel.setArg_lane_width(lane_width)) { return false; }
 				
 				size_t global_work[2] = { lanes_count, lane_width };
-				if (!kernel(queue, global_work)) { return false; }
+				if (!kernel.call(queue, global_work)) { return false; }
 				if (!indexes.read(queue, &result[0])) { return false; }
 				
 				for (int i = 0; i <= 10; ++i) {
@@ -484,7 +486,7 @@ namespace BJpeg {
 					//	1110-11 01110-00011 110001-110 0110-0010 11111100 110010-011 0100
 					//	0-00 111001-0101 110010-1100 110010-1101 0101 10011-110 110101
 					//	11111111111111111111111
-				i32 result_arr[unit_count][64];
+				FI result_arr[unit_count][8][8];
 				
 				Resource<MyOpenCL :: Buffer<uint8_t>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
 				if (!payload) { return false; }
@@ -498,7 +500,7 @@ namespace BJpeg {
 				Resource<MyOpenCL :: Buffer<cl_uint2>> indexes(context, CL_MEM_READ_ONLY, 2);
 				if (!indexes) { return false; }
 				if (!indexes.write(queue, indexes_arr)) { return false; }
-				Resource<MyOpenCL :: Buffer<i32[64]>> result(context, CL_MEM_READ_WRITE, 2);
+				Resource<MyOpenCL :: Buffer<FI[8][8]>> result(context, CL_MEM_READ_WRITE, 2);
 				if (!result) { return false; }
 				
 				if (!kernel.setArg_payload     (payload   )) { return false; }
@@ -509,13 +511,13 @@ namespace BJpeg {
 				if (!kernel.setArg_coefficients(result    )) { return false; }
 				
 				size_t global_work[1] = { unit_count };
-				if (!kernel(queue, global_work)) { return false; }
+				if (!kernel.call(queue, global_work)) { return false; }
 				
 				if (!result.read(queue, result_arr)) { return false; }
 				for (int unit_id = 0; unit_id < unit_count; ++unit_id) {
 					for (int i = 0; i < 64; ++i) {
 						auto ex   = expected  [unit_id][i];
-						int16_t r = result_arr[unit_id][i];
+						int16_t r = result_arr[unit_id][0][i].i;
 						if (ex.SSSS == 0) {
 							if (r != 0) {
 								Test :: getError() << "[" << unit_id << "][" << i << "]: 0 e=" << ex.SSSS << "|" << ex.bits << " v=" << r << "(" << std::hex << r << ")" << std :: endl;
@@ -559,7 +561,7 @@ namespace BJpeg {
 				u8 mcu_length = 4;
 				size_t work[2] = {1, coefficients_arr.size() / mcu_length};
 				
-				Resource<MyOpenCL :: Buffer<i32[64]>> coefficients(context, CL_MEM_READ_WRITE, coefficients_arr.size()); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<FI[8][8]>> coefficients(context, CL_MEM_READ_WRITE, coefficients_arr.size()); if (!coefficients) { return false; }
 				Resource<MyOpenCL :: Buffer<LaneInfo>>  lane_infos(context, CL_MEM_READ_WRITE,   lane_infos_arr.size()); if (!  lane_infos) { return false; }
 				
 				if (!coefficients.write(queue, &coefficients_arr[0].arr)) { return false; }
@@ -568,13 +570,13 @@ namespace BJpeg {
 				if (!kernel.setArg_coefficients(coefficients)) { return false; }
 				if (!kernel.setArg_lane_infos  (lane_infos  )) { return false; }
 				if (!kernel.setArg_mcu_length  (mcu_length  )) { return false; }
-				if (!kernel(queue, work)) { return false; }
+				if (!kernel.call(queue, work)) { return false; }
 				
 				if (!coefficients.read(queue, &coefficients_arr[0].arr)) { return false; }
 				for (int i = 0; i < coefficients_arr.size(); ++i) {
 					for (int j = 0; j < 64; ++j) {
-						if (coefficients_arr[i][j] != expected_arr[i][j]) {
-							Test :: getError() << "Error at " << i << ", " << j << ": Expected " << expected_arr[i][j] << " Got " << coefficients_arr[i][j];
+						if (coefficients_arr[i][j].i != expected_arr[i][j].i) {
+							Test :: getError() << "Error at " << i << ", " << j << ": Expected " << expected_arr[i][j].i << " Got " << coefficients_arr[i][j].i;
 							return false;
 						}
 					}
@@ -593,8 +595,8 @@ namespace BJpeg {
 			u8 mcu_length;
 			u32 half_size;
 			std :: vector<LaneInfo> lane_infos;
-			std :: vector<Arr64<i32>> coefficients;
-			std :: vector<Arr64<i32>> expected;
+			std :: vector<Arr64<FI>> coefficients;
+			std :: vector<Arr64<FI>> expected;
 			fun inline PrefixSumTest(
 				char const* name,
 				u8 mcu_length,
@@ -614,7 +616,7 @@ namespace BJpeg {
 			fun char const* getDescription() { return self.name; }
 			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
 				#ifdef VSCODE_ONLY
-					Resource<typename Kernels::prefixSum1> kernel(kernels_var.prefixSum1, program);
+					Resource<typename Kernels::prefixSum1> kernel.call(kernels_var.prefixSum1, program);
 				#else
 					Resource kernel(prefixSum<PrefixId>, program); if (!kernel) { return false; }
 				#endif
@@ -624,7 +626,7 @@ namespace BJpeg {
 				if (self.coefficients.size() / 64 % mcu_length != 0) { return false; }
 				size_t n = self.coefficients.size() / mcu_length;
 				
-				Resource<MyOpenCL :: Buffer<i32[64] >> coefficients(context, CL_MEM_READ_WRITE, self.coefficients.size()); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<FI[8][8] >> coefficients(context, CL_MEM_READ_WRITE, self.coefficients.size()); if (!coefficients) { return false; }
 				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos  (context, CL_MEM_READ_WRITE, self.lane_infos  .size()); if (!lane_infos  ) { return false; }
 				
 				if (!coefficients.write(queue, &self.coefficients[0].arr)) { return false; }
@@ -636,13 +638,13 @@ namespace BJpeg {
 				if (!kernel.setArg_mcu_length  (mcu_length  )) { return false; }
 				
 				size_t amount[1] = {n / (2 * half_size)};
-				if (!kernel(queue, amount)) { return false; }
+				if (!kernel.call(queue, amount)) { return false; }
 				
 				if (!coefficients.read(queue, &self.coefficients[0].arr)) { return false; }
 				for (int i = 0; i < self.coefficients.size(); ++i) {
 					for (int j = 0; j < 64; ++j) {
-						if (self.coefficients[i][j] != self.expected[i][j]) {
-							Test :: getError() << "Error at " << i << ", " << j << ": Expected " << self.expected[i][j] << " Got " << self.coefficients[i][j];
+						if (self.coefficients[i][j].i != self.expected[i][j].i) {
+							Test :: getError() << "Error at " << i << ", " << j << ": Expected " << self.expected[i][j].i << " Got " << self.coefficients[i][j].i;
 							return false;
 						}
 					}
@@ -680,20 +682,20 @@ namespace BJpeg {
 				//	6x4 units (40x32)
 				//	A1 B c   A1 B c
 				//	A2 B c   A2 B c
-				float coefficients_arr[Y/SF_Y * X/SF_X * mcu_length][64] = {
-					{0xA0}, {0xA1}, {0xB2}, {0xC3},   {0xA4}, {0xA5}, {0xB6}, {0xC7},   {0xA8}, {0xA9}, {0xBA}, {0xCB},   {0xAC}, {0xA0}, {0xB1}, {0xC2},   
-					{0xA3}, {0xA4}, {0xB5}, {0xC6},   {0xA7}, {0xA8}, {0xB9}, {0xCA},   {0xAB}, {0xAC}, {0xB0}, {0xC1},   {0xA2}, {0xA3}, {0xB4}, {0xC5},   
-					{0xA6}, {0xA7}, {0xB8}, {0xC9},   {0xAA}, {0xAB}, {0xBC}, {0xC0},   {0xA1}, {0xA2}, {0xB3}, {0xC4},   {0xA5}, {0xA6}, {0xB7}, {0xC8},   
+				FI coefficients_arr[Y/SF_Y * X/SF_X * mcu_length][8][8] = {
+					{{{.f=0xA0}}}, {{{.f=0xA1}}}, {{{.f=0xB2}}}, {{{.f=0xC3}}},   {{{.f=0xA4}}}, {{{.f=0xA5}}}, {{{.f=0xB6}}}, {{{.f=0xC7}}},   {{{.f=0xA8}}}, {{{.f=0xA9}}}, {{{.f=0xBA}}}, {{{.f=0xCB}}},   {{{.f=0xAC}}}, {{{.f=0xA0}}}, {{{.f=0xB1}}}, {{{.f=0xC2}}},   
+					{{{.f=0xA3}}}, {{{.f=0xA4}}}, {{{.f=0xB5}}}, {{{.f=0xC6}}},   {{{.f=0xA7}}}, {{{.f=0xA8}}}, {{{.f=0xB9}}}, {{{.f=0xCA}}},   {{{.f=0xAB}}}, {{{.f=0xAC}}}, {{{.f=0xB0}}}, {{{.f=0xC1}}},   {{{.f=0xA2}}}, {{{.f=0xA3}}}, {{{.f=0xB4}}}, {{{.f=0xC5}}},   
+					{{{.f=0xA6}}}, {{{.f=0xA7}}}, {{{.f=0xB8}}}, {{{.f=0xC9}}},   {{{.f=0xAA}}}, {{{.f=0xAB}}}, {{{.f=0xBC}}}, {{{.f=0xC0}}},   {{{.f=0xA1}}}, {{{.f=0xA2}}}, {{{.f=0xB3}}}, {{{.f=0xC4}}},   {{{.f=0xA5}}}, {{{.f=0xA6}}}, {{{.f=0xB7}}}, {{{.f=0xC8}}},   
 				};
 				RGBAF result_arr  [Y*8*2][X*8]; for (auto& x : result_arr) { for (auto& y : x) { y.r = y.g = y.b = y.a = SENTINEL; } }
 				RGBAF expected_arr[Y*8][X*8] = {{0}};
 				for (int i = 0; i < Y/SF_Y; ++i) {
 					for (int j = 0; j < X/SF_X; ++j) {
 						int ci = (i * X/SF_X + j) * mcu_length;
-						float a1 = coefficients_arr[ci + 0][0];
-						float a2 = coefficients_arr[ci + 1][0];
-						float b  = coefficients_arr[ci + 2][0];
-						float c  = coefficients_arr[ci + 3][0];
+						float a1 = coefficients_arr[ci + 0][0][0].f;
+						float a2 = coefficients_arr[ci + 1][0][0].f;
+						float b  = coefficients_arr[ci + 2][0][0].f;
+						float c  = coefficients_arr[ci + 3][0][0].f;
 						expected_arr[i*8*SF_Y+0][j*8*SF_X].r = a1;
 						expected_arr[i*8*SF_Y+8][j*8*SF_X].r = a2;
 						expected_arr[i*8*SF_Y+0][j*8*SF_X].g = b;
@@ -709,7 +711,7 @@ namespace BJpeg {
 					{.c_id = 2, .sf_y=1, .sf_x=1},
 				};
 				
-				Resource<MyOpenCL :: Buffer<float[64]>> coefficients(context, CL_MEM_READ_WRITE, Y/SF_Y * X/SF_X * mcu_length); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<FI[8][8]>>  coefficients(context, CL_MEM_READ_WRITE, Y/SF_Y * X/SF_X * mcu_length); if (!coefficients) { return false; }
 				Resource<MyOpenCL :: Buffer<LaneInfo>>    lane_infos(context, CL_MEM_READ_WRITE, mcu_length                  ); if (!  lane_infos) { return false; }
 				Resource<MyOpenCL :: Buffer<RGBAF>>           result(context, CL_MEM_READ_WRITE, Y * X * 64 * 2              ); if (!      result) { return false; }
 				
@@ -726,7 +728,7 @@ namespace BJpeg {
 				if (!kernel.setArg_mcu_per_line   (mcu_per_line   )) { return false; }
 				if (!kernel.setArg_component_count(component_count)) { return false; }
 
-				if (!kernel(queue, work)) { return false; }
+				if (!kernel.call(queue, work)) { return false; }
 				
 				if (!result.read(queue, &result_arr[0][0])) { return false; }
 				for (int i = Y*8; i < Y*8*2; ++i) {
@@ -768,23 +770,23 @@ namespace BJpeg {
 				//	6x4 units (40x32)
 				//	A1 B c   A1 B c
 				//	A2 B c   A2 B c
-				float coefficients_arr[Y/SF_Y * X/SF_X * mcu_length][64] = {
-					{0xA0}, {0xA1}, {0xB2}, {0xC3},   {0xA4}, {0xA5}, {0xB6}, {0xC7},   
-					{0xA8}, {0xA9}, {0xBA}, {0xCB},   {0xAC}, {0xA0}, {0xB1}, {0xC2},   
-					{0xA3}, {0xA4}, {0xB5}, {0xC6},   {0xA7}, {0xA8}, {0xB9}, {0xCA},   
-					{0xAB}, {0xAC}, {0xB0}, {0xC1},   {0xA2}, {0xA3}, {0xB4}, {0xC5},   
-					{0xA6}, {0xA7}, {0xB8}, {0xC9},   {0xAA}, {0xAB}, {0xBC}, {0xC0},   
-					{0xA1}, {0xA2}, {0xB3}, {0xC4},   {0xA5}, {0xA6}, {0xB7}, {0xC8},   
+				FI coefficients_arr[Y/SF_Y * X/SF_X * mcu_length][8][8] = {
+					{{{.f=0xA0}}}, {{{.f=0xA1}}}, {{{.f=0xB2}}}, {{{.f=0xC3}}},   {{{.f=0xA4}}}, {{{.f=0xA5}}}, {{{.f=0xB6}}}, {{{.f=0xC7}}},   
+					{{{.f=0xA8}}}, {{{.f=0xA9}}}, {{{.f=0xBA}}}, {{{.f=0xCB}}},   {{{.f=0xAC}}}, {{{.f=0xA0}}}, {{{.f=0xB1}}}, {{{.f=0xC2}}},   
+					{{{.f=0xA3}}}, {{{.f=0xA4}}}, {{{.f=0xB5}}}, {{{.f=0xC6}}},   {{{.f=0xA7}}}, {{{.f=0xA8}}}, {{{.f=0xB9}}}, {{{.f=0xCA}}},   
+					{{{.f=0xAB}}}, {{{.f=0xAC}}}, {{{.f=0xB0}}}, {{{.f=0xC1}}},   {{{.f=0xA2}}}, {{{.f=0xA3}}}, {{{.f=0xB4}}}, {{{.f=0xC5}}},   
+					{{{.f=0xA6}}}, {{{.f=0xA7}}}, {{{.f=0xB8}}}, {{{.f=0xC9}}},   {{{.f=0xAA}}}, {{{.f=0xAB}}}, {{{.f=0xBC}}}, {{{.f=0xC0}}},   
+					{{{.f=0xA1}}}, {{{.f=0xA2}}}, {{{.f=0xB3}}}, {{{.f=0xC4}}},   {{{.f=0xA5}}}, {{{.f=0xA6}}}, {{{.f=0xB7}}}, {{{.f=0xC8}}},   
 				};
 				RGBAF result_arr  [Y*8*2][X*8]; for (auto& x : result_arr) { for (auto& y : x) { y.r = y.g = y.b = y.a = SENTINEL; } }
 				RGBAF expected_arr[Y*8][X*8] = {{0}};
 				for (int i = 0; i < Y/SF_Y; ++i) {
 					for (int j = 0; j < X/SF_X; ++j) {
 						int ci = (i * X/SF_X + j) * mcu_length;
-						float a1 = coefficients_arr[ci + 0][0];
-						float a2 = coefficients_arr[ci + 1][0];
-						float b  = coefficients_arr[ci + 2][0];
-						float c  = coefficients_arr[ci + 3][0];
+						float a1 = coefficients_arr[ci + 0][0][0].f;
+						float a2 = coefficients_arr[ci + 1][0][0].f;
+						float b  = coefficients_arr[ci + 2][0][0].f;
+						float c  = coefficients_arr[ci + 3][0][0].f;
 						expected_arr[i*8*SF_Y][j*8*SF_X+0].r = a1;
 						expected_arr[i*8*SF_Y][j*8*SF_X+8].r = a2;
 						expected_arr[i*8*SF_Y][j*8*SF_X+0].g = b;
@@ -800,7 +802,7 @@ namespace BJpeg {
 					{.c_id = 2, .sf_y=1, .sf_x=1},
 				};
 				
-				Resource<MyOpenCL :: Buffer<float[64]>> coefficients(context, CL_MEM_READ_WRITE, Y/SF_Y * X/SF_X * mcu_length); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<FI[8][8]>>  coefficients(context, CL_MEM_READ_WRITE, Y/SF_Y * X/SF_X * mcu_length); if (!coefficients) { return false; }
 				Resource<MyOpenCL :: Buffer<LaneInfo>>    lane_infos(context, CL_MEM_READ_WRITE, mcu_length                  ); if (!  lane_infos) { return false; }
 				Resource<MyOpenCL :: Buffer<RGBAF>>           result(context, CL_MEM_READ_WRITE, Y * X * 64 * 2              ); if (!      result) { return false; }
 				
@@ -817,7 +819,7 @@ namespace BJpeg {
 				if (!kernel.setArg_mcu_per_line   (mcu_per_line   )) { return false; }
 				if (!kernel.setArg_component_count(component_count)) { return false; }
 
-				if (!kernel(queue, work)) { return false; }
+				if (!kernel.call(queue, work)) { return false; }
 				
 				if (!result.read(queue, &result_arr[0][0])) { return false; }
 				for (int i = Y*8; i < Y*8*2; ++i) {
@@ -854,13 +856,13 @@ namespace BJpeg {
 				
 				if (!kernel.setArg(device_buffer.buffer)) { return false; }
 				if (!kernel.setArg(value1, 1)) { return false; }
-				if (!kernel(queue, amount)) { return false; }
+				if (!kernel.call(queue, amount)) { return false; }
 				
 				uint32_t value2 = 33;
 				if (!kernel.setArg(value2, 1)) { return false; }
 				size_t offset2[1] = {1};
 				size_t amount2[1] = {2};
-				if (!kernel(queue, amount2, offset2)) { return false; }
+				if (!kernel.call(queue, amount2, offset2)) { return false; }
 				
 				uint32_t my_buffer[10];
 				

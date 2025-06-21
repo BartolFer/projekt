@@ -37,7 +37,14 @@ for (base, folders, files) in os.walk(__actual_dir__ + "/Src"):
 pass
 
 import subprocess;
-sys.exit(subprocess.run([sys.executable, "./ZZC/zzc.py", __actual_dir__]).returncode);
+r = subprocess.run([sys.executable, "./ZZC/zzc.py", __actual_dir__]).returncode;
+
+if r == 0:
+	try: import winsound;
+	except ImportError: pass;
+	else: winsound.Beep(600, 200);
+pass
+sys.exit(r);
 #	#	just so that i don't need to bother with subprocess
 #	sys.argv[1 : ] = [__actual_dir__];
 #	import ZZC.zzc;

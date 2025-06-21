@@ -34,10 +34,12 @@ namespace BJpeg {
 		}
 		fun void setLastNode(uint8_t last_length) {
 			u16 node = 0;
-			for (uint8_t i = last_length; i > 0; --i) {
+			for (uint8_t i = last_length; i > 1; --i) {
 				node = self.nodes[node].right_or_data;
 			}
-			self.nodes[node] = { 1, 0 };
+			u16 next_index = self.nodes[node].left + 1;
+			self.nodes[node].right_or_data = next_index;
+			self.nodes[next_index] = { next_index, next_index }; //	set up a (infinite) loop
 		}
 		
 		fun ValueAndLength operator [](u16 bits) {
@@ -55,10 +57,10 @@ namespace BJpeg {
 		
 		fun void printToFile(FILE* file) {
 			int highest_r = 0;
-			for (int i = 0; i <= highest_r; ++i) {
+			for (int i = 0; i <= highest_r || i < 25; ++i) {
 				auto node = self.nodes[i];
-				if (node.left == 0) { fprintf(file, "    %3u|",            node.right_or_data); }
-				else                { fprintf(file, "%3u,%3u|", node.left, node.right_or_data); highest_r = node.right_or_data; }
+				if (node.left == 0) { fprintf(file, "%d:....%3u| ", i,            node.right_or_data); }
+				else                { fprintf(file, "%d:%3u,%3u| ", i, node.left, node.right_or_data); if (node.right_or_data > highest_r) { highest_r = node.right_or_data; } }
 			}
 		}
 		
