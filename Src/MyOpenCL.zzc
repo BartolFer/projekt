@@ -110,14 +110,14 @@ namespace MyOpenCL {
 			return true;
 		}
 		
-		fun                                              bool call(Queue queue, size_t (&global_size)[N]                                                     ) { return self.callKernel(queue, global_size);                            }
-		fun                                              bool call(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N]                         ) { return self.callKernel(queue, global_size, global_offset);             }
-		fun                                              bool call(Queue queue, size_t (&global_size)[N], size_t (&global_offset)[N], size_t (&local_size)[N]) { return self.callKernel(queue, global_size, global_offset, local_size); }
-		template <typename = void> requires (N == 1) fun bool call(Queue queue, size_t* global_size                                                          ) { return self.callKernel(queue, global_size);                            }
-		template <typename = void> requires (N == 1) fun bool call(Queue queue, size_t* global_size, size_t* global_offset                                   ) { return self.callKernel(queue, global_size, global_offset);             }
-		template <typename = void> requires (N == 1) fun bool call(Queue queue, size_t* global_size, size_t* global_offset, size_t* local_size               ) { return self.callKernel(queue, global_size, global_offset, local_size); }
+		fun                                              bool call(Queue queue, size_t const (&global_size)[N]                                                                 ) { return self.callKernel(queue, global_size);                            }
+		fun                                              bool call(Queue queue, size_t const (&global_size)[N], size_t const (&global_offset)[N]                               ) { return self.callKernel(queue, global_size, global_offset);             }
+		fun                                              bool call(Queue queue, size_t const (&global_size)[N], size_t const (&global_offset)[N], size_t const (&local_size)[N]) { return self.callKernel(queue, global_size, global_offset, local_size); }
+		template <typename = void> requires (N == 1) fun bool call(Queue queue, size_t const* global_size                                                                      ) { return self.callKernel(queue, global_size);                            }
+		template <typename = void> requires (N == 1) fun bool call(Queue queue, size_t const* global_size, size_t const* global_offset                                         ) { return self.callKernel(queue, global_size, global_offset);             }
+		template <typename = void> requires (N == 1) fun bool call(Queue queue, size_t const* global_size, size_t const* global_offset, size_t const* local_size               ) { return self.callKernel(queue, global_size, global_offset, local_size); }
 	private:
-		fun bool callKernel(Queue queue, size_t* global_size, size_t* global_offset = nullptr, size_t* local_size = nullptr) {
+		fun bool callKernel(Queue queue, size_t const* global_size, size_t const* global_offset = nullptr, size_t const* local_size = nullptr) {
 			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, N, global_offset, global_size, local_size, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, self.name << " Failed to enqueue kernel");
 			return true;
@@ -167,12 +167,12 @@ namespace MyOpenCL {
 		}
 		fun bool read(Queue queue, T* buffer, size_t length) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, 0, length * sizeof(T), buffer, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to read buffer l ");
+			ERROR_HANDLING(err, "Failed to read buffer l " << length);
 			return true;
 		}
 		fun bool read(Queue queue, T* buffer, size_t length, size_t offset) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T), length * sizeof(T), buffer, 0, nullptr, nullptr);
-			ERROR_HANDLING(err, "Failed to read buffer o ");
+			ERROR_HANDLING(err, "Failed to read buffer o " << length << " @" << offset);
 			return true;
 		}
 		fun bool read(Queue queue, void* buffer, size_t length, size_t offset, size_t part_length, size_t part_offset) {

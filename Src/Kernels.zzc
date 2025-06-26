@@ -47,8 +47,8 @@ namespace BJpeg {
 			fun bool setArg_prev_size_pow     (u8                              x) { return self.setArg(x, 3); }
 		} decodeRaise;
 		
-		struct decodeLower : MyOpenCL :: Kernel<2> {
-			fun bool init(MyOpenCL :: Program program) { return static_cast<MyOpenCL :: Kernel<2>&>(self).init(program, "decodeLower"); }
+		struct decodeLower : MyOpenCL :: Kernel<1> {
+			fun bool init(MyOpenCL :: Program program) { return static_cast<MyOpenCL :: Kernel<1>&>(self).init(program, "decodeLower"); }
 			fun bool setArg_positions         (MyOpenCL :: Buffer<u32>         x) { return self.setArg(x, 0); }
 			fun bool setArg_lanes             (MyOpenCL :: Buffer<u32>         x) { return self.setArg(x, 1); }
 			fun bool setArg_lane_width        (u32                             x) { return self.setArg(x, 2); }
@@ -56,11 +56,10 @@ namespace BJpeg {
 			fun bool setArg_size_pow          (u8                              x) { return self.setArg(x, 4); }
 		} decodeLower;
 		
-		struct positionsToIndexes : MyOpenCL :: Kernel<2> {
-			fun bool init(MyOpenCL :: Program program) { return static_cast<MyOpenCL :: Kernel<2>&>(self).init(program, "positionsToIndexes"); }
+		struct positionsToIndexes : MyOpenCL :: Kernel<1> {
+			fun bool init(MyOpenCL :: Program program) { return static_cast<MyOpenCL :: Kernel<1>&>(self).init(program, "positionsToIndexes"); }
 			fun bool setArg_positions         (MyOpenCL :: Buffer<u32>         x) { return self.setArg(x, 0); }
-			fun bool setArg_indexes           (MyOpenCL :: Buffer<u32x2>       x) { return self.setArg(x, 1); }
-			fun bool setArg_lane_width        (u32                             x) { return self.setArg(x, 2); }
+			fun bool setArg_indexes           (MyOpenCL :: Buffer<u32>         x) { return self.setArg(x, 1); }
 		} positionsToIndexes;
 		
 		struct decodeHuffman2 : MyOpenCL :: Kernel<1> {
@@ -69,8 +68,9 @@ namespace BJpeg {
 			fun bool setArg_trees             (HuffmanBuf                      x) { return self.setArg(x, 1); }
 			fun bool setArg_lane_infos        (MyOpenCL :: Buffer<LaneInfo>    x) { return self.setArg(x, 2); }
 			fun bool setArg_lane_width        (u32                             x) { return self.setArg(x, 3); }
-			fun bool setArg_indexes           (MyOpenCL :: Buffer<u32x2>       x) { return self.setArg(x, 4); }
-			fun bool setArg_coefficients      (MyOpenCL :: Buffer<FI[8][8]>    x) { return self.setArg(x, 5); }
+			fun bool setArg_lanes_count       (u8                              x) { return self.setArg(x, 4); }
+			fun bool setArg_indexes           (MyOpenCL :: Buffer<u32>         x) { return self.setArg(x, 5); }
+			fun bool setArg_coefficients      (MyOpenCL :: Buffer<FI[8][8]>    x) { return self.setArg(x, 6); }
 		} decodeHuffman2;
 		
 		struct initializeBufferU32 : MyOpenCL :: Kernel<1> {

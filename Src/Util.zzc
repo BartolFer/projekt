@@ -5,6 +5,7 @@
 #include <ostream>
 
 #include "./Resource.zzh"
+#include "./Flatten.zzh"
 
 template <typename T>
 using ref = T&;

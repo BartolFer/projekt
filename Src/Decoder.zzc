@@ -149,8 +149,14 @@ namespace BJpeg {
 					return DECODE_RESULT_ERR;
 				}
 				context.component_count = Nf;
-				if (!context.cl.initBuffers(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { return DECODE_RESULT_ERR; }
-				defer {context.cl.finishBuffers();};
+				context.size.file_size = file.length;
+				context.size.y_mayor = context.Y;
+				context.size.x_mayor = context.X;
+				context.size.y_minor = ROUND_UP_8(context.Y) / 8;
+				context.size.x_minor = ROUND_UP_8(context.X) / 8;
+				if (!context.initBuffers1()) { return DECODE_RESULT_ERR; }
+				defer { context.finishBuffers1(); };
+				//	if (!context.cl.initBuffers(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { return DECODE_RESULT_ERR; }
 				for (uint8_t i = 0; i < Nf; ++i) {
 					uint8_t C = DECODE_READ_U8;
 					if (C >= MAX_COMPONENTS) {

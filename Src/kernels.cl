@@ -186,47 +186,41 @@ kernel void decodeLower(
 	u8 lanes_count, 
 	u8 size_pow
 ) {
-	u8  x = get_global_id(0);
-	u32 i = get_global_id(1);
-	u8  lane_id = x * (1U << (size_pow+1)) % lanes_count;
-	u8  next_id = (lane_id + (1U << size_pow)) % lanes_count;
-	u32 row_width = lanes_count * lane_width;
-	
-	u32 p = lane_id * (lane_width + 8) + i;
-	u32 pos = positions[p];
+	u32 i = get_global_id(0);
+	u32 pos = positions[i];
 	if (pos == LANE_ERROR_VALUE) { return; }
+	u8  lane_id = pos % lanes_count;
+	
+	u32 row_width = lanes_count * lane_width;
 	u32 row_base = size_pow * row_width;
 	u32 a = row_base + lane_id * lane_width + i;
 	u32 data = lanes[a];
 	if (data == LANE_ERROR_VALUE) { return; }
-	u32 q = next_id * (lane_width + 8) + i + data;
-	positions[q] = pos + (1U << size_pow);
+	u32 next_i = i + data;
+	positions[next_i] = pos + (1U << size_pow);
 }
 kernel void positionsToIndexes(
 	__global u32 positions[], 
-	__global u32x2 indexes[], 
-	u32 lane_width
+	__global u32 indexes[]
 ) {
-	u32 lane_id = get_global_id(0);
-	u32 i       = get_global_id(1);
+	u32 i = get_global_id(0);
 	
-	u32 p = lane_id * (lane_width + 8) + i;
-	u32 pos = positions[p];
+	u32 pos = positions[i];
 	if (pos == LANE_ERROR_VALUE) { return; }
-	indexes[pos] = (u32x2)(lane_id, i);
+	indexes[pos] = i;
 }
 kernel void decodeHuffman2(
 	__global u8 payload[], 
 	__constant HuffmanTree trees[2][4], 
 	__constant LaneInfo lane_infos[], 
 	u32 lane_width, 
-	__global u32x2 indexes[], 
+	u8 lanes_count, 
+	__global u32 indexes[], 
 	__global i32 coefficients[][64]
 ) {
 	u32 pos = get_global_id(0);
-	u32x2 id = indexes[pos];
-	u32 lane_id = id.x;
-	u32 i       = id.y;
+	u32 i = indexes[pos];
+	u8 lane_id = pos % lanes_count;
 	// u32 p = lane_id * lane_width + i;
 	LaneInfo lane_info = lane_infos[lane_id];
 	u32 lane_index = lane_id * lane_width + i;
@@ -248,6 +242,7 @@ kernel void decodeHuffman2(
 		// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
 		u16 code = READ_3B >> (8 - b);
 		u8x2 d_s = decodeHuffman(huf_dc, code);
+		u32 _bbx = b;
 		// TODO store symbol
 		// TODO read d_s.y bits
 		// store +- (1 << d_s.y) + those bits (but transformed)
@@ -275,6 +270,7 @@ kernel void decodeHuffman2(
 	
 	#pragma region AC
 		for (int ac_count = 1; ac_count < 64; ) {
+			int bbx = ac_count;
 			u32 B = bb >> 3;
 			u32 b = bb & 7;
 			// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
@@ -397,20 +393,26 @@ kernel void unzigzag_quantization_dct/* 1 */(
 			unzigzaged[i][j].f = (float) unzigzaged[i][j].i * quantization_table[q_id][i][j];
 		}
 	}
+	//	for (int i = 0; i < 8; ++i) {
+	//		for (int j = 0; j < 8; ++j) {
+	//			unzigzaged[i][j].f = (float) coefficients[index][i][j].i;
+	//		}
+	//	}
 	
 	for (int y = 0; y < 8; ++y) {
 		for (int x = 0; x < 8; ++x) {
 			float sum = 0;
-			for (int u = 0; u < 8; ++u) {
-				float cu = u == 0 ? M_SQRT1_2_F : 1;
-				for (int v = 0; v < 8; ++v) {
-					float cv = v == 0 ? M_SQRT1_2_F : 1;
-					sum += cu * cv * unzigzaged[u][v].f * costau((2*x+1) * u / 32) * costau((2*y+1) * v / 32);
+			for (int v = 0; v < 8; ++v) {
+				float cv = v == 0 ? M_SQRT1_2_F : 1;
+				for (int u = 0; u < 8; ++u) {
+					float cu = u == 0 ? M_SQRT1_2_F : 1;
+					sum += cv * cu * unzigzaged[v][u].f * costau((float) (2*x+1) * u / 32) * costau((float) (2*y+1) * v / 32);
 				}
 			}
 			coefficients[index][y][x].f = sum / 4;
 		}
 	}
+	//	coefficients[index][0][0].f = get_global_size(0);
 }
 
 kernel void uninterleave_upsample/* 2 */(

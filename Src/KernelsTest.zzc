@@ -83,7 +83,7 @@ namespace BJpeg {
 			MyOpenCL :: Kernel<1> kernel;
 			fun bool init(MyOpenCL :: Program program) { return self.kernel.init(program, "initializeBufferU32"); }
 			fun void finish() noexcept { self.kernel.finish(); }
-			fun bool operator ()(MyOpenCL :: Queue queue, MyOpenCL :: Buffer<uint32_t> buffer, uint32_t value) {
+			fun bool operator ()(MyOpenCL :: Queue queue, MyOpenCL :: Buffer<u32> buffer, u32 value) {
 				self.kernel.resetArgs();
 				if (!self.kernel.setArg(buffer)) { return false; }
 				if (!self.kernel.setArg(value)) { return false; }
@@ -98,12 +98,12 @@ namespace BJpeg {
 				Resource kernel(kernels_var.decodeHuffman1, program);
 				if (!kernel) { return false; }
 				
-				constexpr uint32_t const B2 = 14;
-				constexpr uint32_t const lane_width = 128;
-				constexpr uint8_t const lanes_count = 3;
-				constexpr uint8_t const depth = 5;
-				constexpr uint8_t  const prev_size_pow = 0;
-				uint32_t const x = ~(uint32_t)0;
+				constexpr u32 const B2 = 14;
+				constexpr u32 const lane_width = 128;
+				constexpr u8 const lanes_count = 3;
+				constexpr u8 const depth = 5;
+				constexpr u8  const prev_size_pow = 0;
+				u32 const x = ~(u32)0;
 				
 				HuffmanTree trees_arr[2][4] = {
 					{
@@ -115,10 +115,10 @@ namespace BJpeg {
 						{.nodes={{1, 12}, {2, 5}, {3, 4}, {0, 99}, {0, 116}, {6, 9}, {7, 8}, {0, 243}, {0, 240}, {10, 11}, {0, 244}, {0, 164}, {13, 28}, {14, 19}, {15, 16}, {0, 179}, {17, 18}, {0, 131}, {0, 67}, {20, 23}, {21, 22}, {0, 36}, {0, 35}, {24, 25}, {0, 100}, {26, 27}, {0, 115}, {0, 52}, {29, 44}, {30, 37}, {31, 34}, {32, 33}, {0, 212}, {0, 227}, {35, 36}, {0, 20}, {0, 132}, {38, 41}, {39, 40}, {0, 228}, {0, 0}, {42, 43}, {0, 196}, {0, 195}, {45, 52}, {46, 49}, {47, 48}, {0, 83}, {0, 4}, {50, 51}, {0, 51}, {0, 84}, {53, 58}, {54, 55}, {0, 148}, {56, 57}, {0, 211}, {0, 68}, {59, 62}, {60, 61}, {0, 3}, {0, 180}, {63, 66}, {64, 65}, {0, 163}, {0, 19}, {67, 68}, {0, 147}, {1, 0}}},
 					},
 				};
-				uint8_t payload_arr[] = {237, 195, 199, 49, 126, 100, 208, 114, 185, 102, 90, 179, 218, 255, 255, 255};
+				u8 payload_arr[] = {237, 195, 199, 49, 126, 100, 208, 114, 185, 102, 90, 179, 218, 255, 255, 255};
 				LaneInfo lane_infos_arr[lanes_count] = {{.dc_huf=0, .ac_huf=0}, {.dc_huf=0, .ac_huf=0}, {.dc_huf=1, .ac_huf=1}, };
 
-				uint32_t initial[depth][lanes_count][lane_width] = {
+				u32 initial[depth][lanes_count][lane_width] = {
 					{
 						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
@@ -145,10 +145,10 @@ namespace BJpeg {
 						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 					},
 				};
-				uint32_t result  [depth][lanes_count][lane_width] = {{{0}}};
-				uint8_t lane_indexes_arr[2] = {0, 2};
+				u32 result  [depth][lanes_count][lane_width] = {{{0}}};
+				u8 lane_indexes_arr[2] = {0, 2};
 				
-				Resource<MyOpenCL :: Buffer<uint8_t>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
+				Resource<MyOpenCL :: Buffer<u8>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
 				if (!payload) { return false; }
 				if (!payload.write(queue, payload_arr)) { return false; }
 				Resource<MyOpenCL :: Buffer<HuffmanTree[4]>> trees(context, CL_MEM_READ_ONLY, 2);
@@ -157,10 +157,10 @@ namespace BJpeg {
 				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_ONLY, lanes_count);
 				if (!lane_infos) { return false; }
 				if (!lane_infos.write(queue, lane_infos_arr)) { return false; }
-				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
+				Resource<MyOpenCL :: Buffer<u32>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
 				if (!lanes) { return false; }
 				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
-				Resource<MyOpenCL :: Buffer<uint8_t>> lane_indexes(context, CL_MEM_READ_ONLY, 2);
+				Resource<MyOpenCL :: Buffer<u8>> lane_indexes(context, CL_MEM_READ_ONLY, 2);
 				if (!lane_indexes) { return false; }
 				if (!lane_indexes.write(queue, &lane_indexes_arr[0])) { return false; }
 				
@@ -199,12 +199,12 @@ namespace BJpeg {
 				Resource kernel(kernels_var.decodeRaise, program);
 				if (!kernel) { return false; }
 				
-				constexpr uint32_t const lane_width = 64;
-				constexpr uint8_t const lanes_count = 4;
-				constexpr uint8_t const depth = 5;
-				constexpr uint8_t  const prev_size_pow = 0;
-				uint32_t const x = ~(uint32_t)0;
-				uint32_t initial[depth][lanes_count][lane_width] = {
+				constexpr u32 const lane_width = 64;
+				constexpr u8 const lanes_count = 4;
+				constexpr u8 const depth = 5;
+				constexpr u8  const prev_size_pow = 0;
+				u32 const x = ~(u32)0;
+				u32 initial[depth][lanes_count][lane_width] = {
 					{
 						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
@@ -236,8 +236,8 @@ namespace BJpeg {
 						{x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 					},
 				};
-				uint32_t result  [depth][lanes_count][lane_width] = {{{0}}};
-				uint32_t expected[depth][lanes_count][lane_width] = {
+				u32 result  [depth][lanes_count][lane_width] = {{{0}}};
+				u32 expected[depth][lanes_count][lane_width] = {
 					{
 						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
 						{3,2,1,4,3,2,1,x,4,3,2,1,4,3,2,1,3,2,1,2,1,3,2,1,x,4,3,2,1,1,4,3,2,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
@@ -270,7 +270,7 @@ namespace BJpeg {
 					},
 				};
 				
-				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
+				Resource<MyOpenCL :: Buffer<u32>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
 				if (!lanes) { return false; }
 				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
 				
@@ -283,9 +283,9 @@ namespace BJpeg {
 				if (!kernel.call(queue, global_work)) { return false; }
 				
 				if (!lanes.read(queue, &result[0][0][0])) { return false; }
-				for (uint32_t d = 0; d < depth; ++d) {
-					for (uint32_t l = 0; l < lanes_count; ++l) {
-						for (uint32_t i = 0; i < lane_width; ++i) {
+				for (u32 d = 0; d < depth; ++d) {
+					for (u32 l = 0; l < lanes_count; ++l) {
+						for (u32 i = 0; i < lane_width; ++i) {
 							if (result[d][l][i] != expected[d][l][i]) {
 								Test :: getError() << "[" << d << "][" << l << "][" << i << "]: e=" << expected[d][l][i] << " v=" << result[d][l][i] << std :: endl;
 								return false;
@@ -305,12 +305,13 @@ namespace BJpeg {
 				Resource<BufferSetter> set_buf(program);
 				if (!set_buf) { return false; }
 				
-				constexpr uint32_t const lane_width = 64;
-				constexpr uint8_t const lanes_count = 4;
-				constexpr uint8_t const depth = 5;
-				uint32_t const x = ~(uint32_t)0;
-				uint32_t initial[depth][lanes_count][lane_width] = {
+				constexpr u32 const lane_width = 64;
+				constexpr u8 const lanes_count = 4;
+				constexpr u8 const depth = 5;
+				u32 const x = ~(u32)0;
+				u32 initial[depth][lanes_count][lane_width] = {
 					{
+						//0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59                                                
 						{ 3, 2, 1, 4, 3, 2, 1, x, 4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 2, 1, 3, 2, 1, x, 4, 3, 2, 1, 1, 4, 3, 2, 1, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
 						{ 3, 2, 1, 4, 3, 2, 1, x, 4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 2, 1, 3, 2, 1, x, 4, 3, 2, 1, 1, 4, 3, 2, 1, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
 						{ 3, 2, 1, 4, 3, 2, 1, 5, 4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 2, 1, 3, 2, 1, 5, 4, 3, 2, 1, 1, 4, 3, 2, 1, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
@@ -341,20 +342,15 @@ namespace BJpeg {
 						{ x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,},
 					},
 				};
-				uint32_t result  [lanes_count][lane_width + 8] = {{{0}}};
-				uint32_t expected[lanes_count][lane_width] = {
-					{0,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,4,x,x,x,x,x,x,x,x,x,x,x,x,8,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
-					{x,x,x,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,5,x,x,x,x,x,x,x,x,x,x,9,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
-					{x,x,x,x,x,x,x,2,x,x,x,x,x,x,x,x,x,x,x,x,x,6,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
-					{x,x,x,x,x,x,x,x,x,x,x,x,3,x,x,x,x,x,x,x,x,x,x,x,7,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,},
-				};
+				u32 result  [lane_width + 8] = {0};
+				u32 expected[lane_width] = { 0,x,x,1,x,x,x,2,x,x,x,x,3,x,x,x,4,x,x,5,x,6,x,x,7,x,x,x,x,8,9,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, };
 				
-				Resource<MyOpenCL :: Buffer<uint32_t>> positions(context, CL_MEM_READ_WRITE, lanes_count * (lane_width + 8));
+				Resource<MyOpenCL :: Buffer<u32>> positions(context, CL_MEM_READ_WRITE, lane_width + 8);
 				if (!positions) { return false; }
 				if (!set_buf(queue, positions, x)) { return false; }
-				uint32_t zero = 0;
+				u32 zero = 0;
 				if (!positions.write(queue, &zero, 1)) { return false; }
-				Resource<MyOpenCL :: Buffer<uint32_t>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
+				Resource<MyOpenCL :: Buffer<u32>> lanes(context, CL_MEM_READ_WRITE, depth * lanes_count * lane_width);
 				if (!lanes) { return false; }
 				if (!lanes.write(queue, &initial[0][0][0])) { return false; }
 				
@@ -363,36 +359,27 @@ namespace BJpeg {
 				if (!kernel.setArg_lane_width (lane_width)) { return false; }
 				if (!kernel.setArg_lanes_count(lanes_count)) { return false; }
 				
-				uint8_t size_pow;
-				size_t global_work[2] = { lanes_count, lane_width };
-
+				u8 size_pow;
+				size_t global_work[1] = { lane_width };
+				
 				size_pow = 3;
-				global_work[0] = 1;
 				if (!kernel.setArg_size_pow(size_pow)) { return false; }
 				if (!kernel.call(queue, global_work)) { return false; }
-				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 2;
-				global_work[0] = 1;
 				if (!kernel.setArg_size_pow(size_pow)) { return false; }
 				if (!kernel.call(queue, global_work)) { return false; }
-				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 1;
-				global_work[0] = 1;
 				if (!kernel.setArg_size_pow(size_pow)) { return false; }
 				if (!kernel.call(queue, global_work)) { return false; }
-				if (!positions.read(queue, &result[0][0])) { return false; }
 				size_pow = 0;
-				global_work[0] = 2;
 				if (!kernel.setArg_size_pow(size_pow)) { return false; }
 				if (!kernel.call(queue, global_work)) { return false; }
 				
-				if (!positions.read(queue, &result[0][0])) { return false; }
-				for (uint32_t l = 0; l < lanes_count; ++l) {
-					for (uint32_t i = 0; i < 34; ++i) { //	hardcoded
-						if (result[l][i] != expected[l][i]) {
-							Test :: getError() << "[" << l << "][" << i << "]: e=" << expected[l][i] << " v=" << result[l][i] << std :: endl;
-							return false;
-						}
+				if (!positions.read(queue, result)) { return false; }
+				for (u32 i = 0; i < 34; ++i) { //	hardcoded
+					if (result[i] != expected[i]) {
+						Test :: getError() << "[" << i << "]: e=" << expected[i] << " v=" << result[i] << std :: endl;
+						return false;
 					}
 				}
 				
@@ -407,38 +394,32 @@ namespace BJpeg {
 				Resource<BufferSetter> set_buf(program);
 				if (!set_buf) { return false; }
 				
-				constexpr uint32_t const lane_width = 64;
-				constexpr uint8_t const lanes_count = 4;
-				constexpr uint8_t const depth = 5;
-				uint32_t const x = ~(uint32_t)0;
+				constexpr u32 const lane_width = 64;
+				constexpr u32 const unit_count = 10;
+				constexpr u8 const lanes_count = 4;
+				constexpr u8 const depth = 5;
+				u32 const x = ~(u32)0;
 				
-				uint32_t initial[lanes_count][lane_width + 8] = {
-					{0,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,4,x,x,x,x,x,x,x,x,x,x,x,x,8,x,x,x,x, x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
-					{x,x,x,1,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,5,x,x,x,x,x,x,x,x,x,x,9,x,x,x, x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
-					{x,x,x,x,x,x,x,2,x,x,x,x,x,x,x,x,x,x,x,x,x,6,x,x,x,x,x,x,x,x,x,x,x,x,10,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
-					{x,x,x,x,x,x,x,x,x,x,x,x,3,x,x,x,x,x,x,x,x,x,x,x,7,x,x,x,x,x,x,x,x,x, x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, x,x,x,x, x,x,x,x,},
-				};
-				cl_uint2 result  [11] = {0};
-				cl_uint2 expected[11] = {{{0,0}}, {{1,3}}, {{2,7}}, {{3,12}}, {{0,16}}, {{1,19}}, {{2,21}}, {{3,24}}, {{0,29}}, {{1,30}}, {{2,34}}};
+				u32 initial[lane_width] = { 0,x,x,1,x,x,x,2,x,x,x,x,3,x,x,x,4,x,x,5,x,6,x,x,7,x,x,x,x,8,9,x,x,x,10,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x, };
+				u32 result  [unit_count] = {0};
+				u32 expected[unit_count] = {0, 3, 7, 12, 16, 19, 21, 24, 29, 30};
 				
-				Resource<MyOpenCL :: Buffer<uint32_t>> positions(context, CL_MEM_READ_WRITE, lanes_count * (lane_width + 8));
+				Resource<MyOpenCL :: Buffer<u32>> positions(context, CL_MEM_READ_WRITE, lane_width + 8);
 				if (!positions) { return false; }
-				if (!positions.write(queue, &initial[0][0])) { return false; }
-				Resource<MyOpenCL :: Buffer<cl_uint2>> indexes(context, CL_MEM_READ_WRITE, 16);
+				if (!positions.write(queue, initial, lane_width)) { return false; }
+				Resource<MyOpenCL :: Buffer<u32>> indexes(context, CL_MEM_READ_WRITE, unit_count + 1);
 				if (!indexes) { return false; }
-				if (!indexes.write(queue, result)) { return false; }
 				
 				if (!kernel.setArg_positions (positions )) { return false; }
 				if (!kernel.setArg_indexes   (indexes   )) { return false; }
-				if (!kernel.setArg_lane_width(lane_width)) { return false; }
 				
-				size_t global_work[2] = { lanes_count, lane_width };
+				size_t global_work[1] = { lane_width };
 				if (!kernel.call(queue, global_work)) { return false; }
-				if (!indexes.read(queue, &result[0])) { return false; }
+				if (!indexes.read(queue, result)) { return false; }
 				
-				for (int i = 0; i <= 10; ++i) {
-					if (result[i].s[0] != expected[i].s[0] || result[i].s[1] != expected[i].s[1]) {
-						Test :: getError() << "[" << i << "]: e=(" << expected[i].s[0] << "," << expected[i].s[1] << ")" << " v=(" << result[i].s[0] << "," << result[i].s[1] << ")" << std :: endl;
+				for (int i = 0; i < unit_count; ++i) {
+					if (result[i] != expected[i]) {
+						Test :: getError() << "[" << i << "]: e=" << expected[i] << " v=" << result[i] << std :: endl;
 						return false;
 					}
 				}
@@ -452,12 +433,12 @@ namespace BJpeg {
 				Resource kernel(kernels_var.decodeHuffman2, program);
 				if (!kernel) { return false; }
 				
-				constexpr uint32_t const B2 = 14;
-				constexpr uint32_t const lane_width = 128;
-				constexpr uint8_t const lanes_count = 3;
-				constexpr uint8_t const unit_count = 2;
-				constexpr uint8_t const depth = 5;
-				uint32_t const x = ~(uint32_t)0;
+				constexpr u32 const B2 = 14;
+				constexpr u32 const lane_width = 128;
+				constexpr u8 const lanes_count = 2;
+				constexpr u8 const unit_count = 2;
+				constexpr u8 const depth = 5;
+				u32 const x = ~(u32)0;
 				
 				HuffmanTree trees_arr[2][4] = {
 					{
@@ -469,15 +450,12 @@ namespace BJpeg {
 						{.nodes={{1, 12}, {2, 5}, {3, 4}, {0, 99}, {0, 116}, {6, 9}, {7, 8}, {0, 243}, {0, 240}, {10, 11}, {0, 244}, {0, 164}, {13, 28}, {14, 19}, {15, 16}, {0, 179}, {17, 18}, {0, 131}, {0, 67}, {20, 23}, {21, 22}, {0, 36}, {0, 35}, {24, 25}, {0, 100}, {26, 27}, {0, 115}, {0, 52}, {29, 44}, {30, 37}, {31, 34}, {32, 33}, {0, 212}, {0, 227}, {35, 36}, {0, 20}, {0, 132}, {38, 41}, {39, 40}, {0, 228}, {0, 0}, {42, 43}, {0, 196}, {0, 195}, {45, 52}, {46, 49}, {47, 48}, {0, 83}, {0, 4}, {50, 51}, {0, 51}, {0, 84}, {53, 58}, {54, 55}, {0, 148}, {56, 57}, {0, 211}, {0, 68}, {59, 62}, {60, 61}, {0, 3}, {0, 180}, {63, 66}, {64, 65}, {0, 163}, {0, 19}, {67, 68}, {0, 147}, {1, 0}}},
 					},
 				};
-				uint8_t payload_arr[] = {237, 195, 199, 49, 126, 100, 208, 114, 185, 102, 90, 179, 218, 255, 255, 255};
-				LaneInfo lane_infos_arr[lanes_count] = {{.dc_huf=0, .ac_huf=0}, {.dc_huf=0, .ac_huf=0}, {.dc_huf=1, .ac_huf=1}, };
-				cl_uint2 indexes_arr[unit_count] = {
-					{0, 0},
-					{2, 54},
-				};
+				u8 payload_arr[] = {237, 195, 199, 49, 126, 100, 208, 114, 185, 102, 90, 179, 218, 255, 255, 255};
+				LaneInfo lane_infos_arr[lanes_count] = {{.dc_huf=0, .ac_huf=0}, {.dc_huf=1, .ac_huf=1}, };
+				u32 indexes_arr[unit_count] = {0, 54};
 
 				struct {
-					uint8_t SSSS;
+					u8 SSSS;
 					uint16_t bits;
 				} expected[unit_count][64] = {
 					{{2, 0b11}, {5, 0b00011}, {3, 0b110}, {0,0}      , {4, 0b0010}, {0,0}      , {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {3, 0b011}, }, 
@@ -488,7 +466,7 @@ namespace BJpeg {
 					//	11111111111111111111111
 				FI result_arr[unit_count][8][8];
 				
-				Resource<MyOpenCL :: Buffer<uint8_t>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
+				Resource<MyOpenCL :: Buffer<u8>> payload(context, CL_MEM_READ_ONLY, sizeof(payload_arr));
 				if (!payload) { return false; }
 				if (!payload.write(queue, payload_arr)) { return false; }
 				Resource<MyOpenCL :: Buffer<HuffmanTree[4]>> trees(context, CL_MEM_READ_ONLY, 2);
@@ -497,18 +475,19 @@ namespace BJpeg {
 				Resource<MyOpenCL :: Buffer<LaneInfo>> lane_infos(context, CL_MEM_READ_ONLY, lanes_count);
 				if (!lane_infos) { return false; }
 				if (!lane_infos.write(queue, lane_infos_arr)) { return false; }
-				Resource<MyOpenCL :: Buffer<cl_uint2>> indexes(context, CL_MEM_READ_ONLY, 2);
+				Resource<MyOpenCL :: Buffer<u32>> indexes(context, CL_MEM_READ_ONLY, unit_count);
 				if (!indexes) { return false; }
 				if (!indexes.write(queue, indexes_arr)) { return false; }
-				Resource<MyOpenCL :: Buffer<FI[8][8]>> result(context, CL_MEM_READ_WRITE, 2);
+				Resource<MyOpenCL :: Buffer<FI[8][8]>> result(context, CL_MEM_READ_WRITE, unit_count);
 				if (!result) { return false; }
 				
-				if (!kernel.setArg_payload     (payload   )) { return false; }
-				if (!kernel.setArg_trees       (trees     )) { return false; }
-				if (!kernel.setArg_lane_infos  (lane_infos)) { return false; }
-				if (!kernel.setArg_lane_width  (lane_width)) { return false; }
-				if (!kernel.setArg_indexes     (indexes   )) { return false; }
-				if (!kernel.setArg_coefficients(result    )) { return false; }
+				if (!kernel.setArg_payload     (payload    )) { return false; }
+				if (!kernel.setArg_trees       (trees      )) { return false; }
+				if (!kernel.setArg_lane_infos  (lane_infos )) { return false; }
+				if (!kernel.setArg_lane_width  (lane_width )) { return false; }
+				if (!kernel.setArg_lanes_count (lanes_count)) { return false; }
+				if (!kernel.setArg_indexes     (indexes    )) { return false; }
+				if (!kernel.setArg_coefficients(result     )) { return false; }
 				
 				size_t global_work[1] = { unit_count };
 				if (!kernel.call(queue, global_work)) { return false; }
@@ -653,6 +632,72 @@ namespace BJpeg {
 				return true;
 			}
 		};
+		struct Test_unzigzag_quantization_dct : KernelsTest {
+			fun char const* getDescription() { return "Test unzigzag_quantization_dct"; }
+			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
+				Resource kernel(kernels_var.unzigzag_quantization_dct, program);
+				if (!kernel) { return false; }
+				
+				constexpr size_t unit_count = 1;
+				constexpr size_t mcu_length = 1;
+				size_t work[1] = {unit_count};
+				
+				FI coefficients_arr[unit_count][8][8] = {{
+					{ {.i=1210}, {.i= -18}, {.i=  21}, {.i= -10}, {.i= -34}, {.i=  15}, {.i=  -9}, {.i=  26},  },
+					{ {.i= -24}, {.i=  -8}, {.i=  -3}, {.i=  -5}, {.i=  -2}, {.i=  -9}, {.i=  23}, {.i=  -9},  },
+					{ {.i= -11}, {.i=   6}, {.i=  14}, {.i=  10}, {.i=   4}, {.i=   9}, {.i=  -2}, {.i=   8},  },
+					{ {.i= -15}, {.i= -18}, {.i=  11}, {.i= -14}, {.i= -19}, {.i=  14}, {.i=   3}, {.i=  -8},  },
+					{ {.i=   1}, {.i= -18}, {.i=   1}, {.i=   0}, {.i=  -8}, {.i=  -3}, {.i=   8}, {.i= -11},  },
+					{ {.i=  -3}, {.i= -20}, {.i=   7}, {.i=  -1}, {.i=  -3}, {.i=  18}, {.i=   8}, {.i=   4},  },
+					{ {.i=  -2}, {.i=   2}, {.i=  -1}, {.i=  -4}, {.i=  18}, {.i=   8}, {.i=  15}, {.i=   1},  },
+					{ {.i=  -7}, {.i=   1}, {.i=   4}, {.i=  -1}, {.i=  -7}, {.i=  -2}, {.i=  -6}, {.i=   0},  },
+				}};
+				FI     expected_arr[unit_count][8][8] = {{
+					{ {.f=  140.0}, {.f=  144.0}, {.f=  147.0}, {.f=  140.0}, {.f=  140.0}, {.f=  155.0}, {.f=  179.0}, {.f=  175.0},  },
+					{ {.f=  144.0}, {.f=  152.0}, {.f=  140.0}, {.f=  147.0}, {.f=  140.0}, {.f=  148.0}, {.f=  167.0}, {.f=  179.0},  },
+					{ {.f=  152.0}, {.f=  155.0}, {.f=  136.0}, {.f=  167.0}, {.f=  163.0}, {.f=  162.0}, {.f=  152.0}, {.f=  172.0},  },
+					{ {.f=  168.0}, {.f=  145.0}, {.f=  156.0}, {.f=  160.0}, {.f=  152.0}, {.f=  155.0}, {.f=  136.0}, {.f=  160.0},  },
+					{ {.f=  162.0}, {.f=  148.0}, {.f=  156.0}, {.f=  148.0}, {.f=  140.0}, {.f=  136.0}, {.f=  147.0}, {.f=  162.0},  },
+					{ {.f=  147.0}, {.f=  167.0}, {.f=  140.0}, {.f=  155.0}, {.f=  155.0}, {.f=  140.0}, {.f=  136.0}, {.f=  162.0},  },
+					{ {.f=  136.0}, {.f=  156.0}, {.f=  123.0}, {.f=  167.0}, {.f=  162.0}, {.f=  144.0}, {.f=  140.0}, {.f=  147.0},  },
+					{ {.f=  148.0}, {.f=  155.0}, {.f=  136.0}, {.f=  155.0}, {.f=  152.0}, {.f=  147.0}, {.f=  147.0}, {.f=  136.0},  },
+				}};
+				QuantizationTable Q_arr[4]; for (auto& q : flatten<u16>(Q_arr)) { q = 1; }
+				LaneInfo lane_infos_arr[mcu_length] = {{.q_id = 0}};
+				
+				
+				Resource<MyOpenCL :: Buffer<FI[8][8]>>           coefficients(context, CL_MEM_READ_WRITE, unit_count); if (!coefficients) { return false; }
+				Resource<MyOpenCL :: Buffer<LaneInfo>>             lane_infos(context, CL_MEM_READ_WRITE, mcu_length); if (!  lane_infos) { return false; }
+				Resource<MyOpenCL :: Buffer<QuantizationTable>>        qtable(context, CL_MEM_READ_ONLY , 4         ); if (!  qtable    ) { return false; }
+				
+				if (!coefficients.write(queue, coefficients_arr)) { return false; }
+				if (!  lane_infos.write(queue,   lane_infos_arr)) { return false; }
+				if (!      qtable.write(queue,            Q_arr)) { return false; }
+				
+				if (!kernel.setArg_coefficients      (coefficients)) { return false; }
+				if (!kernel.setArg_lane_infos        (  lane_infos)) { return false; }
+				if (!kernel.setArg_quantization_table(      qtable)) { return false; }
+				if (!kernel.setArg_mcu_length        (  mcu_length)) { return false; }
+				
+				if (!kernel.call(queue, work)) { return false; }
+				
+				if (!coefficients.read(queue, coefficients_arr)) { return false; }
+				for (int i = 0; i < 8; ++i) {
+					for (int j = 0; j < 8; ++j) {
+						float d = coefficients_arr[0][i][j].f - expected_arr[0][i][j].f;
+						if (std :: abs(coefficients_arr[0][i][j].f - expected_arr[0][i][j].f) > 1) {
+							Test :: getError() << "Error at dct [" << i << "][" << j << "]: Expected " << expected_arr[0][i][j].f << "   Got " << coefficients_arr[0][i][j].f << std :: endl;
+							return false;
+						}
+						//	printf("%6.1f  ", coefficients_arr[0][i][j].f);
+						//	printf("%4d  ", coefficients_arr[0][i][j].i);
+					}
+					//	printf("\n");
+				}
+				
+				return true;
+			}
+		};
 		struct Test_uninterleave_upsample : KernelsTest {
 			fun char const* getDescription() { return "Test uninterleave_upsample"; }
 			fun bool kernelTest(MyOpenCL :: Context context, MyOpenCL :: Queue queue, MyOpenCL :: Program program) {
@@ -687,7 +732,7 @@ namespace BJpeg {
 					{{{.f=0xA3}}}, {{{.f=0xA4}}}, {{{.f=0xB5}}}, {{{.f=0xC6}}},   {{{.f=0xA7}}}, {{{.f=0xA8}}}, {{{.f=0xB9}}}, {{{.f=0xCA}}},   {{{.f=0xAB}}}, {{{.f=0xAC}}}, {{{.f=0xB0}}}, {{{.f=0xC1}}},   {{{.f=0xA2}}}, {{{.f=0xA3}}}, {{{.f=0xB4}}}, {{{.f=0xC5}}},   
 					{{{.f=0xA6}}}, {{{.f=0xA7}}}, {{{.f=0xB8}}}, {{{.f=0xC9}}},   {{{.f=0xAA}}}, {{{.f=0xAB}}}, {{{.f=0xBC}}}, {{{.f=0xC0}}},   {{{.f=0xA1}}}, {{{.f=0xA2}}}, {{{.f=0xB3}}}, {{{.f=0xC4}}},   {{{.f=0xA5}}}, {{{.f=0xA6}}}, {{{.f=0xB7}}}, {{{.f=0xC8}}},   
 				};
-				RGBAF result_arr  [Y*8*2][X*8]; for (auto& x : result_arr) { for (auto& y : x) { y.r = y.g = y.b = y.a = SENTINEL; } }
+				RGBAF result_arr  [Y*8*2][X*8]; for (auto& x : flatten<RGBAF>(result_arr)) { x.r = x.g = x.b = x.a = SENTINEL; }
 				RGBAF expected_arr[Y*8][X*8] = {{0}};
 				for (int i = 0; i < Y/SF_Y; ++i) {
 					for (int j = 0; j < X/SF_X; ++j) {
@@ -778,7 +823,7 @@ namespace BJpeg {
 					{{{.f=0xA6}}}, {{{.f=0xA7}}}, {{{.f=0xB8}}}, {{{.f=0xC9}}},   {{{.f=0xAA}}}, {{{.f=0xAB}}}, {{{.f=0xBC}}}, {{{.f=0xC0}}},   
 					{{{.f=0xA1}}}, {{{.f=0xA2}}}, {{{.f=0xB3}}}, {{{.f=0xC4}}},   {{{.f=0xA5}}}, {{{.f=0xA6}}}, {{{.f=0xB7}}}, {{{.f=0xC8}}},   
 				};
-				RGBAF result_arr  [Y*8*2][X*8]; for (auto& x : result_arr) { for (auto& y : x) { y.r = y.g = y.b = y.a = SENTINEL; } }
+				RGBAF result_arr  [Y*8*2][X*8]; for (auto& x : flatten<RGBAF>(result_arr)) { x.r = x.g = x.b = x.a = SENTINEL; }
 				RGBAF expected_arr[Y*8][X*8] = {{0}};
 				for (int i = 0; i < Y/SF_Y; ++i) {
 					for (int j = 0; j < X/SF_X; ++j) {
@@ -850,21 +895,21 @@ namespace BJpeg {
 				Resource kernel(kernels_var.initializeBufferU32, program); if (!kernel) { return false; }
 				
 				size_t amount[1] = {1024};
-				uint32_t value1 = 42;
+				u32 value1 = 42;
 				
-				Resource<MyOpenCL :: Buffer<uint32_t>> device_buffer(context, CL_MEM_READ_WRITE, amount[0]); if (!device_buffer) { return false; }
+				Resource<MyOpenCL :: Buffer<u32>> device_buffer(context, CL_MEM_READ_WRITE, amount[0]); if (!device_buffer) { return false; }
 				
 				if (!kernel.setArg(device_buffer.buffer)) { return false; }
 				if (!kernel.setArg(value1, 1)) { return false; }
 				if (!kernel.call(queue, amount)) { return false; }
 				
-				uint32_t value2 = 33;
+				u32 value2 = 33;
 				if (!kernel.setArg(value2, 1)) { return false; }
 				size_t offset2[1] = {1};
 				size_t amount2[1] = {2};
 				if (!kernel.call(queue, amount2, offset2)) { return false; }
 				
-				uint32_t my_buffer[10];
+				u32 my_buffer[10];
 				
 				if (!device_buffer.read(queue, my_buffer, 10)) { return false; }
 				if (my_buffer[0] != value1) { std :: cerr << "Buffer wrong at 0: " << PRINT_ARRAY_10(my_buffer) << std :: endl; return false; }
@@ -914,6 +959,7 @@ namespace BJpeg {
 			std::vector<i32>{25,23,31,23, 56,59,58,50, 10,31,25,25, 28,52,53,54, 29,30,33,33}
 		};
 		
+		Test_unzigzag_quantization_dct test_unzigzag_quantization_dct;
 		Test_uninterleave_upsample test_uninterleave_upsample;
 		Test_initializeBufferU32 test_initializeBufferU32;
 	}
