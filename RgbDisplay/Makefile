@@ -1,5 +1,5 @@
 run: build
-	a.exe ./test.rgb
+	a.exe ./test.rgba
 
 build: a.exe
 .PHONY: build run

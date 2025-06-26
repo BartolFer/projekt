@@ -478,7 +478,7 @@ kernel void uninterleave_upsample/* 2 */(
 				u32 data_unit_index = y_of_data_unit_in_mcu * (max_sf.x / component_sf.x) + x_of_data_unit_in_mcu;
 				u32 src_index = data_unit_base + data_unit_index;
 				u32 dst_index = (base.y + yy) * image_size.x + (base.x + xx);
-				image_temp[dst_index].arr[c_id] = coefficients[src_index][yy / (max_sf.y / component_sf.y) % 8][xx / (max_sf.x / component_sf.x) % 8]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
+				image_temp[dst_index].arr[(c_id - 1) % 4] = coefficients[src_index][yy / (max_sf.y / component_sf.y) % 8][xx / (max_sf.x / component_sf.x) % 8]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
 			}
 		}
 		data_unit_base += component_sf.y * component_sf.x;
@@ -490,17 +490,20 @@ kernel void YCbCr_to_RGB/* 2 */(
 	__global RGBA     image[],
 	u32               image_width
 ) {
-	int i = get_global_id(0);
-	int j = get_global_id(1);
-	RGBAF YCbCr_temp = image_temp[i * image_width + j];
+	int y = get_global_id(0);
+	int x = get_global_id(1);
+	RGBAF YCbCr_temp = image_temp[y * image_width + x];
 	float3 YCbCr = (float3) (YCbCr_temp.r, YCbCr_temp.g, YCbCr_temp.b);
-	YCbCr -= (float3)(16, 128, 128);
+	//	YCbCr += (float3)(128, 128, 128);
+	//	YCbCr -= (float3)(16, 128, 128);
+		//	both = +112, 0, 0
+	YCbCr.x += 112;
 	RGBAF result;
 	result.r = dot((float3) (1.164f,  0.000f,  1.596f), YCbCr); if (result.r < 0) { result.r = 0; } else if (result.r > 255) { result.r = 255; }
 	result.g = dot((float3) (1.164f, -0.392f, -0.813f), YCbCr); if (result.g < 0) { result.g = 0; } else if (result.g > 255) { result.g = 255; }
 	result.b = dot((float3) (1.164f,  2.017f,  0.000f), YCbCr); if (result.b < 0) { result.b = 0; } else if (result.b > 255) { result.b = 255; }
 	result.a = 255; //	TODO
-	image[i * image_width + j] = (RGBA) {result.r, result.g, result.b, result.a};
+	image[y * image_width + x] = (RGBA) {result.r, result.g, result.b, result.a};
 }
 
 kernel void initializeBufferU32(__global u32 buffer[], u32 value) {

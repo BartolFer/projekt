@@ -90,6 +90,7 @@ namespace BJpeg {
 			LaneInfo lane_infos[MAX_LANE_COUNT];
 			u8 lane_indexes[MAX_COMPONENTS];
 			u8 lanes_count = 0;
+			u8x2 max_sf = {1, 1};
 			for (uint8_t i = 0; i < Ns; ++i) {
 				uint8_t C = DECODE_READ_U8;
 				if (C >= MAX_COMPONENTS) {
@@ -101,7 +102,7 @@ namespace BJpeg {
 				lane_indexes[i] = lanes_count;
 				for (u8 y = 0; y < component_data.sampling_factor_y; ++y) {
 					for (u8 x = 0; x < component_data.sampling_factor_x; ++x) {
-						lane_infos[lanes_count] = LaneInfo{
+						auto li = lane_infos[lanes_count] = LaneInfo{
 							.c_id = C,
 							.dc_huf = component_data.dc_entropy_table,
 							.ac_huf = component_data.ac_entropy_table,
@@ -110,6 +111,8 @@ namespace BJpeg {
 							.sf_x = component_data.sampling_factor_x,
 						};
 						++lanes_count;
+						if (li.sf_x > max_sf.s[0]) { max_sf.s[0] = li.sf_x; }
+						if (li.sf_y > max_sf.s[1]) { max_sf.s[1] = li.sf_y; }
 					}
 				}
 			}
@@ -239,21 +242,30 @@ namespace BJpeg {
 			size_t positionsToIndexes_dim[1] = {job_size};
 			if (!cl.kernel.positionsToIndexes.call(cl.queue, positionsToIndexes_dim)) { return DECODE_RESULT_ERR; }
 			
-			// LOG_COEFS("0", i, 3);
 			if (!cl.kernel.decodeHuffman2.setArg_lane_width(job_size)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.decodeHuffman2.setArg_lanes_count(lanes_count)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.decodeHuffman2.call(cl.queue, &context.size.unit_count)) { return DECODE_RESULT_ERR; }
-			LOG_COEFS("d2", i, 3);
 			
 			size_t const unit_count = context.size.unit_count;
 			size_t const mcu_count = context.size.mcu_count;
 			if (!prefixSumCoefficients(mcu_count, lanes_count, multilane_count, cl)) { return DECODE_RESULT_ERR; }
-			LOG_COEFS("ps", i, 3);
 			
-			printf("Starting DCT\n"); fflush(stdout);
 			if (!cl.kernel.unzigzag_quantization_dct.setArg_mcu_length(lanes_count)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.unzigzag_quantization_dct.call(cl.queue, &unit_count)) { return DECODE_RESULT_ERR; }
-			LOG_COEFS("DCT", f, 3);
+			
+			size_t uninterleave_upsample_dim[2] = {context.size.y_minor / max_sf.s[1], context.size.x_minor / max_sf.s[0], };
+			u32x2 image_size = {(u32) context.size.x_mayor, (u32) context.size.y_mayor};
+			u32 mcu_per_line = context.size.x_minor / max_sf.s[0];
+			if (!cl.kernel.uninterleave_upsample.setArg_max_sf(max_sf)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.uninterleave_upsample.setArg_image_size(image_size)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.uninterleave_upsample.setArg_mcu_length(lanes_count)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.uninterleave_upsample.setArg_mcu_per_line(mcu_per_line)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.uninterleave_upsample.setArg_component_count(Ns)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.uninterleave_upsample.call(cl.queue, uninterleave_upsample_dim)) { return DECODE_RESULT_ERR; }
+			
+			size_t YCbCr_to_RGB_dim[2] = {context.size.y_mayor, context.size.x_mayor};
+			if (!cl.kernel.YCbCr_to_RGB.setArg_image_width(context.size.x_mayor)) { return DECODE_RESULT_ERR; }
+			if (!cl.kernel.YCbCr_to_RGB.call(cl.queue, YCbCr_to_RGB_dim)) { return DECODE_RESULT_ERR; }
 			
 			return DECODE_RESULT_OK;
 		}
@@ -280,7 +292,6 @@ namespace BJpeg {
 					if (!cl.kernel.prefixSum2.setArg_half_size(half_size)) { return false; }
 					if (!cl.kernel.prefixSum2.call(cl.queue, work)) { return false; }
 				}
-				
 				
 				return true;
 			}

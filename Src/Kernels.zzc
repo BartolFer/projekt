@@ -105,7 +105,7 @@ namespace BJpeg {
 		struct unzigzag_quantization_dct : MyOpenCL :: Kernel<1> {
 			fun bool init(MyOpenCL :: Program program) { return static_cast<MyOpenCL :: Kernel<1>&>(self).init(program, "unzigzag_quantization_dct"); }
 			fun bool setArg_coefficients      (MyOpenCL :: Buffer<FI[8][8]>    x) { return self.setArg(x, 0); }
-			fun bool setArg_quantization_table(MyOpenCL :: Buffer<u16[8][8]>     x) { return self.setArg(x, 1); }
+			fun bool setArg_quantization_table(MyOpenCL :: Buffer<u16[8][8]>   x) { return self.setArg(x, 1); }
 			fun bool setArg_lane_infos        (MyOpenCL :: Buffer<LaneInfo>    x) { return self.setArg(x, 2); }
 			fun bool setArg_mcu_length        (u8                              x) { return self.setArg(x, 3); }
 		} unzigzag_quantization_dct;
@@ -122,7 +122,7 @@ namespace BJpeg {
 			fun bool setArg_component_count   (u8                              x) { return self.setArg(x, 7); }
 		} uninterleave_upsample;
 		struct YCbCr_to_RGB : MyOpenCL :: Kernel<2> {
-			fun bool init(MyOpenCL :: Program program) { return static_cast<MyOpenCL :: Kernel<2>&>(self).init(program, "uninterleave_upsample"); }
+			fun bool init(MyOpenCL :: Program program) { return static_cast<MyOpenCL :: Kernel<2>&>(self).init(program, "YCbCr_to_RGB"); }
 			fun bool setArg_image_temp        (MyOpenCL :: Buffer<RGBAF>       x) { return self.setArg(x, 0); }
 			fun bool setArg_image             (MyOpenCL :: Buffer<RGBA>        x) { return self.setArg(x, 1); }
 			fun bool setArg_image_width       (u32                             x) { return self.setArg(x, 2); }
@@ -141,6 +141,7 @@ namespace BJpeg {
 				&& self.prefixSum2               .init(program)
 				&& self.unzigzag_quantization_dct.init(program)
 				&& self.uninterleave_upsample    .init(program)
+				&& self.YCbCr_to_RGB             .init(program)
 			;
 		}
 		fun void finish() noexcept {
@@ -155,6 +156,7 @@ namespace BJpeg {
 			self.prefixSum2               .finish();
 			self.unzigzag_quantization_dct.finish();
 			self.uninterleave_upsample    .finish();
+			self.YCbCr_to_RGB             .finish();
 		}
 	};
 }

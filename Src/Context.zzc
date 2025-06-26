@@ -72,6 +72,8 @@ namespace BJpeg {
 			MyOpenCL :: Buffer<u32> positions;
 			MyOpenCL :: Buffer<u32> indexes;
 			MyOpenCL :: Buffer<FI[8][8]> coefficients;
+			MyOpenCL :: Buffer<RGBAF> image_temp;
+			MyOpenCL :: Buffer<RGBA> image;
 			
 			fun bool initConst(MyOpenCL :: Context context) {
 				if (!self.trees       .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY , 2                  )) { return false; }
@@ -95,10 +97,13 @@ namespace BJpeg {
 			}
 			fun bool init2(MyOpenCL :: Context context, SizesDecode size) {
 				size_t lane_total_size = size.lane_depth * size.mcu_length * size.lane_width;
+				size_t total_image_size = size.y_mayor * size.x_mayor;
 				if (!self.lanes       .init(context, CL_MEM_HOST_READ_ONLY  | CL_MEM_READ_WRITE, lane_total_size    )) { return false; }
 				if (!self.positions   .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, size.lane_width + 8)) { return false; }
 				if (!self.indexes     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, size.unit_count + 1)) { return false; }
-				if (!self.coefficients.init(context,                          CL_MEM_WRITE_ONLY, size.unit_count    )) { return false; }
+				if (!self.coefficients.init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, size.unit_count    )) { return false; }
+				if (!self.image_temp  .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, total_image_size   )) { return false; }
+				if (!self.image       .init(context, CL_MEM_HOST_READ_ONLY  | CL_MEM_READ_WRITE, total_image_size   )) { return false; } //	Only exception
 				return true;
 			}
 			fun void finish2() noexcept {
@@ -106,6 +111,7 @@ namespace BJpeg {
 				self.positions   .finish();
 				self.indexes     .finish();
 				self.coefficients.finish();
+				self.image_temp  .finish();
 			}
 		} buffer;
 		
@@ -126,6 +132,7 @@ namespace BJpeg {
 			self.program.finish();
 			self.queue  .finish();
 			self.context.finish();
+			self.buffer.image.finish(); //	Only exception
 		}
 		
 		fun bool initBuffers1(SizesDecode size) {
@@ -137,7 +144,12 @@ namespace BJpeg {
 		}
 		fun bool initBuffers2(SizesDecode size) {
 			if (!self.buffer.init2(self.context, size)) { return false; }
-			
+			return self.setArgs();
+		}
+		fun void finishBuffers2() noexcept {
+			self.buffer.finish2();
+		}
+		fun bool setArgs() {
 			if (!self.kernel.decodeHuffman1.setArg_payload      (self.buffer.payload      )) { return false; }
 			if (!self.kernel.decodeHuffman1.setArg_trees        (self.buffer.trees        )) { return false; }
 			if (!self.kernel.decodeHuffman1.setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
@@ -169,19 +181,14 @@ namespace BJpeg {
 			if (!self.kernel.unzigzag_quantization_dct.setArg_quantization_table(self.buffer.qtables     )) { return false; }
 			if (!self.kernel.unzigzag_quantization_dct.setArg_lane_infos        (self.buffer.lane_infos  )) { return false; }
 			
-			if (!self.kernel.uninterleave_upsample.setArg_coefficients   (self.buffer.coefficients   )) { return false; }
-			//	TODO 
-			//	if (!self.kernel.uninterleave_upsample.setArg_image_temp   (self.buffer.imt   )) { return false; }
-			if (!self.kernel.uninterleave_upsample.setArg_lane_infos   (self.buffer.lane_infos   )) { return false; }
+			if (!self.kernel.uninterleave_upsample.setArg_coefficients   (self.buffer.coefficients)) { return false; }
+			if (!self.kernel.uninterleave_upsample.setArg_image_temp     (self.buffer.image_temp  )) { return false; }
+			if (!self.kernel.uninterleave_upsample.setArg_lane_infos     (self.buffer.lane_infos  )) { return false; }
 			
-			//	TODO
-			//	if (!self.kernel.YCbCr_to_RGB.setArg_image_temp   (self.buffer.imt   )) { return false; }
-			//	if (!self.kernel.YCbCr_to_RGB.setArg_image   (self.buffer.im   )) { return false; }
+			if (!self.kernel.YCbCr_to_RGB.setArg_image_temp              (self.buffer.image_temp)) { return false; }
+			if (!self.kernel.YCbCr_to_RGB.setArg_image                   (self.buffer.image     )) { return false; }
 			
 			return true;
-		}
-		fun void finishBuffers2() noexcept {
-			self.buffer.finish2();
 		}
 	};
 

@@ -750,10 +750,10 @@ namespace BJpeg {
 					}
 				}
 				LaneInfo lane_infos_arr[mcu_length] = {
-					{.c_id = 0, .sf_y=2, .sf_x=1, .start_in_mcu = 1, .amount_in_mcu = 2},
-					{.c_id = 0, .sf_y=2, .sf_x=1},
-					{.c_id = 1, .sf_y=1, .sf_x=1},
+					{.c_id = 1, .sf_y=2, .sf_x=1, .start_in_mcu = 1, .amount_in_mcu = 2},
+					{.c_id = 1, .sf_y=2, .sf_x=1},
 					{.c_id = 2, .sf_y=1, .sf_x=1},
+					{.c_id = 3, .sf_y=1, .sf_x=1},
 				};
 				
 				Resource<MyOpenCL :: Buffer<FI[8][8]>>  coefficients(context, CL_MEM_READ_WRITE, Y/SF_Y * X/SF_X * mcu_length); if (!coefficients) { return false; }
@@ -841,10 +841,10 @@ namespace BJpeg {
 					}
 				}
 				LaneInfo lane_infos_arr[mcu_length] = {
-					{.c_id = 0, .sf_y=1, .sf_x=2, .start_in_mcu = 1, .amount_in_mcu = 2},
-					{.c_id = 0, .sf_y=1, .sf_x=2},
-					{.c_id = 1, .sf_y=1, .sf_x=1},
+					{.c_id = 1, .sf_y=1, .sf_x=2, .start_in_mcu = 1, .amount_in_mcu = 2},
+					{.c_id = 1, .sf_y=1, .sf_x=2},
 					{.c_id = 2, .sf_y=1, .sf_x=1},
+					{.c_id = 3, .sf_y=1, .sf_x=1},
 				};
 				
 				Resource<MyOpenCL :: Buffer<FI[8][8]>>  coefficients(context, CL_MEM_READ_WRITE, Y/SF_Y * X/SF_X * mcu_length); if (!coefficients) { return false; }

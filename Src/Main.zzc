@@ -4,6 +4,7 @@
 #include "./FileBuffer.zzh"
 #include "./Context.zzh"
 #include "./Decoder.zzh"
+#include "./MetaData.zzh"
 
 
 uint8_t BJpeg :: recomended_space_pow = 26; // 64 MiB
@@ -12,11 +13,11 @@ uint8_t BJpeg :: recomended_space_pow = 26; // 64 MiB
 
 
 fun int main(int argc, char* argv[]) {
-	if (argc > 2) {
+	if (argc > 3) {
 		printf("Usage: <exe> path/to/file.jpg\n");
 		exit(EXIT_FAILURE);
 	}
-	std :: string path = argc == 2 ? argv[1] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.jpg";
+	std :: string path = argc >= 2 ? argv[1] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.jpg";
 	
 	using namespace BJpeg;
 	//	if (recomended_space_pow < 8) {
@@ -34,6 +35,8 @@ fun int main(int argc, char* argv[]) {
 	
 	auto res = Decode :: image(context, file, 0);
 	std :: cout << "res = " << res << std :: endl;
+	
+	
 	
 	// InputFileBuffer file(recomended_space_pow, "D:/temp/Zugpsitze_mountain.jpg");
 	// auto& context = *new Context<CodingType :: DECODE>;
@@ -55,4 +58,19 @@ fun int main(int argc, char* argv[]) {
 	// delete &context;
 	if (res == DECODE_RESULT_ERR) { return EXIT_FAILURE; }
 	if (res != file.length) { return EXIT_FAILURE; }
+	
+	
+	
+	MetaData metadata = { .width = (int) context.size.x_mayor, .height = (int) context.size.y_mayor, .n_channels = 4 };
+	size_t total_pixels = metadata.height * metadata.width;
+	RGBA* arr = new RGBA[total_pixels];
+	if (!context.cl.buffer.image.read(context.cl.queue, arr)) { clog("Failed to read result image buffer"); return EXIT_FAILURE; }
+
+	char const* output_path = argc >= 3 ? argv[2] : "D:/Personal/nastava/projekt/Temp/output.rgba";
+	FILE* output = fopen(output_path, "wb");
+	if (output == nullptr) { clog("Failed to open output file %s", output_path); return EXIT_FAILURE; }
+	defer { fclose(output); };
+	fwrite(&metadata, sizeof(metadata), 1, output);
+	fwrite(arr, sizeof(RGBA), total_pixels, output);
+	fclose(output);
 }

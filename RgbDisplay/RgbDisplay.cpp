@@ -77,8 +77,9 @@ int main(int const argc, char const* const argv[]) {
 		return EXIT_FAILURE;
 	}
 	std :: cout << meta_data << std :: endl;
-	uint8_t* data = new uint8_t[meta_data.width * meta_data.height * 3 + 12];
-	if (fread(data, sizeof(data[0]), meta_data.width * meta_data.height * 3 + 12, image) < meta_data.width * meta_data.height * 3) {
+	size_t total_pixels = meta_data.width * meta_data.height * meta_data.n_channels;
+	uint8_t* data = new uint8_t[total_pixels + 12];
+	if (fread(data, sizeof(data[0]), total_pixels + 12, image) < total_pixels) {
 		std :: cerr << "Input file doesn't have enogh bytes" << std :: endl;
 		return EXIT_FAILURE;
 	}
@@ -87,12 +88,12 @@ int main(int const argc, char const* const argv[]) {
 	for (int i = 0; i < meta_data.height / 2; ++i) {
 		for (int j = 0; j < meta_data.width; ++j) {
 			int i_flip = meta_data.height - i - 1;
-			int index1 = (i      * meta_data.width + j) * 3;
-			int index2 = (i_flip * meta_data.width + j) * 3;
+			int index1 = (i      * meta_data.width + j) * meta_data.n_channels;
+			int index2 = (i_flip * meta_data.width + j) * meta_data.n_channels;
 			// printf("%d %d: #%02x%02x%02x <-> #%02x%02x%02x\n", i, i_flip, data[index1 + 0], data[index1 + 1], data[index1 + 2], data[index2 + 0], data[index2 + 1], data[index2 + 2]);
-			std :: swap(data[index1 + 0], data[index2 + 0]);
-			std :: swap(data[index1 + 1], data[index2 + 1]);
-			std :: swap(data[index1 + 2], data[index2 + 2]);
+			for (int c = 0; c < meta_data.n_channels; ++c) {
+				std :: swap(data[index1 + c], data[index2 + c]);
+			}
 		}
 	}
 	// for (int i = 0; i < meta_data.width * meta_data.height; ++i) {
@@ -190,7 +191,7 @@ int main(int const argc, char const* const argv[]) {
 	// stbi_set_flip_vertically_on_load(true);
 	// unsigned char* data = stbi_load("path/to/your/image.jpg", &width, &height, &nrChannels, 0);
 	if (data) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, meta_data.width, meta_data.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, meta_data.width, meta_data.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 	} else {
 		std::cerr << "Failed to load texture" << std::endl;
