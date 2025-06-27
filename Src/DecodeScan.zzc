@@ -187,8 +187,6 @@ namespace BJpeg {
 			if (!cl.kernel.decodeHuffman1.setArg_lane_width(job_size)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.decodeHuffman1.call(cl.queue, decodeHuffman1_dim)) { return DECODE_RESULT_ERR; }
 			
-			context.size.print();
-			
 			// copy from done lanes to lanes with same component
 			for (uint8_t i = 0; i < Ns; ++i) {
 				auto li = lane_indexes[i];
@@ -210,7 +208,6 @@ namespace BJpeg {
 			if (!cl.kernel.decodeRaise.setArg_lanes_count(lanes_count)) { return DECODE_RESULT_ERR; }
 			u8 depth = 1;
 			u32 every_nth = 1;
-			// clog("depth0 = %u   lanes_count = %u   job_size = %u", depth, lanes_count, job_size);
 			for (; true; ++depth) {
 				if (lanes_count % (every_nth * 2) == 0) { every_nth *= 2; }
 				size_t decodeRaise_dim[2] = {lanes_count / every_nth, job_size };
@@ -221,12 +218,10 @@ namespace BJpeg {
 				
 				u32 n;
 				if (!cl.buffer.lanes.read(cl.queue, &n, 1, depth * lanes_count * job_size)) { return DECODE_RESULT_ERR; }
-				//	std :: cout << "@ " << (depth * lanes_count * job_size) << " = " << std :: hex << n << std :: endl;
 				if (n == ~0) {
 					break;
 				}
 			}
-			// clog("depth = %d!", depth);
 			u32 zero = 0;
 			cl.buffer.positions.write(cl.queue, &zero, 1);
 			

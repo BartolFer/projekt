@@ -72,5 +72,5 @@ fun int main(int argc, char* argv[]) {
 	defer { fclose(output); };
 	fwrite(&metadata, sizeof(metadata), 1, output);
 	fwrite(arr, sizeof(RGBA), total_pixels, output);
-	fclose(output);
+	printf("Created file %s\n", output_path);
 }

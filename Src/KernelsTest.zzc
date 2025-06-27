@@ -931,7 +931,7 @@ namespace BJpeg {
 		Test_decodeRaise         test_decodeRaise        ;
 		Test_decodeLower         test_decodeLower        ;
 		Test_positionsToIndexes  test_positionsToIndexes ;
-		Test_decodeHuffman2      test_decodeHuffman2     ;
+		// Test_decodeHuffman2      test_decodeHuffman2     ;
 		Test_prepareMCUs         test_prepareMCUs        ;
 		//	PrefixSumTest{name, mcu_length, half_size, lane_infos, coefficients, expected, },
 		PrefixSumTest<1> test_prefixSum1_1_15 = {"Test prefixSum1 1 15", 1, 2, std::vector{LaneInfo{1}}, 

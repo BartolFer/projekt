@@ -242,7 +242,6 @@ kernel void decodeHuffman2(
 		// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
 		u16 code = READ_3B >> (8 - b);
 		u8x2 d_s = decodeHuffman(huf_dc, code);
-		u32 _bbx = b;
 		// TODO store symbol
 		// TODO read d_s.y bits
 		// store +- (1 << d_s.y) + those bits (but transformed)
@@ -270,13 +269,12 @@ kernel void decodeHuffman2(
 	
 	#pragma region AC
 		for (int ac_count = 1; ac_count < 64; ) {
-			int bbx = ac_count;
 			u32 B = bb >> 3;
 			u32 b = bb & 7;
 			// u16 code word = a<<(b1+8) | b<<b1 | c<<(b1-8)
 			u16 code = READ_3B >> (8 - b);
 			u8x2 d_s = decodeHuffman(huf_ac, code);
-			// TODO store symbol
+			bb += d_s.x;
 			if (d_s.y == 0x00) {
 				// rest are 0
 				ac_count = 64;
@@ -306,7 +304,6 @@ kernel void decodeHuffman2(
 				}
 				ac_count += RRRR + 1;
 			}
-			bb += d_s.x;
 		}
 	#pragma endregion
 }

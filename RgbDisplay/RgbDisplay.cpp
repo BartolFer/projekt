@@ -110,7 +110,7 @@ int main(int const argc, char const* const argv[]) {
 
 	// Create a GLFW window
 	
-	GLFWwindow* window = glfwCreateWindow(std :: max(meta_data.width, 100), std :: max(meta_data.height, 100), "Texture Example", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(std :: max(meta_data.width, 100), std :: max(meta_data.height, 100), "RGB Display", NULL, NULL);
 	if (window == NULL) {
 		std::cerr << "Failed to create GLFW window" << std::endl;
 		glfwTerminate();
@@ -209,6 +209,7 @@ int main(int const argc, char const* const argv[]) {
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+		std :: this_thread :: sleep_for(std :: chrono :: milliseconds(100));
 	}
 
 	// Cleanup
