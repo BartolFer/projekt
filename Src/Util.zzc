@@ -17,9 +17,9 @@ using rref = T&&;
 	#define MAX_COMPONENTS 4
 	#define RECOMMENDED_SPACE (1 << recomended_space_pow)
 
-	#define MAX_LANE_COUNT 10
+	#define MAX_MCU_LENGTH 10
 	#define MAX_LANE_WIDTH (8 * RECOMMENDED_SPACE)
-	#define MAX_LANE_ROW_WIDTH (MAX_LANE_COUNT * MAX_LANE_WIDTH)
+	#define MAX_LANE_ROW_WIDTH (MAX_MCU_LENGTH * MAX_LANE_WIDTH)
 	#define MAX_LANE_SIZE (MAX_LANE_ROW_WIDTH * recomended_space_pow)
 	#define MAX_UNITS_IN_RECOMMENDED_SPACE (4 * RECOMMENDED_SPACE) // min unit size = 1 dc + EOB = 2 bits
 	
@@ -50,18 +50,6 @@ concept ScopedEnum = std :: is_scoped_enum_v<E>;
 
 namespace BJpeg {
 	enum CodingType { DECODE, ENCODE };
-}
-
-
-fun void* operator new(size_t size) /* noexcept */ { return std :: malloc(size); }
-	//	my implementation is `noexcept`, but stdlib declares it as `throws(std::bad_alloc)`
-	//	so I can't redeclare differently
-
-
-
-namespace BJpeg {
-	extern uint8_t recomended_space_pow;
-
 	
 	typedef cl_uchar  u8;
 	typedef cl_ushort u16;
@@ -75,19 +63,32 @@ namespace BJpeg {
 	typedef cl_long  i64;
 	typedef cl_int2  i32x2;
 	typedef cl_float f32;
-
-	uint8_t const to_zigzag[8][8] = {
-		{  0,  1,  5,  6, 14, 15, 27, 28 },
-		{  2,  4,  7, 13, 16, 26, 29, 42 },
-		{  3,  8, 12, 17, 25, 30, 41, 43 },
-		{  9, 11, 18, 24, 31, 40, 44, 53 },
-		{ 10, 19, 23, 32, 39, 45, 52, 54 },
-		{ 20, 22, 33, 38, 46, 51, 55, 60 },
-		{ 21, 34, 37, 47, 50, 56, 59, 61 },
-		{ 35, 36, 48, 49, 57, 58, 62, 63 },
+	
+	extern u8 recomended_space_pow;
+	
+	template <typename T> struct ArrayWithLength {
+		size_t length = 0; T* array = nullptr;
+		fun bool init(size_t length) {
+			self.length = length;
+			self.array = new T[length];
+			return self.array != nullptr;
+		}
+		void finish() noexcept {
+			delete[] self.array;
+			self.array = nullptr;
+			self.length = 0;
+		}
+		fun T& operator [](int index) const { return self.array[index]; }
 	};
-	uint8_t const from_zigzag[64] = { 0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63, };
 }
+
+
+fun void* operator new(size_t size) /* noexcept */ { return std :: malloc(size); }
+	//	my implementation is `noexcept`, but stdlib declares it as `throws(std::bad_alloc)`
+	//	so I can't redeclare differently
+
+
+
 
 fun std :: ostream& operator <<(std :: ostream& s, BJpeg :: i8 x) { return s << (BJpeg :: i32) x; }
 fun std :: ostream& operator <<(std :: ostream& s, BJpeg :: u8 x) { return s << (BJpeg :: u32) x; }

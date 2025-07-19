@@ -1,5 +1,5 @@
 #pragma region zzc cpp zzc
-	#define DECODE_FUN(name) fun u32 name(ContextDecode& context, InputFileBuffer& file, u32 index)
+	#define DECODE_FUN(name) fun u32 name(Context& context, InputFileBuffer& file, u32 index)
 
 	#define CHECK_MARKER(marker) (                                \
 		(file[index] == 0xFF && file[index + 1] == (marker))       \
@@ -26,5 +26,5 @@
 		(var) |= DECODE_READ_U8;                                                                                           \
 	} while (0)
 	#define DECODE_READ_U8 (file[index++])
-	#define DECODE_READ_U4(var1, var2) do { uint8_t var = DECODE_READ_U8; (var1) = var >> 4; (var2) = var & 0b1111; } while (0)
+	#define DECODE_READ_U4(var1, var2) do { u8 var = DECODE_READ_U8; (var1) = var >> 4; (var2) = var & 0b1111; } while (0)
 #pragma endregion zzc

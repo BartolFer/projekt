@@ -13,6 +13,7 @@
 		"*.?zz": "cpp",
 		"*.zzc": "cpp",
 		"*.zzh": "cpp",
+		"*.qml": "javascript",
 		"array": "cpp",
 		"atomic": "cpp",
 		"bit": "cpp",
@@ -78,7 +79,8 @@
 		"*.lzz": "cpp",
 		"*.hzz": "cpp",
 		"cstring": "cpp",
-		"ranges": "cpp"
+		"ranges": "cpp",
+		"__debug": "cpp"
 	},
 	"emeraldwalk.runonsave": {
 		"commands": [
@@ -99,9 +101,17 @@
 	"files.exclude": {
 		"Src/**/*.zzh": true,
 		"Src/**/*.tmp.zzc": true,
+		"Src/**/*.tmp.*.zzc": true,
 	},
 	"C_Cpp.default.includePath": [
 		"C:/Programs/Cuda/include"
 	],
 	"editor.guides.bracketPairs": true,
+	"OpenCL.server.buildOptions": [
+		//	"-D", "get_global_linear_id()=((size_t)0)",
+		"-D", "arg(...)=__VA_ARGS__",
+		"-cl-std=CL3.0",
+	],
+	"OpenCL.explorer.localizedProperties": true,
+	"OpenCL.server.deviceID": 2352197202,
 }

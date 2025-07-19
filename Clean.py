@@ -9,8 +9,7 @@ for (root, folders, files) in os.walk("./Src/"):
 	for filename in files:
 		if filename.endswith(".zzh"):
 			os.remove(root + "/" + filename);
-		pass
-		if filename.endswith(".tmp.zzc"):
+		elif ".tmp." in filename:
 			os.remove(root + "/" + filename);
 		pass
 	pass

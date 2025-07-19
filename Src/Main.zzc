@@ -1,15 +1,17 @@
 #include <iostream>
 #include <cstdint>
+#include "./Util.zzh"
 #include "./Test.zzh"
-#include "./FileBuffer.zzh"
-#include "./Context.zzh"
-#include "./Decoder.zzh"
+#include "./Decode/FileBuffer.zzh"
+#include "./Decode/Context.zzh"
+#include "./Decode/Decoder.zzh"
 #include "./MetaData.zzh"
 
-
-uint8_t BJpeg :: recomended_space_pow = 26; // 64 MiB
-	// note that this is not the actual space requirement
-	// this is just a value that is used in a lot of buffers
+namespace BJpeg {
+	u8 recomended_space_pow = 26; // 64 MiB
+		// note that this is not the actual space requirement
+		// this is just a value that is used in a lot of buffers
+}
 
 
 fun int main(int argc, char* argv[]) {
@@ -28,9 +30,9 @@ fun int main(int argc, char* argv[]) {
 		if (!Test :: runTests()) { return EXIT_FAILURE; }
 	#endif
 	
-	Resource<InputFileBuffer> file(path);
+	Resource<Decode :: InputFileBuffer> file(path);
 	if (!file   ) { std :: cerr << "!file"    << std :: endl; return 1; }
-	Resource<DecodeContext> context;
+	Resource<Decode :: Context> context;
 	if (!context) { std :: cerr << "!context" << std :: endl; return 1; }
 	
 	auto res = Decode :: image(context, file, 0);

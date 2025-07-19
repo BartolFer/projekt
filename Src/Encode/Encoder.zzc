@@ -1,0 +1,78 @@
+
+
+#include "../Util.zzh"
+#include "../JpegTypes.zzh"
+#include "../Markers.zzh"
+#include "../MyOpenCL.zzh"
+#include "./Huffman.zzh"
+#include "./ClContext.zzh"
+
+namespace BJpeg {
+	namespace Encode {
+		fun ArrayWithLength<u8> image(MyOpenCL :: Buffer<RGBA> image, size_t height, size_t width, QuantizationTable qtables[4], HuffmanTable htables[2][4], SamplingFactor factors[MAX_COMPONENTS]) {
+			Resource<CLContext> cl;
+			//	TODO to YCbCr
+			//	TODO interleave_downsample
+			//	TODO DCT q zigzag
+			//	TODO delta DC
+			//	TODO Huffman 1
+			//	TODO calc size & alloc
+			//	TODO Huffman 2
+			//	TODO profit
+			//	dont forget to insert 0xFF00
+			return {};
+		}
+		
+		namespace {
+			namespace QTableEncoder {
+				//	assume 16 bit, 3 components
+				fun size_t size(QuantizationTable table[4]) {
+					return 2 + 3 * (1 + 64 * 2);
+				}
+				//	assume 16 bit, 3 components
+				fun u8* encode(QuantizationTable table[4], u8* dst) {
+					*(dst++) = 0xFF;
+					*(dst++) = Marker :: DQT;
+					*(dst++) = (size(table)) >> 8;
+					*(dst++) = (size(table)) & 0xFF;
+					for (int id = 0; id < 3; ++id) {
+						*(dst++) = (1 << 4) | id;
+						for (int i = 0; i < 64; ++i) {
+							*(dst++) = (table[id][0][i]) >> 8;
+							*(dst++) = (table[id][0][i]) & 0xFF;
+						}
+					}
+					return dst;
+				}
+			}
+			
+			u32 prefixSumLengths(CLContext cl, u32 unit_count, u8 mcu_length) {
+				u32 half_step;
+				for (half_step = 1; 2 * half_step < unit_count; half_step *= 2) {
+					//	TODO call prefixSumLengths1
+				}
+				
+				u32 total_size = 0;
+				{
+					size_t base = 0 - 1;
+					for (u32 ahead = half_step; ahead; ahead /= 2) {
+						if (base + ahead >= unit_count) { continue; }
+						base += ahead;
+						u32 x;
+						if (!cl.buffer.lengths.read (cl.queue, &x         , 1, base)) { return 0; }
+						if (!cl.buffer.lengths.write(cl.queue, &total_size, 1, base)) { return 0; }
+						
+						total_size += x;
+					}
+					if (!cl.buffer.lengths.write(cl.queue, &total_size, 1, base + 1)) { return 0; }
+				}
+				
+				while (half_step /= 2) {
+					//	TODO call prefixSumLengths2
+				}
+				
+				return total_size;
+			}
+		}
+	}
+}

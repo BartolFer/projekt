@@ -142,7 +142,8 @@ for file in outdated:
 		pass
 	pass
 	with open(file.abs_file.src, "w") as f:
-		f.write(f'#include "./{file.hdr}"\n');
+		self_inc = os.path.split(file.hdr)[-1];
+		f.write(f'#include "./{self_inc}"\n');
 		for chunk in file_composer.compose(file.tokens, "src_decl"):
 			f.write(chunk);
 		pass
@@ -173,6 +174,10 @@ for file in outdated:
 	pass
 pass
 if timing: print("2nd  :", timer, flush = True);
+if config.nocompile or "-nocompile" in sys.argv[2 : ]:
+	print("nocompile");
+	sys.exit();
+pass
 for file in outdated:
 	compile(config.compiler.cpp.obj, file.abs_file.src, file.abs_file.obj);
 pass

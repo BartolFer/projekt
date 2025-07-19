@@ -1,4 +1,4 @@
-#include "./Util.zzh"
+#include "../Util.zzh"
 #include "./DecoderMacro.zzh"
 #pragma region zzc hdr_decl
 	#include <cstdint>
@@ -12,8 +12,8 @@
 	#include <iostream>
 	#include <bit>
 	#include "./Huffman.zzh"
-	#include "./Markers.zzh"
-	#include "./Test.zzh"
+	#include "../Markers.zzh"
+	#include "../Test.zzh"
 #pragma endregion zzc
 
 
@@ -79,20 +79,20 @@ namespace BJpeg {
 	namespace Decode {
 		DECODE_FUN(scan) {
 			// interpret header
-			uint32_t result;
+			u32 result;
 			ASSERT_MARKER(Marker :: SOS);
-			uint16_t Lf; DECODE_READ_U16(Lf);
-			uint8_t Ns = DECODE_READ_U8;
+			u16 Lf; DECODE_READ_U16(Lf);
+			u8 Ns = DECODE_READ_U8;
 			if (Ns >= MAX_COMPONENTS) { 
 				std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: s=" << Ns << "\n";
 				return DECODE_RESULT_ERR;
 			}
-			LaneInfo lane_infos[MAX_LANE_COUNT];
+			LaneInfo lane_infos[MAX_MCU_LENGTH];
 			u8 lane_indexes[MAX_COMPONENTS];
 			u8 lanes_count = 0;
 			u8x2 max_sf = {1, 1};
-			for (uint8_t i = 0; i < Ns; ++i) {
-				uint8_t C = DECODE_READ_U8;
+			for (u8 i = 0; i < Ns; ++i) {
+				u8 C = DECODE_READ_U8;
 				if (C >= MAX_COMPONENTS) {
 					std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: cs=" << C << "\n";
 					return DECODE_RESULT_ERR;
@@ -130,9 +130,9 @@ namespace BJpeg {
 			}
 			if (!context.updateLaneIndexes(lane_indexes)) { return DECODE_RESULT_ERR; }
 			if (!context.updateLaneInfos(lane_infos)) { return DECODE_RESULT_ERR; }
-			uint8_t Ss = DECODE_READ_U8;
-			uint8_t Se = DECODE_READ_U8;
-			uint8_t Ah, Al; DECODE_READ_U4(Ah, Al);
+			u8 Ss = DECODE_READ_U8;
+			u8 Se = DECODE_READ_U8;
+			u8 Ah, Al; DECODE_READ_U4(Ah, Al);
 			
 			// decode
 			u8* payload = context.payload;
@@ -140,9 +140,9 @@ namespace BJpeg {
 			// load payload
 			u32 payload_length = 0;
 			for (bool running = true; running; ++payload_length) {
-				uint8_t x = DECODE_READ_U8;
+				u8 x = DECODE_READ_U8;
 				if (x == 0xFF) {
-					uint8_t marker = DECODE_READ_U8;
+					u8 marker = DECODE_READ_U8;
 					if (marker == 0x00) {
 						// go on
 					} else if (Marker :: isRST(marker)) {
@@ -172,7 +172,7 @@ namespace BJpeg {
 			// init buffers
 			if (!context.initBuffers2()) { return DECODE_RESULT_ERR; }
 			defer { context.finishBuffers2(); };
-			CLContextDecode& cl = context.cl;
+			CLContext& cl = context.cl;
 			
 			if (!cl.buffer.payload.write(cl.queue, payload, payload_length + 100)) { return DECODE_RESULT_ERR; }
 			if (!cl.kernel.initializeBufferU32.setArg_value(~(u32)0)) { return DECODE_RESULT_ERR; }
@@ -188,7 +188,7 @@ namespace BJpeg {
 			if (!cl.kernel.decodeHuffman1.call(cl.queue, decodeHuffman1_dim)) { return DECODE_RESULT_ERR; }
 			
 			// copy from done lanes to lanes with same component
-			for (uint8_t i = 0; i < Ns; ++i) {
+			for (u8 i = 0; i < Ns; ++i) {
 				auto li = lane_indexes[i];
 				auto first_lane = lane_infos[li];
 				auto C = first_lane.c_id;
@@ -266,7 +266,7 @@ namespace BJpeg {
 		}
 		
 		namespace {
-			fun bool prefixSumCoefficients(size_t mcu_count, u8 mcu_length, u8 multilane_count, CLContextDecode cl) {
+			fun bool prefixSumCoefficients(size_t mcu_count, u8 mcu_length, u8 multilane_count, CLContext cl) {
 				if (!cl.kernel.prepareMCUs.setArg_mcu_length(mcu_length)) { return false; }
 				if (!cl.kernel.prefixSum1 .setArg_mcu_length(mcu_length)) { return false; }
 				if (!cl.kernel.prefixSum2 .setArg_mcu_length(mcu_length)) { return false; }

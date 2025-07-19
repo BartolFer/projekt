@@ -1,0 +1,72 @@
+
+#pragma region zzc hdr_decl
+	#include "../Util.zzh"
+	#include "../JpegTypes.zzh"
+#pragma endregion zzc
+#pragma region zzc src_decl
+	#include <string.h>
+	#ifdef fun
+	#undef fun //	<algorithm> (or rather ranges_algo.h) uses fun as a member of in_fun_result
+	#include <algorithm>
+	#define fun
+	#endif
+	#include "../Markers.zzh"
+#pragma endregion zzc
+
+namespace BJpeg {
+	namespace Encode {
+		struct CodeAndLength {
+			u16 code;
+			u16 length;
+		};
+		using HuffmanTable = CodeAndLength[256];
+		namespace HuffmanEncoder {
+			//	assume 3 components
+			fun size_t size(HuffmanTable table[2][4]) {
+				size_t size = 2;
+				for (int dc_ac = 0; dc_ac < 2; ++dc_ac) {
+					for (int id = 0; id < 2; ++id) {
+						size += 1 + 16;
+						for (int value = 0; value < 256; ++value) {
+							if (table[dc_ac][id][value].length) {
+								++size;
+							}
+						}
+					}
+				}
+				return size;
+			}
+			//	assume 3 components
+			fun u8* encode(HuffmanTable table[2][4], u8* dst) {
+				dst[0] = 0xFF;
+				dst[1] = Marker :: DHT;
+				//	dst[2] = later
+				//	dst[3] = later
+				size_t size = 2;
+				for (int dc_ac = 0; dc_ac < 2; ++dc_ac) {
+					for (int id = 0; id < 3; ++id) {
+						HuffmanTable copy; memcpy(&copy, &table[dc_ac][id], sizeof(HuffmanTable));
+						std :: sort(std :: begin(copy), std :: end(copy), [] (auto a, auto b) { return a.code < b.code; }); //	if a.code < b.code, then a.length < b.length
+						
+						dst[2 + size] = (dc_ac << 4) | id;
+						u8* counts = &dst[2 + size + 1 - 1]; //	offset by 1 because 1st length is 1
+						u8* values = &dst[2 + size + 1 + 16];
+						size += 1 + 16;
+						int value_index = 0;
+						for (int value = 0; value < 256; ++value) {
+							auto [code, length] = copy[value];
+							if (length) {
+								++counts[length];
+								++size;
+								values[value_index++] = value;
+							}
+						}
+					}
+				}
+				dst[2] = size >> 8;
+				dst[3] = size & 0xFF;
+				return dst + 2 + size;
+			}
+		}
+	}
+}

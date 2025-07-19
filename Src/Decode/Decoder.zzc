@@ -1,5 +1,5 @@
 #include "./DecoderMacro.zzh"
-#include "./Util.zzh"
+#include "../Util.zzh"
 #pragma region zzc hdr_decl
 	#include <cstdint>
 	#include <type_traits>
@@ -12,7 +12,7 @@
 	#include <iostream>
 	#include "./DecodeScan.zzh"
 	#include "./Huffman.zzh"
-	#include "./Markers.zzh"
+	#include "../Markers.zzh"
 #pragma endregion zzc
 
 
@@ -20,7 +20,7 @@ namespace BJpeg {
 	namespace Decode {
 		DECODE_FUN(image) {
 			// printf("a\n");
-			uint32_t result;
+			u32 result;
 			ASSERT_MARKER(Marker :: SOI);
 			CALL_DECODE(misc);
 			if (file[index + 1] == Marker :: DHP) { CALL_DECODE(hierarchical); }
@@ -34,27 +34,27 @@ namespace BJpeg {
 				// while (true) { // actually, while has something to read
 				for (int i = 0; i < 100; ++i) { // actually, while has something to read
 					if (DECODE_READ_U8 != 0xFF) { return DECODE_RESULT_ERR; }
-					uint8_t m = DECODE_READ_U8;
-					uint16_t segment_length; DECODE_READ_U16(segment_length);
+					u8 m = DECODE_READ_U8;
+					u16 segment_length; DECODE_READ_U16(segment_length);
 					switch (m) {
 						case Marker :: DHT: {
 							auto end = index + segment_length - 2;
 							while (index < end) {
-								uint8_t table_class, table_dest; DECODE_READ_U4(table_class, table_dest);
+								u8 table_class, table_dest; DECODE_READ_U4(table_class, table_dest);
 								if (table_class > 1 || table_dest > 3) { return DECODE_RESULT_ERR; }
 								HuffmanTree& huffman = context.huffman_tree[table_class][table_dest];
 								huffman.reset();
-								uint16_t last_assigned_index = 0;
-								uint32_t const counts_start = index - 1; // because of 1-indexing
-								uint32_t const values_start = index + 16;
-								uint16_t code = 0;
-								uint8_t value_index = 0;
-								uint8_t last_length = 1;
-								uint32_t last_code  = 0;
-								for (uint8_t length = 1; length <= 16; ++length) {
-									uint8_t const count = file[counts_start + length];
-									for (uint8_t i = 0; i < count; ++i) {
-										uint8_t value = file[values_start + value_index];
+								u16 last_assigned_index = 0;
+								u32 const counts_start = index - 1; // because of 1-indexing
+								u32 const values_start = index + 16;
+								u16 code = 0;
+								u8 value_index = 0;
+								u8 last_length = 1;
+								u32 last_code  = 0;
+								for (u8 length = 1; length <= 16; ++length) {
+									u8 const count = file[counts_start + length];
+									for (u8 i = 0; i < count; ++i) {
+										u8 value = file[values_start + value_index];
 										huffman.update(code, length, value, last_assigned_index);
 										
 										++code;
@@ -78,13 +78,13 @@ namespace BJpeg {
 							index += segment_length - 2;
 						} break;
 						case Marker :: DQT: {
-							for (uint32_t end = index - 2 + segment_length; index < end; ) {
-								uint8_t Pq, Tq; DECODE_READ_U4(Pq, Tq);
+							for (u32 end = index - 2 + segment_length; index < end; ) {
+								u8 Pq, Tq; DECODE_READ_U4(Pq, Tq);
 								if (Tq > 3) { return DECODE_RESULT_ERR; }
-								uint16_t* table = &context.quantization_table[Tq][0][0];
+								u16* table = &context.quantization_table[Tq][0][0];
 								// or just memcpy + index update // but not actually (it complicates things, but is done once per image (not worth it))
-								if (Pq == 0) { for (uint8_t i = 0; i < 64; ++i) { table[i] = DECODE_READ_U8; } } 
-								else         { for (uint8_t i = 0; i < 64; ++i) { DECODE_READ_U16(table[i]); } }
+								if (Pq == 0) { for (u8 i = 0; i < 64; ++i) { table[i] = DECODE_READ_U8; } } 
+								else         { for (u8 i = 0; i < 64; ++i) { DECODE_READ_U16(table[i]); } }
 							}
 							if (!context.updateQTableCL()) { return DECODE_RESULT_ERR; }
 						} break;
@@ -109,41 +109,41 @@ namespace BJpeg {
 				std :: cerr << "Hierarchical mode not supported\n";
 				// TODO if enabled, refactor frame (see [564678324])
 				return DECODE_RESULT_ERR;
-				uint32_t result;
+				u32 result;
 				ASSERT_MARKER(Marker :: DHP);
-				uint16_t Lf; DECODE_READ_U16(Lf);
+				u16 Lf; DECODE_READ_U16(Lf);
 				context.precision = DECODE_READ_U8;
 				DECODE_READ_U16(context.Y);
 				DECODE_READ_U16(context.X);
-				uint8_t Nf = DECODE_READ_U8;
-				for (uint8_t i = 0; i < Nf; ++i) {
-					uint8_t C = DECODE_READ_U8;
-					uint8_t H, V; DECODE_READ_U4(H, V);
-					uint8_t Tq = DECODE_READ_U8;
+				u8 Nf = DECODE_READ_U8;
+				for (u8 i = 0; i < Nf; ++i) {
+					u8 C = DECODE_READ_U8;
+					u8 H, V; DECODE_READ_U4(H, V);
+					u8 Tq = DECODE_READ_U8;
 				}
 				while (true) {
 					CALL_DECODE(misc);
 					if (CHECK_MARKER(Marker :: EXP)) {
-						uint16_t Le; DECODE_READ_U16(Le);
-						uint8_t Eh, Ev; DECODE_READ_U4(Eh, Ev);
+						u16 Le; DECODE_READ_U16(Le);
+						u8 Eh, Ev; DECODE_READ_U4(Eh, Ev);
 					}
 					TRY_CALL_DECODE(frame) else { return DECODE_RESULT_OK; }
 				}
 			}
 			DECODE_FUN(frame) {
-				uint32_t result;
+				u32 result;
 				if (DECODE_READ_U8 != 0xFF) { return DECODE_RESULT_ERR; }
 				// TODO
-				uint8_t marker = DECODE_READ_U8;
+				u8 marker = DECODE_READ_U8;
 				if (!Marker :: isSOF(marker)) { return DECODE_RESULT_ERR; }
 				context.sof_data = Marker :: SOFData(marker);
-				uint16_t Lf; DECODE_READ_U16(Lf);
+				u16 Lf; DECODE_READ_U16(Lf);
 				context.precision = DECODE_READ_U8;
 				DECODE_READ_U16(context.Y);
 				DECODE_READ_U16(context.X);
 				// TODO [564678324] this doesn't support multiple frames
 				// which is fine if we don't support hierarchical
-				uint8_t Nf = DECODE_READ_U8;
+				u8 Nf = DECODE_READ_U8;
 				if (Nf >= MAX_COMPONENTS) { 
 					std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: " << Nf << "\n";
 					return DECODE_RESULT_ERR;
@@ -157,8 +157,8 @@ namespace BJpeg {
 				if (!context.initBuffers1()) { return DECODE_RESULT_ERR; }
 				defer { context.finishBuffers1(); };
 				//	if (!context.cl.initBuffers(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { return DECODE_RESULT_ERR; }
-				for (uint8_t i = 0; i < Nf; ++i) {
-					uint8_t C = DECODE_READ_U8;
+				for (u8 i = 0; i < Nf; ++i) {
+					u8 C = DECODE_READ_U8;
 					if (C >= MAX_COMPONENTS) {
 						std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: c=" << C << "\n";
 						return DECODE_RESULT_ERR;
@@ -173,8 +173,8 @@ namespace BJpeg {
 				if (CHECK_MARKER(Marker :: DNL)) {
 					std :: cerr << "DNL not supported\n";
 					return DECODE_RESULT_ERR;
-					uint16_t Ld; DECODE_READ_U16(Ld);
-					uint16_t NL; DECODE_READ_U16(NL);
+					u16 Ld; DECODE_READ_U16(Ld);
+					u16 NL; DECODE_READ_U16(NL);
 				}
 				while (true) {
 					CALL_DECODE(misc);

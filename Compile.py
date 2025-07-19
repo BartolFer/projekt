@@ -11,13 +11,25 @@ if __name__ == '__main__' and not __package__:
 pass
 
 import json;
+import subprocess;
+
+def maybe_exit(r):
+	if r != 0: sys.exit(r);
+pass
 
 def cl_to_zzc(filename: str):
 	filename = filename.replace("\\", "/");
 	endex_slash = filename.rindex("/") + 1 if "/" in filename else 0;
 	index_dot = filename.index(".", endex_slash) if "/" in filename else len(filename);
 	name = filename[endex_slash : index_dot];
-	dst_filename = filename + ".tmp.zzc";
+	hdr_filename = filename + ".tmp.hdr.zzc";
+	dst_filename = filename + ".tmp.src.zzc";
+	
+	if not os.path.exists(hdr_filename):
+		with open(hdr_filename, "w") as file:
+			print(f"namespace BJpeg {{ extern char const* {name}; }}", file = file);
+		pass
+	pass
 	
 	if os.path.exists(dst_filename) and os.stat(filename).st_mtime < os.stat(dst_filename).st_mtime: return;
 	
@@ -29,22 +41,24 @@ def cl_to_zzc(filename: str):
 	pass
 pass
 
-
 for (base, folders, files) in os.walk(__actual_dir__ + "/Src"):
 	for filename in files:
 		if filename.endswith(".cl"): cl_to_zzc(base + "/" + filename);
 	pass
 pass
 
-import subprocess;
-r = subprocess.run([sys.executable, "./ZZC/zzc.py", __actual_dir__]).returncode;
-
-if r == 0:
-	try: import winsound;
-	except ImportError: pass;
-	else: winsound.Beep(600, 200);
+maybe_exit(subprocess.run(["make"], cwd = __actual_dir__ + "/ClValidate/", stdout = subprocess.DEVNULL).returncode);
+for (base, folders, files) in os.walk(__actual_dir__ + "/Src"):
+	for filename in files:
+		if filename.endswith(".cl"): maybe_exit(subprocess.run([__actual_dir__ + "/ClValidate/a.exe", base + "/" + filename]).returncode);
+	pass
 pass
-sys.exit(r);
+
+maybe_exit(subprocess.run([sys.executable, "./ZZC/zzc.py", __actual_dir__]).returncode);
+
+try: import winsound;
+except ImportError: pass;
+else: winsound.Beep(600, 200);
 #	#	just so that i don't need to bother with subprocess
 #	sys.argv[1 : ] = [__actual_dir__];
 #	import ZZC.zzc;

@@ -139,11 +139,11 @@ class ConfigCompiler:
 	pass
 pass
 class Config:
-	
 	def __init__(self, json: dict):
-		self.vars     = _ConfigVars    (json.get("vars"    , {}));
-		self.paths    = _ConfigPaths   (json.get("paths"   , {}));
-		self.compiler =  ConfigCompiler(json.get("compiler", {}), self.vars);
+		self.vars      = _ConfigVars    (json.get("vars"    , {}));
+		self.paths     = _ConfigPaths   (json.get("paths"   , {}));
+		self.compiler  =  ConfigCompiler(json.get("compiler", {}), self.vars);
+		self.nocompile = json.get("nocompile", False);
 	pass
 pass
 

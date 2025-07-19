@@ -1,0 +1,255 @@
+#include "../Util.zzh"
+#pragma region zzc hdr_decl
+	#include <cstdint>
+	#include "../Markers.zzh"
+	#include "../MyOpenCL.zzh"
+	#include "../JpegTypes.zzh"
+	#include "./Huffman.zzh"
+#pragma endregion zzc
+#pragma region zzc src_decl
+	#include <bit>
+	#include "./encode_kernels.cl.tmp.hdr.zzh"
+#pragma endregion zzc
+
+namespace BJpeg {
+	namespace Encode {
+		typedef struct {
+			u8 c_id;
+			u8 _; //	padding
+			u8 sf_y;
+			u8 sf_x;
+		} LaneInfo;
+		typedef u64 CodedUnit[26];
+
+		struct CLContext {
+			MyOpenCL :: Context context            ;
+			MyOpenCL :: Queue   queue              ;
+			MyOpenCL :: Program program            ;
+			struct Kernels {
+				struct RGB_to_YCbCr : MyOpenCL :: Kernel<2> /* 2: Y, X */{
+					fun bool setArg_image       (MyOpenCL :: Buffer<RGBA           > x) { return self.setArg(x, 0); } // __global   RGBA         arg(image       )[]       ,
+					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 1); } // __global   RGBAF        arg(image_temp  )[]       
+				} RGB_to_YCbCr;
+				struct interleave_downsample : MyOpenCL :: Kernel<2> /* 2: MCU_Y, MCU_X */{
+					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 0); } // __global   RGBAF_ARR    arg(image_temp  )[]       ,
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 1); } // __global   FI           arg(coefficients)[][8][8] ,
+					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } // __constant LaneInfo     arg(lane_infos  )[]       ,
+					fun bool setArg_max_sf      (u8x2                                x) { return self.setArg(x, 3); } //            u8x2         arg(max_sf      )         ,
+					fun bool setArg_mcu_length  (u8                                  x) { return self.setArg(x, 4); } //            u8           arg(mcu_length  )         ,
+					fun bool setArg_image_width (u32                                 x) { return self.setArg(x, 5); } //            u32          arg(image_width )         
+				} interleave_downsample;
+				struct dct_quantization_zigzag : MyOpenCL :: Kernel<2> /* 2: mcu_count, mcu_length */{
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } // __global   FI           arg(coefficients)[][8][8] ,
+					fun bool setArg_qtables     (MyOpenCL :: Buffer<u16[8][8]      > x) { return self.setArg(x, 1); } // __constant u16          arg(qtable      )[4][8][8],
+					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } // __constant LaneInfo     arg(lane_infos  )[]       
+				} dct_quantization_zigzag;
+				struct deltaDC1 : MyOpenCL :: Kernel<1> /* 1: mcu_count */{
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } // __global   i32          arg(coefficients)[][8][8] ,
+					fun bool setArg_dc_temp     (MyOpenCL :: Buffer<i32            > x) { return self.setArg(x, 1); } // __global   i32          arg(dc_temp     )[]       ,
+					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } // __constant LaneInfo     arg(lane_infos  )[]       ,
+					fun bool setArg_mcu_length  (u8                                  x) { return self.setArg(x, 3); } //            u8           arg(mcu_length  )         
+				} deltaDC1;
+				struct deltaDC2 : MyOpenCL :: Kernel<1> /* 1: unit_count */{
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } // __global   i32          arg(coefficients)[][8][8] ,
+					fun bool setArg_dc_temp     (MyOpenCL :: Buffer<i32            > x) { return self.setArg(x, 1); } // __global   i32          arg(dc_temp     )[]       
+				} deltaDC2;
+				struct encodeHuffman : MyOpenCL :: Kernel<2> /* 2: mcu_count, mcu_length */{
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } // __global   i32          arg(coefficients)[][8][8] ,
+					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 1); } // __global   u32          arg(lengths     )[]       ,
+					fun bool setArg_codes       (MyOpenCL :: Buffer<CodedUnit      > x) { return self.setArg(x, 2); } // __global   u64          arg(codes       )[][26]   ,
+					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 3); } // __constant LaneInfo     arg(lane_infos  )[]       ,
+					fun bool setArg_htables     (MyOpenCL :: Buffer<HuffmanTable[4]> x) { return self.setArg(x, 4); } // __constant HuffmanTable arg(htable      )[2][4]   
+				} encodeHuffman;
+				struct prefixSumLengths1 : MyOpenCL :: Kernel<1> /* 1: unit_count / full_step */{
+					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } // __global   u32          arg(lengths     )[]       ,
+					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 1); } //            u32          arg(half_step   )         
+				} prefixSumLengths1;
+				struct prefixSumLengths2 : MyOpenCL :: Kernel<1> /* 1: unit_count / full_step */{
+					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 1); } // __global   u32          arg(lengths     )[]       ,
+					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 2); } //            u32          arg(half_step   )         
+				} prefixSumLengths2;
+				struct concatCodes : MyOpenCL :: Kernel<1> /* 1: unit_count */{
+					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } // __global   u32          arg(lengths     )[]       ,
+					fun bool setArg_codes       (MyOpenCL :: Buffer<CodedUnit      > x) { return self.setArg(x, 1); } // __global   u64          arg(codes       )[][26]   ,
+					fun bool setArg_payload     (MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 2); } // __global   u8           arg(payload     )[]       
+				} concatCodes;
+
+				fun bool init(MyOpenCL :: Program program) {
+					if (!self.RGB_to_YCbCr           .init(program, "RGB_to_YCbCr"           )) { return false; }
+					if (!self.interleave_downsample  .init(program, "interleave_downsample"  )) { return false; }
+					if (!self.dct_quantization_zigzag.init(program, "dct_quantization_zigzag")) { return false; }
+					if (!self.deltaDC1               .init(program, "deltaDC1"               )) { return false; }
+					if (!self.deltaDC2               .init(program, "deltaDC2"               )) { return false; }
+					if (!self.encodeHuffman          .init(program, "encodeHuffman"          )) { return false; }
+					if (!self.prefixSumLengths1      .init(program, "prefixSumLengths1"      )) { return false; }
+					if (!self.prefixSumLengths2      .init(program, "prefixSumLengths2"      )) { return false; }
+					if (!self.concatCodes            .init(program, "concatCodes"            )) { return false; }
+					return true;
+				}
+				fun void finish() noexcept {
+					self.RGB_to_YCbCr           .finish();
+					self.interleave_downsample  .finish();
+					self.dct_quantization_zigzag.finish();
+					self.deltaDC1               .finish();
+					self.deltaDC2               .finish();
+					self.encodeHuffman          .finish();
+					self.prefixSumLengths1      .finish();
+					self.prefixSumLengths2      .finish();
+					self.concatCodes            .finish();
+				}
+			} kernel;
+			struct Buffers {
+				MyOpenCL :: Buffer<HuffmanTable[4]> htables;
+				MyOpenCL :: Buffer<QuantizationTable> qtables;
+				MyOpenCL :: Buffer<LaneInfo> lane_infos;
+				
+				MyOpenCL :: Buffer<RGBAF> image_temp;
+				MyOpenCL :: Buffer<FI[8][8]> coefficients;
+				MyOpenCL :: Buffer<i32> dc_temp;
+				MyOpenCL :: Buffer<u32> lengths;
+				MyOpenCL :: Buffer<CodedUnit> codes;
+					//	longest DC code is 16 length + 11 bits
+					//	longest AC code is 16 length + 10 bits
+					//	(16 + 11 + (16 + 10) * 63) = 1665
+					//	1665 / 64 = 26.016
+					//	26 * 64 = 1664 (good enough)
+					//	u64[26] should be enough to contain a single unit (8x8 block)
+				
+				MyOpenCL :: Buffer<u8> payload;
+				
+				fun bool initConst(MyOpenCL :: Context context) {
+					if (!self.htables     .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , 2                  )) { return false; }
+					if (!self.qtables     .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , 4                  )) { return false; }
+					if (!self.lane_infos  .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , MAX_MCU_LENGTH     )) { return false; }
+					return true;
+				}
+				fun void finishConst() noexcept {
+					self.htables     .finish();
+					self.qtables     .finish();
+					self.lane_infos  .finish();
+				}
+				fun bool init1(MyOpenCL :: Context context, MyOpenCL :: Queue queue, size_t height, size_t width, size_t unit_count) {
+					size_t pixel_count = height * width;
+					//	size_t coefficients_count = 0; //	sum(r8(h)/sf.y * r8(w)/sf.x for sf in sfs)
+					//	for (auto sf : sampling_factors) { coefficients_count += ROUND_UP_8(height) / sf.y * ROUND_UP_8(width) / sf.x; }
+					if (!self.image_temp  .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, pixel_count         )) { return false; }
+					if (!self.coefficients.init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, unit_count          )) { return false; }
+					if (!self.dc_temp     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, unit_count          )) { return false; }
+					if (!self.lengths     .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, unit_count + 2      )) { return false; }
+					if (!self.codes       .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, unit_count + 1      )) { return false; }
+					
+					{
+						u32 last_length[1] = { 64 };
+						CodedUnit last_coded_unit[1] = { { ~(u64)0 } };
+						if (!self.lengths.write(queue, last_length    , 1, unit_count + 1)) { return false; }
+						if (!self.codes  .write(queue, last_coded_unit, 1, unit_count    )) { return false; }
+					}
+					
+					return true;
+				}
+				fun void finish1() noexcept {
+					self.image_temp  .finish();
+					self.coefficients.finish();
+					self.dc_temp     .finish();
+					self.lengths     .finish();
+					self.codes       .finish();
+				}
+				fun bool init2(MyOpenCL :: Context context, size_t size) {
+					if (!self.payload     .init(context, CL_MEM_HOST_READ_ONLY  | CL_MEM_WRITE_ONLY, size                )) { return false; }
+					return true;
+				}
+				fun void finish2() noexcept {
+					self.payload     .finish();
+				}
+			} buffer;
+			
+			fun bool init() {
+				cl_device_id device_id;
+				if (!MyOpenCL :: getDeviceId(device_id)) { return false; }
+				if (!self.context.init(device_id)) { return false; }
+				if (!self.queue  .init(device_id, self.context)) { return false; }
+				if (!self.program.init(device_id, self.context, encode_kernels)) { return false; }
+				
+				if (!self.kernel.init(self.program)) { return false; }
+				if (!self.buffer.initConst(self.context)) { return false; }
+				
+				if (!self.setArgsConst()) { return false; }
+				return true;
+			}
+			fun void finish() noexcept {
+				self.buffer .finishConst();
+				self.kernel .finish();
+				self.program.finish();
+				self.queue  .finish();
+				self.context.finish();
+				//	self.buffer.image.finish(); //	Only exception
+			}
+			
+			fun bool initBuffers1(size_t height, size_t width, size_t unit_count, u8x2 max_sf, u8 mcu_length) {
+				if (!self.buffer.init1(self.context, self.queue, height, width, unit_count)) { return false; }
+				return self.setArgs1(max_sf, mcu_length, width);
+			}
+			fun void finishBuffers1() noexcept {
+				self.buffer.finish1();
+			}
+			fun bool initBuffers2(size_t size) {
+				if (!self.buffer.init2(self.context, size)) { return false; }
+				return self.setArgs2();
+			}
+			fun void finishBuffers2() noexcept {
+				self.buffer.finish2();
+			}
+			
+			fun bool setArgsConst() {
+				if (!self.kernel.interleave_downsample  .setArg_lane_infos  (self.buffer.lane_infos       )) { return false; }
+				
+				if (!self.kernel.dct_quantization_zigzag.setArg_qtables     (self.buffer.qtables          )) { return false; }
+				if (!self.kernel.dct_quantization_zigzag.setArg_lane_infos  (self.buffer.lane_infos       )) { return false; }
+				
+				if (!self.kernel.deltaDC1               .setArg_lane_infos  (self.buffer.lane_infos       )) { return false; }
+				
+				if (!self.kernel.encodeHuffman          .setArg_htables     (self.buffer.htables          )) { return false; }
+				if (!self.kernel.encodeHuffman          .setArg_lane_infos  (self.buffer.lane_infos       )) { return false; }
+				
+				return true;
+			}
+			fun bool setArgs1(u8x2 max_sf, u8 mcu_length, u32 image_width) {
+				if (!self.kernel.RGB_to_YCbCr           .setArg_image_temp  (self.buffer.image_temp  )) { return false; }
+				
+				if (!self.kernel.interleave_downsample  .setArg_image_temp  (self.buffer.image_temp  )) { return false; }
+				if (!self.kernel.interleave_downsample  .setArg_coefficients(self.buffer.coefficients)) { return false; }
+				if (!self.kernel.interleave_downsample  .setArg_lane_infos  (self.buffer.lane_infos  )) { return false; }
+				if (!self.kernel.interleave_downsample  .setArg_max_sf      (max_sf                  )) { return false; }
+				if (!self.kernel.interleave_downsample  .setArg_mcu_length  (mcu_length              )) { return false; }
+				if (!self.kernel.interleave_downsample  .setArg_image_width (image_width             )) { return false; }
+				
+				if (!self.kernel.dct_quantization_zigzag.setArg_coefficients(self.buffer.coefficients)) { return false; }
+				
+				if (!self.kernel.deltaDC1               .setArg_coefficients(self.buffer.coefficients)) { return false; }
+				if (!self.kernel.deltaDC1               .setArg_dc_temp     (self.buffer.dc_temp     )) { return false; }
+				if (!self.kernel.deltaDC1               .setArg_mcu_length  (mcu_length              )) { return false; }
+				
+				if (!self.kernel.deltaDC2               .setArg_coefficients(self.buffer.coefficients)) { return false; }
+				if (!self.kernel.deltaDC2               .setArg_dc_temp     (self.buffer.dc_temp     )) { return false; }
+				
+				if (!self.kernel.encodeHuffman          .setArg_coefficients(self.buffer.coefficients)) { return false; }
+				if (!self.kernel.encodeHuffman          .setArg_lengths     (self.buffer.lengths     )) { return false; }
+				if (!self.kernel.encodeHuffman          .setArg_codes       (self.buffer.codes       )) { return false; }
+				
+				if (!self.kernel.prefixSumLengths1      .setArg_lengths     (self.buffer.lengths     )) { return false; }
+				
+				if (!self.kernel.prefixSumLengths2      .setArg_lengths     (self.buffer.lengths     )) { return false; }
+				
+				if (!self.kernel.concatCodes            .setArg_lengths     (self.buffer.lengths     )) { return false; }
+				if (!self.kernel.concatCodes            .setArg_codes       (self.buffer.codes       )) { return false; }
+				
+				return true;
+			}
+			fun bool setArgs2() {
+				if (!self.kernel.concatCodes            .setArg_payload     (self.buffer.payload     )) { return false; }
+				
+				return true;
+			}
+		};
+	}
+}

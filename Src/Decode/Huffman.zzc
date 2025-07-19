@@ -1,0 +1,84 @@
+#include "../Util.zzh"
+#pragma region zzc hdr_decl
+	#include <cstdint>
+	#include <iostream>
+	#include "./FileBuffer.zzh"
+#pragma endregion zzc
+#pragma region zzc src_decl
+	#include <string.h>
+#pragma endregion zzc
+
+
+namespace BJpeg {
+	namespace Decode {
+		struct ValueAndLength {
+			u16 length;
+			u16 value;
+		};
+		struct CodeAndLength {
+			u16 length;
+			u16 code;
+		};
+		struct HuffmanTree {
+			fun void reset() {
+				memset(self.nodes, 0, sizeof(self.nodes));
+			}
+			fun void update(u16 code, u8 length, u8 value, u16& last_assigned_index) {
+				u16 node = 0;
+				for (u8 i = length; i > 0; --i) {
+					auto bit = (code >> (i - 1)) & 1;
+					auto& box = bit == 0 ? self.nodes[node].left : self.nodes[node].right_or_data;
+					if (box == 0) { box = ++last_assigned_index; }
+					node = box;
+				}
+				self.nodes[node] = { 0, value };
+			}
+			fun void setLastNode(u8 last_length) {
+				u16 node = 0;
+				for (u8 i = last_length; i > 1; --i) {
+					node = self.nodes[node].right_or_data;
+				}
+				u16 next_index = self.nodes[node].left + 1;
+				self.nodes[node].right_or_data = next_index;
+				self.nodes[next_index] = { next_index, next_index }; //	set up a (infinite) loop
+			}
+			
+			fun ValueAndLength operator [](u16 bits) {
+				u16 index = 0;
+				for (u16 depth = 0; ; ++depth) {
+					auto node = self.nodes[index];
+					if (node.left == 0) {
+						return {depth, node.right_or_data};
+					}
+					index = (bits >> 15) == 0 ? node.left : node.right_or_data;
+					bits <<= 1;
+				}
+			}
+			//	TODO GPU data
+			
+			fun void printToFile(FILE* file) {
+				int highest_r = 0;
+				for (int i = 0; i <= highest_r || i < 25; ++i) {
+					auto node = self.nodes[i];
+					if (node.left == 0) { fprintf(file, "%d:....%3u| ", i,            node.right_or_data); }
+					else                { fprintf(file, "%d:%3u,%3u| ", i, node.left, node.right_or_data); if (node.right_or_data > highest_r) { highest_r = node.right_or_data; } }
+				}
+			}
+			
+			//	might be possible with u8 by using offsets (but i couldn't be bothered to verify that)
+			struct Node {               //	either {0, data} or {left, right}
+				u16 left;          //	if left == 0, then next byte is data
+				u16 right_or_data; //	else, left and right are indexes of left and right nodes
+			};
+			typedef Node Nodes[256 + 255 + 1];
+			Nodes nodes; 
+				//	tree is full, which means that number of inner nodes = number of leaves - 1
+				//	there is at most 256 values (leaves) in jpg, since values are 8 bit
+				//	256 + 255 (+1 for alignment)
+				//	
+				//	going sequentially through this array is equivalent to pre-order traversal
+			
+			typedef Nodes CLType;
+		};
+	}
+}

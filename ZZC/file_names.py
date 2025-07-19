@@ -51,7 +51,7 @@ if len(sys.argv) == 1:
 	print("Usage python zzc.py project_root/");
 	sys.exit(0);
 else:
-	[_, root] = sys.argv;
+	root = sys.argv[1];
 pass
 root += "/";
 root = normpath(root);

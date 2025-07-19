@@ -9,20 +9,20 @@
 	#include <typeinfo>
 #pragma endregion zzc
 
-#define ERROR_HANDLING(err, msg) if ((err) != CL_SUCCESS) { std :: cerr << "Error " << (err) << ": " << std :: flush << msg << std :: endl; return false; }
+#define ERROR_HANDLING(err, ...) if ((err) != CL_SUCCESS) { std :: cerr << "Error " << (err) << ": " << std :: flush << __VA_ARGS__ << std :: endl; return false; }
 
 namespace MyOpenCL {
 	fun bool getDeviceId(cl_device_id& device_id) {
 		cl_int err;
 		cl_platform_id platform;
-		char name[1024];
 		err = clGetPlatformIDs(1, &platform, nullptr);
 		ERROR_HANDLING(err, "Failed to get platform");
-		clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(name), name, NULL);
+		//	char name[1024];
+		//	clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(name), name, NULL);
 		//	printf("Platform: %.1024s\n", name);
 		err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device_id, nullptr);
 		ERROR_HANDLING(err, "Failed to get device");
-		clGetDeviceInfo(device_id, CL_DEVICE_NAME, sizeof(name), name, NULL);
+		//	clGetDeviceInfo(device_id, CL_DEVICE_NAME, sizeof(name), name, NULL);
 		//	printf("Device: %.1024s\n", name);
 		return true;
 	}
@@ -62,7 +62,7 @@ namespace MyOpenCL {
 			cl_int err;
 			self.program = clCreateProgramWithSource(context.context, 1, &kernels, nullptr, &err);
 			ERROR_HANDLING(err, "Failed to create program");
-			err = clBuildProgram(program, 1, &device_id, nullptr, nullptr, nullptr);
+			err = clBuildProgram(program, 1, &device_id, "-D arg(...)=__VA_ARGS__", nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to build program");
 			return true;
 		}

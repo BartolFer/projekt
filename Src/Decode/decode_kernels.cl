@@ -464,7 +464,7 @@ kernel void uninterleave_upsample/* 2 */(
 		u8x2 component_sf = x2(u8, 
 			lane_infos[lane_id].sf_y,
 			lane_infos[lane_id].sf_x,
-		); //	TODO
+		); //	TODO 
 		for (int yy = 0; yy < max_sf.y * 8; ++yy) {
 			//	TODO calculate y and source (in mcu)
 			u32 y_of_data_unit_in_mcu = yy / 8 / (max_sf.y / component_sf.y);
