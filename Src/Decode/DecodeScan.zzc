@@ -282,8 +282,9 @@ namespace BJpeg {
 					if (!cl.kernel.prefixSum1.setArg_half_size(half_size)) { return false; }
 					if (!cl.kernel.prefixSum1.call(cl.queue, work)) { return false; }
 				}
-				for (half_size /= 4; half_size > 0; half_size /= 2) {
+				while (half_size /= 2) {
 					work[0] = (mcu_count - half_size) / (2 * half_size);
+					if (work[0] == 0) { continue; }
 					if (!cl.kernel.prefixSum2.setArg_half_size(half_size)) { return false; }
 					if (!cl.kernel.prefixSum2.call(cl.queue, work)) { return false; }
 				}

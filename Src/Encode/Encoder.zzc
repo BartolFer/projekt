@@ -9,68 +9,186 @@
 
 namespace BJpeg {
 	namespace Encode {
-		fun ArrayWithLength<u8> image(MyOpenCL :: Buffer<RGBA> image, size_t height, size_t width, QuantizationTable qtables[4], HuffmanTable htables[2][4], SamplingFactor factors[MAX_COMPONENTS]) {
+		fun ArrayWithLength<u8> image(MyOpenCL :: Buffer<RGBA> image, size_t height, size_t width, QuantizationTable qtables[4], HuffmanTable htables[2][4], SamplingFactor sampling_factors[MAX_COMPONENTS]) {
+			//	we will assume image has 3 components
+			//	There are 2 qtables and 4 htables: 
+			//		C1 has qtables[0] and both htables[DC/AC][0]
+			//		C2 & C3 share qtables[1] and both htables[DC/AC][1]
+			
 			Resource<CLContext> cl;
-			//	TODO to YCbCr
-			//	TODO interleave_downsample
-			//	TODO DCT q zigzag
-			//	TODO delta DC
-			//	TODO Huffman 1
-			//	TODO calc size & alloc
-			//	TODO Huffman 2
-			//	TODO profit
-			//	dont forget to insert 0xFF00
-			return {};
+			
+			LaneInfo lane_infos[MAX_MCU_LENGTH]; LaneInfo* lane_infos_ptr = lane_infos;
+			u8 max_sf_y = 1;
+			u8 max_sf_x = 1;
+			u8 mcu_length = 0;
+			for (u8 i = 0; i < 3; ++i) {
+				auto sf = sampling_factors[i];
+				if (sf.y > max_sf_y) { max_sf_y = sf.y; }
+				if (sf.x > max_sf_x) { max_sf_x = sf.x; }
+				mcu_length += sf.y * sf.x;
+				for (int y = 0; y < sf.y; ++y) {
+					for (int x = 0; x < sf.x; ++x) {
+						lane_infos_ptr++->c_id = i + 1;
+					}
+				}
+				lane_infos[i].sf_y = sf.y;
+				lane_infos[i].sf_x = sf.x;
+			}
+			u8x2 max_sf = { max_sf_x, max_sf_y };
+			size_t mcu_y = ROUND_UP_8(height) / 8 / max_sf_y;
+			size_t mcu_x = ROUND_UP_8(width ) / 8 / max_sf_x;
+			size_t mcu_count = mcu_x * mcu_y;
+			size_t unit_count = mcu_count * mcu_length;
+			for (int i = 0; i < mcu_length; ++i) {
+				lane_infos[i] = LaneInfo{
+					.c_id = 0, //	assume only one component
+					.sf_y = max_sf_y,
+					.sf_x = max_sf_x,
+				};
+			}
+			
+			if (!cl.buffer.htables   .write(cl.queue, htables   )) { return {}; }
+			if (!cl.buffer.qtables   .write(cl.queue, qtables   )) { return {}; }
+			if (!cl.buffer.lane_infos.write(cl.queue, lane_infos)) { return {}; }
+			
+			if (!cl.initBuffers1(height, width, unit_count, max_sf, mcu_length)) { return {}; }
+			defer { cl.finishBuffers1(); };
+
+			if (!cl.kernel.RGB_to_YCbCr.setArg_image(image)) { return {}; }
+			if (!cl.kernel.RGB_to_YCbCr.call(cl.queue, { height, width })) { return {}; }
+
+			//	TODO fill missing in both de & en
+			if (!cl.kernel.interleave_downsample.call(cl.queue, { mcu_y, mcu_x })) { return {}; }
+
+			if (!cl.kernel.dct_quantization_zigzag.call(cl.queue, { mcu_count, mcu_length })) { return {}; }
+			
+			if (!cl.kernel.deltaDC1.call(cl.queue, { mcu_count })) { return {}; }
+			if (!cl.kernel.deltaDC2.call(cl.queue, { unit_count })) { return {}; }
+			
+			if (!cl.kernel.encodeHuffman.call(cl.queue, { mcu_count, mcu_length })) { return {}; }
+			
+			u32 total_size = prefixSumLengths(cl, unit_count, mcu_length);
+			if (total_size == 0) { return {}; }
+			size_t payload_size = total_size / 8;
+			if (!cl.initBuffers2(payload_size)) { return {}; }
+			defer { cl.finishBuffers2(); };
+			
+			if (!cl.kernel.concatCodes.call(cl.queue, { unit_count })) { return {}; }
+			
+			u8* payload = new u8[payload_size];
+			defer { delete[] payload; };
+			if (!cl.buffer.payload.read(cl.queue, payload)) { return {}; }
+			
+			size_t old_payload_size = payload_size;
+			for (int i = 0; i < old_payload_size; ++i) {
+				if (payload[i] == 0xFF) {
+					++payload_size;
+				}
+			}
+			
+			ArrayWithLength<u8> result;
+			u16 frame_header_size = 2 + 1 + 2 + 2 + 1 + 3 * (1 + 1 + 1);
+			u16 scan_header_size = 2 + 1 + 3 * (1 + 1) + 1 + 1 + 1;
+			result.init(
+				+ 2
+				+ QTableEncoder :: size(qtables) 
+				+ HuffmanEncoder :: size(htables) 
+				+ 2 + frame_header_size
+				+ 2 + scan_header_size
+				+ payload_size
+				+ 2
+			);
+			u8* res = result.array;
+			
+			res = writeMarker(res, Marker :: SOI);
+			res =  QTableEncoder :: encode(qtables, res);
+			res = HuffmanEncoder :: encode(htables, res);
+			
+			Marker :: SOFData sof_data;
+			sof_data.arithmetic = 0;
+			sof_data.differential = 0;
+			sof_data.mode = Marker :: SOFData :: Mode :: BASELINE;
+			res = writeMarker(res, sof_data.toMarker());
+			*res++ = frame_header_size >> 8;
+			*res++ = frame_header_size & 0xFF;
+			*res++ = 0;
+			*res++ = height;
+			*res++ = width;
+			*res++ = 3;
+			for (int i = 0; i < 3; ++i) {
+				*res++ = i + 1;
+				*res++ = sampling_factors[i].y << 4 | sampling_factors[i].x;
+				*res++ = i;
+			}
+			
+			res = writeMarker(res, Marker :: SOS);
+			*res++ = scan_header_size >> 8;
+			*res++ = scan_header_size & 0xFF;
+			*res++ = 3;
+			for (int i = 0; i < 3; ++i) {
+				*res++ = i + 1;
+				*res++ = i << 4 | i;
+			}
+			*res++ = 0;
+			*res++ = 63;
+			*res++ = 0;
+			
+			for (int i = 0; i < old_payload_size; ++i) {
+				*res++ = payload[i];
+				if (payload[i] == 0xFF) {
+					*res++ = 0x00;
+				}
+			}
+			
+			res = writeMarker(res, Marker :: EOI);
+			
+			if (result.array + result.length != res) {
+				std :: cerr << "Encode result size mismatch" << std :: endl;
+				return {};
+			}
+			
+			return result;
 		}
 		
 		namespace {
 			namespace QTableEncoder {
-				//	assume 16 bit, 3 components
+				//	assume 16 bit, 3 components (0, 1, 1)
 				fun size_t size(QuantizationTable table[4]) {
-					return 2 + 3 * (1 + 64 * 2);
+					return 2 + 2 * (1 + 64 * 2);
 				}
-				//	assume 16 bit, 3 components
+				//	assume 16 bit, 3 components (0, 1, 1)
 				fun u8* encode(QuantizationTable table[4], u8* dst) {
-					*(dst++) = 0xFF;
-					*(dst++) = Marker :: DQT;
-					*(dst++) = (size(table)) >> 8;
-					*(dst++) = (size(table)) & 0xFF;
-					for (int id = 0; id < 3; ++id) {
-						*(dst++) = (1 << 4) | id;
+					dst = writeMarker(dst, Marker :: DQT);
+					*dst++ = size(table) >> 8;
+					*dst++ = size(table) & 0xFF;
+					for (int id = 0; id < 2; ++id) {
+						*dst++ = (1 << 4) | id;
 						for (int i = 0; i < 64; ++i) {
-							*(dst++) = (table[id][0][i]) >> 8;
-							*(dst++) = (table[id][0][i]) & 0xFF;
+							*dst++ = table[id][0][i] >> 8;
+							*dst++ = table[id][0][i] & 0xFF;
 						}
 					}
 					return dst;
 				}
 			}
 			
-			u32 prefixSumLengths(CLContext cl, u32 unit_count, u8 mcu_length) {
+			fun u32 prefixSumLengths(CLContext cl, u32 unit_count, u8 mcu_length) {
 				u32 half_step;
+				size_t work[1];
 				for (half_step = 1; 2 * half_step < unit_count; half_step *= 2) {
-					//	TODO call prefixSumLengths1
-				}
-				
-				u32 total_size = 0;
-				{
-					size_t base = 0 - 1;
-					for (u32 ahead = half_step; ahead; ahead /= 2) {
-						if (base + ahead >= unit_count) { continue; }
-						base += ahead;
-						u32 x;
-						if (!cl.buffer.lengths.read (cl.queue, &x         , 1, base)) { return 0; }
-						if (!cl.buffer.lengths.write(cl.queue, &total_size, 1, base)) { return 0; }
-						
-						total_size += x;
-					}
-					if (!cl.buffer.lengths.write(cl.queue, &total_size, 1, base + 1)) { return 0; }
+					work[0] = unit_count / (2 * half_step);
+					if (!cl.kernel.prefixSumLengths1.setArg_half_step(half_step)) { return 0; }
+					if (!cl.kernel.prefixSumLengths1.call(cl.queue, work)) { return 0; }
 				}
 				
 				while (half_step /= 2) {
-					//	TODO call prefixSumLengths2
+					work[0] = (unit_count - half_step) / (2 * half_step);
+					if (!cl.kernel.prefixSumLengths2.setArg_half_step(half_step)) { return 0; }
+					if (!cl.kernel.prefixSumLengths2.call(cl.queue, work)) { return 0; }
 				}
 				
+				u32 total_size = 0;
+				if (!cl.buffer.lengths.read(cl.queue, &total_size, unit_count, 1)) { return 0; }
 				return total_size;
 			}
 		}

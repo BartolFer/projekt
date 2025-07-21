@@ -79,6 +79,10 @@ namespace BJpeg {
 			self.length = 0;
 		}
 		fun T& operator [](int index) const { return self.array[index]; }
+		
+		fun operator bool() const noexcept {
+			return self.array != nullptr && self.length > 0;
+		}
 	};
 }
 

@@ -5,6 +5,7 @@
 #include "./Decode/FileBuffer.zzh"
 #include "./Decode/Context.zzh"
 #include "./Decode/Decoder.zzh"
+#include "./Encode/Encoder.zzh"
 #include "./MetaData.zzh"
 
 namespace BJpeg {
@@ -13,22 +14,30 @@ namespace BJpeg {
 		// this is just a value that is used in a lot of buffers
 }
 
+#if defined TESTING || defined MAIN_TARGET_DECODE || defined MAIN_TARGET_ENCODE
+	fun int main(int argc, char* argv[]) {
+		#ifdef TESTING
+			if (!BJpeg :: Test :: runTests()) { return EXIT_FAILURE; }
+		#endif
+		
+		#ifdef MAIN_TARGET_DECODE
+			return mainDecode(argc, argv);
+		#endif
+		#ifdef MAIN_TARGET_ENCODE
+			return mainEncode(argc, argv);
+		#endif
+	}
+#endif
 
-fun int main(int argc, char* argv[]) {
+fun int mainDecode(int argc, char* argv[]) {
 	if (argc > 3) {
-		printf("Usage: <exe> path/to/file.jpg\n");
+		printf("Usage: <exe> path/to/file.jpg path/to/output.rgba\n");
 		exit(EXIT_FAILURE);
 	}
-	std :: string path = argc >= 2 ? argv[1] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.jpg";
+	std :: string path      = argc >= 2 ? argv[1] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.jpg";
+	char const* output_path = argc >= 3 ? argv[2] : "D:/Personal/nastava/projekt/Temp/output.rgba";
 	
 	using namespace BJpeg;
-	//	if (recomended_space_pow < 8) {
-	//		std :: cerr << "Recommended space is at least 256B (2^8)" << std :: endl;
-	//		return EXIT_FAILURE;
-	//	}
-	#ifdef TESTING
-		if (!Test :: runTests()) { return EXIT_FAILURE; }
-	#endif
 	
 	Resource<Decode :: InputFileBuffer> file(path);
 	if (!file   ) { std :: cerr << "!file"    << std :: endl; return 1; }
@@ -38,41 +47,63 @@ fun int main(int argc, char* argv[]) {
 	auto res = Decode :: image(context, file, 0);
 	std :: cout << "res = " << res << std :: endl;
 	
-	
-	
-	// InputFileBuffer file(recomended_space_pow, "D:/temp/Zugpsitze_mountain.jpg");
-	// auto& context = *new Context<CodingType :: DECODE>;
-	// auto res = Decode :: image(context, file, 0);
-	// printf("res = %u\n", res);
-	// FILE* context_file = fopen("D:/temp/jpg_context.txt", "w");
-	// if (res == 0) { return EXIT_FAILURE; }
-	// fprintf(context_file, "SOF = %s %s %d\n", context.sof_data.arithmetic ? "A" : "H", context.sof_data.differential ? "d" : "n", context.sof_data.mode);
-	// fprintf(context_file, "X=%u Y=%u r=%u p=%u\n", context.X, context.Y, context.restart_interval, context.precision);
-	// for (int i = 0; i < 2; ++i) {
-	// 	for (int j = 0; j < 2; ++j) {
-	// 		auto& ht = context.huffman_tree[i][j];
-	// 		fprintf(context_file, "H[%d][%d] |", i, j);
-	// 		ht.printToFile(context_file);
-	// 		fprintf(context_file, "\n");
-	// 	}
-	// 	fprintf(context_file, "\n");
-	// }
-	// delete &context;
 	if (res == DECODE_RESULT_ERR) { return EXIT_FAILURE; }
 	if (res != file.length) { return EXIT_FAILURE; }
-	
-	
 	
 	MetaData metadata = { .width = (int) context.size.x_mayor, .height = (int) context.size.y_mayor, .n_channels = 4 };
 	size_t total_pixels = metadata.height * metadata.width;
 	RGBA* arr = new RGBA[total_pixels];
 	if (!context.cl.buffer.image.read(context.cl.queue, arr)) { clog("Failed to read result image buffer"); return EXIT_FAILURE; }
 
-	char const* output_path = argc >= 3 ? argv[2] : "D:/Personal/nastava/projekt/Temp/output.rgba";
 	FILE* output = fopen(output_path, "wb");
 	if (output == nullptr) { clog("Failed to open output file %s", output_path); return EXIT_FAILURE; }
 	defer { fclose(output); };
 	fwrite(&metadata, sizeof(metadata), 1, output);
 	fwrite(arr, sizeof(RGBA), total_pixels, output);
 	printf("Created file %s\n", output_path);
+	
+	return 0;
+}
+
+fun int mainEncode(int argc, char* argv[]) {
+	if (argc > 4) {
+		printf("Usage: <exe> path/to/file.rgba path/to/definitions/jpg path/to/output.jpg\n");
+		exit(EXIT_FAILURE);
+	}
+	std :: string path      = argc >= 2 ? argv[1] : "D:/Personal/nastava/projekt/Temp/output.rgba";
+	std :: string def_path  = argc >= 3 ? argv[2] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.def.jpg";
+	char const* output_path = argc >= 4 ? argv[3] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.out.jpg";
+
+	using namespace BJpeg;
+	
+	//	Resource<
+	MyOpenCL :: Buffer<RGBA>
+	//	> 
+	image;
+	size_t height, width;
+	QuantizationTable qtables[4];
+	Encode :: HuffmanTable htables[2][4];
+	SamplingFactor sampling_factors[MAX_COMPONENTS];
+	//	Resource<Decode :: InputFileBuffer> file(path);
+	//	if (!file   ) { std :: cerr << "!file"    << std :: endl; return 1; }
+	//	TODO
+	
+	auto res = Encode :: image(image, height, width, qtables, htables, sampling_factors);
+	std :: cout << "res len = " << res.length << std :: endl;
+	if (!res) { return EXIT_FAILURE; }
+	defer { res.finish(); };
+	
+	
+//		MetaData metadata = { .width = (int) context.size.x_mayor, .height = (int) context.size.y_mayor, .n_channels = 4 };
+//		size_t total_pixels = metadata.height * metadata.width;
+//		RGBA* arr = new RGBA[total_pixels];
+//		if (!context.cl.buffer.image.read(context.cl.queue, arr)) { clog("Failed to read result image buffer"); return EXIT_FAILURE; }
+//	
+	FILE* output = fopen(output_path, "wb");
+	if (output == nullptr) { clog("Failed to open output file %s", output_path); return EXIT_FAILURE; }
+	defer { fclose(output); };
+	fwrite(res.array, sizeof(res[0]), res.length, output);
+	printf("Created file %s\n", output_path);
+	
+	return 0;
 }

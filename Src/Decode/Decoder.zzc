@@ -18,7 +18,7 @@
 
 namespace BJpeg {
 	namespace Decode {
-		DECODE_FUN(image) {
+		fun u32 image(Context& context, InputFileBuffer& file, u32 index) {
 			// printf("a\n");
 			u32 result;
 			ASSERT_MARKER(Marker :: SOI);

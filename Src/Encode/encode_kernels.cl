@@ -142,7 +142,7 @@ kernel void deltaDC1/* 1: mcu_count */(
 	int unit_index = 0;
 	for (int c_id_m1 = 0; c_id_m1 < 3; ++c_id_m1) {
 		i32 predictor = mcu_index == 0 ? 0 : coefficients[mcu_index * mcu_length + unit_index - mcu_length][0][0];
-		LaneInfo lane_info = lane_infos[unit_index];
+		LaneInfo lane_info = lane_infos[c_id_m1];
 		for (int yy = 0; yy < lane_info.sf_y; ++yy) {
 			for (int xx = 0; xx < lane_info.sf_x; ++xx) {
 				i32 value = coefficients[mcu_index * mcu_length + unit_index][0][0];
@@ -265,25 +265,22 @@ kernel void prefixSumLengths1/* 1: unit_count / full_step */(
 	u32 const index = get_global_id(0);
 	u32 full_step = half_step * 2;
 	
-	u32 const index_b = full_step - 1 + index * full_step;
+	u32 const index_b = full_step + index * full_step;
 	u32 const index_a = index_b - half_step;
 	
 	lengths[index_b] += lengths[index_a];
 }
-kernel void prefixSumLengths2/* 1: unit_count / full_step */(
+kernel void prefixSumLengths2/* 1: (unit_count - half_step) / full_step, if unit_count > half_step */(
 	__global   u32          arg(lengths     )[]       ,
 	           u32          arg(half_step   )         
 ) {
 	u32 const index = get_global_id(0);
 	u32 full_step = half_step * 2;
 	
-	//	(a, b) = (b, a + b);
-	u32 const index_b = full_step - 1 + index * full_step;
-	u32 const index_a = index_b - half_step;
+	u32 const index_a = full_step + index * full_step;
+	u32 const index_b = index_a + half_step;
 	
-	u32 temp = lengths[index_b];
 	lengths[index_b] += lengths[index_a];
-	lengths[index_a] = temp;
 }
 
 kernel void concatCodes/* 1: unit_count */(

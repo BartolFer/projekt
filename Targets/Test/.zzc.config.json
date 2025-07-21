@@ -1,0 +1,23 @@
+{
+	"paths": {
+		"zzc": "../../Src/",
+		"tmp": "./Build/Tmp",
+		"cpp": "./Build/Cpp",
+		"obj": "./Build/Obj",
+		"exe": "./Build/BJpegTest.exe"
+	},
+	"compiler": {
+		"preprocess": ["gcc", {"var":"CPPFLAGS"}, "-E", "-o", {"arg":"out"}, {"arg":"in"}],
+		"obj": ["g++", "-Dfun=", {"var":"CPPFLAGS"}, {"var":"CXXFLAGS"}, "-c", "-o", {"arg":"out"}, {"arg":"in"}],
+		"target": ["g++", {"var":"CXXFLAGS"}, {"var":"CPPFLAGS"}, "-o", {"arg":"out"}, {"arg":"in"}, {"var":"LDFLAGS"}]
+	},
+	"vars": {
+		"CFLAGS": [],
+		"CPPFLAGS": ["-DTESTING", "-DCL_TARGET_OPENCL_VERSION=300", "-Dself=(*this)", "-Dpack=struct __attribute__((packed))", {"var": "OpenCL_include"}],
+		"CXXFLAGS": ["-Werror", "-pedantic", "-std=c++23", "-fmodules-ts"],
+		"LDFLAGS": [{"var": "OpenCL_link"}],
+		"OpenCL_include": "-IC:/Programs/Cuda/include/",
+		"OpenCL_link": ["-LC:/Programs/Cuda/lib/x64/", "-lOpenCl"]
+	},
+	"nocompile": false
+}

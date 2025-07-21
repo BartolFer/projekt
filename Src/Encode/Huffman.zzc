@@ -21,7 +21,7 @@ namespace BJpeg {
 		};
 		using HuffmanTable = CodeAndLength[256];
 		namespace HuffmanEncoder {
-			//	assume 3 components
+			//	assume 3 components (0, 1, 1)
 			fun size_t size(HuffmanTable table[2][4]) {
 				size_t size = 2;
 				for (int dc_ac = 0; dc_ac < 2; ++dc_ac) {
@@ -36,15 +36,14 @@ namespace BJpeg {
 				}
 				return size;
 			}
-			//	assume 3 components
+			//	assume 3 components (0, 1, 1)
 			fun u8* encode(HuffmanTable table[2][4], u8* dst) {
-				dst[0] = 0xFF;
-				dst[1] = Marker :: DHT;
+				writeMarker(dst, Marker :: DHT);
 				//	dst[2] = later
 				//	dst[3] = later
 				size_t size = 2;
 				for (int dc_ac = 0; dc_ac < 2; ++dc_ac) {
-					for (int id = 0; id < 3; ++id) {
+					for (int id = 0; id < 2; ++id) {
 						HuffmanTable copy; memcpy(&copy, &table[dc_ac][id], sizeof(HuffmanTable));
 						std :: sort(std :: begin(copy), std :: end(copy), [] (auto a, auto b) { return a.code < b.code; }); //	if a.code < b.code, then a.length < b.length
 						
@@ -67,6 +66,12 @@ namespace BJpeg {
 				dst[3] = size & 0xFF;
 				return dst + 2 + size;
 			}
+		}
+		//	This should've gone to Encoder.zzc, but bug in ZZC causes error when using circular imports
+		fun inline u8* writeMarker(u8* dst, u8 marker) {
+			*dst++ = 0xFF;
+			*dst++ = marker;
+			return dst;
 		}
 	}
 }

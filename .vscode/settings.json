@@ -1,13 +1,13 @@
 {
 	"C_Cpp.default.defines": [
 		"CL_TARGET_OPENCL_VERSION=300",
-		"depend(...)=",
 		"self=(*this)",
 		"pack=struct __attribute__((packed))",
 		"TESTING",
 		"fun=",
 		"VSCODE_ONLY=",
-		//	"enum=enum struct",
+		"MAIN_TARGET_DECODE",
+		"MAIN_TARGET_ENCODE"
 	],
 	"files.associations": {
 		"*.?zz": "cpp",

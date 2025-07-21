@@ -139,8 +139,10 @@ namespace BJpeg {
 					if (!self.codes       .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, unit_count + 1      )) { return false; }
 					
 					{
-						u32 last_length[1] = { 64 };
+						u32 zero[1] = { 0 };
+						u32 last_length[1] = { UINT32_MAX };
 						CodedUnit last_coded_unit[1] = { { ~(u64)0 } };
+						if (!self.lengths.write(queue, zero           , 1, 0             )) { return false; }
 						if (!self.lengths.write(queue, last_length    , 1, unit_count + 1)) { return false; }
 						if (!self.codes  .write(queue, last_coded_unit, 1, unit_count    )) { return false; }
 					}
@@ -192,8 +194,8 @@ namespace BJpeg {
 			fun void finishBuffers1() noexcept {
 				self.buffer.finish1();
 			}
-			fun bool initBuffers2(size_t size) {
-				if (!self.buffer.init2(self.context, size)) { return false; }
+			fun bool initBuffers2(size_t payload_size) {
+				if (!self.buffer.init2(self.context, payload_size)) { return false; }
 				return self.setArgs2();
 			}
 			fun void finishBuffers2() noexcept {

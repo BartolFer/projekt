@@ -10,3 +10,4 @@ Src/**/*.zzh
 __pycache__
 *.tmp.*
 .zzc.cache.json
+Targets/**/include/inner/

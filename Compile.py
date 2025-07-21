@@ -54,7 +54,10 @@ for (base, folders, files) in os.walk(__actual_dir__ + "/Src"):
 	pass
 pass
 
-maybe_exit(subprocess.run([sys.executable, "./ZZC/zzc.py", __actual_dir__]).returncode);
+maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/ZZC/zzc.py", __actual_dir__ + "/Targets/Decode/"]).returncode);
+maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/ZZC/zzc.py", __actual_dir__ + "/Targets/Encode/"]).returncode);
+maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/Targets/Library/Static/Build.py"                ]).returncode);
+maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/ZZC/zzc.py", __actual_dir__ + "/Targets/Test/"  ]).returncode);
 
 try: import winsound;
 except ImportError: pass;

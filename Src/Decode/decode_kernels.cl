@@ -365,8 +365,8 @@ kernel void prefixSum2(
 	u8 mcu_length
 ) {
 	u32 i = get_global_id(0);
-	u32 b_index = mcu_length * (half_size + (i + 1) * half_size * 2 - 1);
-	u32 a_index = b_index - half_size * mcu_length;
+	u32 a_index = mcu_length * ((i + 1) * half_size * 2 - 1);
+	u32 b_index = a_index + half_size * mcu_length;
 	addMCUsToRight(coefficients, lane_infos, a_index, b_index, mcu_length);
 }
 
