@@ -1,6 +1,10 @@
 
 .DEFAULT_GOAL = all
-.PHONY: compile Compile clean Clean ide Ide
+.PHONY: compile Compile clean Clean ide Ide run Run
+
+Run: run
+run:
+	python "./Scripts/Runner.py"
 
 Clean: clean
 clean:

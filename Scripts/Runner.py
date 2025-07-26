@@ -18,7 +18,7 @@ import subprocess;
 class Command:
 	child_proc: None | subprocess.Popen = None;
 	def __init__(self, *args):
-		self.frame = tk.Frame(window);
+		self.frame = tk.Frame(frame);
 		self.entries = [];
 		self.variables = [];
 		self.run_button = tk.Button(self.frame, text = "▶", command = self.run);
@@ -37,7 +37,6 @@ class Command:
 		var = tk.StringVar(self.frame, arg);
 		#	entry = ttk.Entry(self.frame, textvariable = var);
 		entry = SmartEntry(self.frame, textvariable = var);
-		#	entry.bind("<Double-Button-1>", entrySelectWord);
 		entry.pack(side = tk.LEFT, fill = tk.X, expand = True);
 		self.entries.append(entry);
 		self.variables.append(var);
@@ -50,10 +49,7 @@ class Command:
 			pass
 			self.child_proc = None;
 		pass
-		#	self.child_proc = subprocess.Popen(args, creationflags = subprocess.CREATE_NO_WINDOW, stdin = sys.stdin, stdout = sys.stdout, stderr = sys.stderr);
-		#	self.child_proc = subprocess.Popen(args, creationflags = subprocess.CREATE_NO_WINDOW, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE);
-		#	self.child_proc = subprocess.Popen(args, creationflags = subprocess.CREATE_NO_WINDOW, stdout = subprocess.PIPE);
-		self.child_proc = subprocess.Popen(args, creationflags = subprocess.CREATE_NO_WINDOW, cwd = cwd);
+		self.child_proc = subprocess.Popen(args, cwd = cwd, stdin = sys.stdin, stdout = sys.stdout, stderr = sys.stderr);
 		self.checkProc();
 	pass
 	def terminate(self):
@@ -260,39 +256,9 @@ class SmartEntry(ttk.Entry):
 	pass
 pass
 
-def entrySelectWord(event: tk.Event):
-	entry: ttk.Entry = event.widget;
-	index = entry.index(f"@{event.x}");
-	
-	text = entry.get();
-	if not text: return;
-	
-	if index == len(text): index -= 1;
-	c = text[index];
-	
-	char_type = CharType(c);
-	if c in "_-": char_type = CharType.SYMBOL;
-	
-	for start in reversed(range(index)):
-		if CharType(text[start]) & char_type == 0: 
-			start += 1;
-			break;
-		pass
-	pass
-	for end in range(index + 1, len(text)):
-		if CharType(text[end]) & char_type == 0: 
-			break;
-		pass
-	else:
-		end = len(text);
-	pass
-
-	entry.selection_range(start, end);
-	entry.icursor(end);
-	return "break";
-pass
-
 window = tk.Tk();
+frame = tk.Frame(window);
+frame.place(relheight = 1, relwidth = 1);
 
 commands: list[Command] = [];
 def addCommand(*args):
@@ -303,7 +269,11 @@ def addCommand(*args):
 pass
 
 add_button = ttk.Button(window, text = "Add", command = addCommand);
-add_button.pack(side = tk.BOTTOM);
+add_button.place(x = 10, width = 100, rely = 1, anchor = tk.SW);
+
+#	dbg_button = ttk.Button(window, text = "Debug", command = lambda: print("Nothing to debug", sep = "\n"));
+dbg_button = ttk.Button(window, text = "Debug", command = lambda: print(sys.stdout, sep = "\n"));
+dbg_button.place(relx = 1, width = 100, rely = 1, anchor = tk.SE);
 
 cwd = "D:/Personal/nastava/projekt";
 os.chdir(cwd);
@@ -321,6 +291,6 @@ for args in initial:
 	addCommand(*args);
 pass
 
-window.geometry("1200x200");
+window.geometry("1200x400");
 
 window.mainloop();
