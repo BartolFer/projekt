@@ -1,18 +1,18 @@
 
 .DEFAULT_GOAL = all
-.PHONY: compile clean ide run
+.PHONY: compile Compile clean Clean ide Ide
 
+Clean: clean
 clean:
-	python Clean.py
+	python ./Scripts/Clean.py
 
-run: compile
-	@Build/a.exe
-
-all: compile
+Compile: compile
 compile:
 	@echo build
 	python ./Compile.py
+
+Ide: ide
 ide:
 	@echo zzc
-	python ./Compile.py
+	python "./ZZC/zzc.py" "./Targets/Ide/"
 

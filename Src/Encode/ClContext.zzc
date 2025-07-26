@@ -19,7 +19,7 @@ namespace BJpeg {
 			u8 sf_y;
 			u8 sf_x;
 		} LaneInfo;
-		typedef u64 CodedUnit[26];
+		typedef u32 CodedUnit[52];
 
 		struct CLContext {
 			MyOpenCL :: Context context            ;
@@ -27,51 +27,51 @@ namespace BJpeg {
 			MyOpenCL :: Program program            ;
 			struct Kernels {
 				struct RGB_to_YCbCr : MyOpenCL :: Kernel<2> /* 2: Y, X */{
-					fun bool setArg_image       (MyOpenCL :: Buffer<RGBA           > x) { return self.setArg(x, 0); } // __global   RGBA         arg(image       )[]       ,
-					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 1); } // __global   RGBAF        arg(image_temp  )[]       
+					fun bool setArg_image       (MyOpenCL :: Buffer<RGBA           > x) { return self.setArg(x, 0); } //	__global   RGBA         arg(image       )[]       ,
+					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 1); } //	__global   RGBAF        arg(image_temp  )[]       
 				} RGB_to_YCbCr;
 				struct interleave_downsample : MyOpenCL :: Kernel<2> /* 2: MCU_Y, MCU_X */{
-					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 0); } // __global   RGBAF_ARR    arg(image_temp  )[]       ,
-					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 1); } // __global   FI           arg(coefficients)[][8][8] ,
-					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } // __constant LaneInfo     arg(lane_infos  )[]       ,
-					fun bool setArg_max_sf      (u8x2                                x) { return self.setArg(x, 3); } //            u8x2         arg(max_sf      )         ,
-					fun bool setArg_mcu_length  (u8                                  x) { return self.setArg(x, 4); } //            u8           arg(mcu_length  )         ,
-					fun bool setArg_image_width (u32                                 x) { return self.setArg(x, 5); } //            u32          arg(image_width )         
+					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 0); } //	__global   RGBAF_ARR    arg(image_temp  )[]       ,
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 1); } //	__global   FI           arg(coefficients)[][8][8] ,
+					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } //	__constant LaneInfo     arg(lane_infos  )[]       ,
+					fun bool setArg_max_sf      (u8x2                                x) { return self.setArg(x, 3); } //	           u8x2         arg(max_sf      )         ,
+					fun bool setArg_mcu_length  (u8                                  x) { return self.setArg(x, 4); } //	           u8           arg(mcu_length  )         ,
+					fun bool setArg_image_width (u32                                 x) { return self.setArg(x, 5); } //	           u32          arg(image_width )         
 				} interleave_downsample;
 				struct dct_quantization_zigzag : MyOpenCL :: Kernel<2> /* 2: mcu_count, mcu_length */{
-					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } // __global   FI           arg(coefficients)[][8][8] ,
-					fun bool setArg_qtables     (MyOpenCL :: Buffer<u16[8][8]      > x) { return self.setArg(x, 1); } // __constant u16          arg(qtable      )[4][8][8],
-					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } // __constant LaneInfo     arg(lane_infos  )[]       
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } //	__global   FI           arg(coefficients)[][8][8] ,
+					fun bool setArg_qtables     (MyOpenCL :: Buffer<u16[8][8]      > x) { return self.setArg(x, 1); } //	__constant u16          arg(qtable      )[4][8][8],
+					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } //	__constant LaneInfo     arg(lane_infos  )[]       
 				} dct_quantization_zigzag;
 				struct deltaDC1 : MyOpenCL :: Kernel<1> /* 1: mcu_count */{
-					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } // __global   i32          arg(coefficients)[][8][8] ,
-					fun bool setArg_dc_temp     (MyOpenCL :: Buffer<i32            > x) { return self.setArg(x, 1); } // __global   i32          arg(dc_temp     )[]       ,
-					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } // __constant LaneInfo     arg(lane_infos  )[]       ,
-					fun bool setArg_mcu_length  (u8                                  x) { return self.setArg(x, 3); } //            u8           arg(mcu_length  )         
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } //	__global   i32          arg(coefficients)[][8][8] ,
+					fun bool setArg_dc_temp     (MyOpenCL :: Buffer<i32            > x) { return self.setArg(x, 1); } //	__global   i32          arg(dc_temp     )[]       ,
+					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } //	__constant LaneInfo     arg(lane_infos  )[]       ,
+					fun bool setArg_mcu_length  (u8                                  x) { return self.setArg(x, 3); } //	           u8           arg(mcu_length  )         
 				} deltaDC1;
 				struct deltaDC2 : MyOpenCL :: Kernel<1> /* 1: unit_count */{
-					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } // __global   i32          arg(coefficients)[][8][8] ,
-					fun bool setArg_dc_temp     (MyOpenCL :: Buffer<i32            > x) { return self.setArg(x, 1); } // __global   i32          arg(dc_temp     )[]       
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } //	__global   i32          arg(coefficients)[][8][8] ,
+					fun bool setArg_dc_temp     (MyOpenCL :: Buffer<i32            > x) { return self.setArg(x, 1); } //	__global   i32          arg(dc_temp     )[]       
 				} deltaDC2;
 				struct encodeHuffman : MyOpenCL :: Kernel<2> /* 2: mcu_count, mcu_length */{
-					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } // __global   i32          arg(coefficients)[][8][8] ,
-					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 1); } // __global   u32          arg(lengths     )[]       ,
-					fun bool setArg_codes       (MyOpenCL :: Buffer<CodedUnit      > x) { return self.setArg(x, 2); } // __global   u64          arg(codes       )[][26]   ,
-					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 3); } // __constant LaneInfo     arg(lane_infos  )[]       ,
-					fun bool setArg_htables     (MyOpenCL :: Buffer<HuffmanTable[4]> x) { return self.setArg(x, 4); } // __constant HuffmanTable arg(htable      )[2][4]   
+					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } //	__global   i32          arg(coefficients)[][8][8] ,
+					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 1); } //	__global   u32          arg(lengths     )[]       ,
+					fun bool setArg_codes       (MyOpenCL :: Buffer<CodedUnit      > x) { return self.setArg(x, 2); } //	__global   CodedUnit    arg(codes       )[]       ,
+					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 3); } //	__constant LaneInfo     arg(lane_infos  )[]       ,
+					fun bool setArg_htables     (MyOpenCL :: Buffer<HuffmanTable[4]> x) { return self.setArg(x, 4); } //	__constant HuffmanTable arg(htable      )[2][4]   
 				} encodeHuffman;
 				struct prefixSumLengths1 : MyOpenCL :: Kernel<1> /* 1: unit_count / full_step */{
-					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } // __global   u32          arg(lengths     )[]       ,
-					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 1); } //            u32          arg(half_step   )         
+					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } //	__global   u32          arg(lengths     )[]       ,
+					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 1); } //	           u32          arg(half_step   )         
 				} prefixSumLengths1;
 				struct prefixSumLengths2 : MyOpenCL :: Kernel<1> /* 1: unit_count / full_step */{
-					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 1); } // __global   u32          arg(lengths     )[]       ,
-					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 2); } //            u32          arg(half_step   )         
+					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } //	__global   u32          arg(lengths     )[]       ,
+					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 1); } //	           u32          arg(half_step   )         
 				} prefixSumLengths2;
 				struct concatCodes : MyOpenCL :: Kernel<1> /* 1: unit_count */{
-					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } // __global   u32          arg(lengths     )[]       ,
-					fun bool setArg_codes       (MyOpenCL :: Buffer<CodedUnit      > x) { return self.setArg(x, 1); } // __global   u64          arg(codes       )[][26]   ,
-					fun bool setArg_payload     (MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 2); } // __global   u8           arg(payload     )[]       
+					fun bool setArg_lengths     (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } //	__global   u32          arg(lengths     )[]       ,
+					fun bool setArg_codes       (MyOpenCL :: Buffer<CodedUnit      > x) { return self.setArg(x, 1); } //	__global   CodedUnit    arg(codes       )[]       ,
+					fun bool setArg_payload     (MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 2); } //	__global   u8           arg(payload     )[]       
 				} concatCodes;
 
 				fun bool init(MyOpenCL :: Program program) {
@@ -114,6 +114,7 @@ namespace BJpeg {
 					//	1665 / 64 = 26.016
 					//	26 * 64 = 1664 (good enough)
 					//	u64[26] should be enough to contain a single unit (8x8 block)
+					//	changed to u32[52]
 				
 				MyOpenCL :: Buffer<u8> payload;
 				
@@ -141,7 +142,7 @@ namespace BJpeg {
 					{
 						u32 zero[1] = { 0 };
 						u32 last_length[1] = { UINT32_MAX };
-						CodedUnit last_coded_unit[1] = { { ~(u64)0 } };
+						CodedUnit last_coded_unit[1] = { { ~(u32)0 } };
 						if (!self.lengths.write(queue, zero           , 1, 0             )) { return false; }
 						if (!self.lengths.write(queue, last_length    , 1, unit_count + 1)) { return false; }
 						if (!self.codes  .write(queue, last_coded_unit, 1, unit_count    )) { return false; }
@@ -157,7 +158,7 @@ namespace BJpeg {
 					self.codes       .finish();
 				}
 				fun bool init2(MyOpenCL :: Context context, size_t size) {
-					if (!self.payload     .init(context, CL_MEM_HOST_READ_ONLY  | CL_MEM_WRITE_ONLY, size                )) { return false; }
+					if (!self.payload     .init(context, CL_MEM_HOST_READ_ONLY  | CL_MEM_WRITE_ONLY, size               )) { return false; }
 					return true;
 				}
 				fun void finish2() noexcept {

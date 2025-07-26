@@ -13,9 +13,6 @@ pass
 import json;
 import subprocess;
 
-def maybe_exit(r):
-	if r != 0: sys.exit(r);
-pass
 
 def cl_to_zzc(filename: str):
 	filename = filename.replace("\\", "/");
@@ -41,23 +38,37 @@ def cl_to_zzc(filename: str):
 	pass
 pass
 
-for (base, folders, files) in os.walk(__actual_dir__ + "/Src"):
+for (base, folders, files) in os.walk(__actual_dir__ + "/../Src"):
 	for filename in files:
 		if filename.endswith(".cl"): cl_to_zzc(base + "/" + filename);
 	pass
 pass
 
-maybe_exit(subprocess.run(["make"], cwd = __actual_dir__ + "/ClValidate/", stdout = subprocess.DEVNULL).returncode);
-for (base, folders, files) in os.walk(__actual_dir__ + "/Src"):
+subprocess.run(["make"], cwd = __actual_dir__ + "/ClValidate/", stdout = subprocess.DEVNULL).check_returncode();
+for (base, folders, files) in os.walk(__actual_dir__ + "/../Src"):
 	for filename in files:
-		if filename.endswith(".cl"): maybe_exit(subprocess.run([__actual_dir__ + "/ClValidate/a.exe", base + "/" + filename]).returncode);
+		if filename.endswith(".cl"): subprocess.run([__actual_dir__ + "/ClValidate/a.exe", base + "/" + filename]).check_returncode();
 	pass
 pass
 
-maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/ZZC/zzc.py", __actual_dir__ + "/Targets/Decode/"]).returncode);
-maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/ZZC/zzc.py", __actual_dir__ + "/Targets/Encode/"]).returncode);
-maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/Targets/Library/Static/Build.py"                ]).returncode);
-maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/ZZC/zzc.py", __actual_dir__ + "/Targets/Test/"  ]).returncode);
+def build(base, files):
+	if "Build.py" in files:
+		subprocess.run([sys.executable, base + "/Build.py", *sys.argv[1 : ]]).check_returncode();
+	else:
+		subprocess.run([sys.executable, __actual_dir__ + "/../ZZC/zzc.py", base, *sys.argv[1 : ]]).check_returncode();
+	pass
+pass
+
+for (base, folders, files) in os.walk(__actual_dir__ + "/../Targets/"):
+	if ".zzc.config.json" not in files: continue;
+	if base.endswith("Ide") or base.endswith("Ide/"): continue;
+	build(base, files);
+pass
+build(__actual_dir__ + "/../Targets/Ide/");
+#	subprocess.run([sys.executable, __actual_dir__ + "/../ZZC/zzc.py", __actual_dir__ + "/Targets/Decode/", *sys.argv[1 : ]]).check_returncode();
+#	subprocess.run([sys.executable, __actual_dir__ + "/../ZZC/zzc.py", __actual_dir__ + "/Targets/Encode/", *sys.argv[1 : ]]).check_returncode();
+#	subprocess.run([sys.executable, __actual_dir__ + "/../Targets/Library/Static/Build.py"                , *sys.argv[1 : ]]).check_returncode();
+#	subprocess.run([sys.executable, __actual_dir__ + "/../ZZC/zzc.py", __actual_dir__ + "/Targets/Test/"  , *sys.argv[1 : ]]).check_returncode();
 
 try: import winsound;
 except ImportError: pass;

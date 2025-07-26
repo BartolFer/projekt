@@ -1,5 +1,9 @@
 
+#if defined MAIN_TARGET_DECODE || defined MAIN_TARGET_ENCODE || defined TESTING
+
 pack MetaData {
 	int width, height;
 	int n_channels;
 };
+
+#endif

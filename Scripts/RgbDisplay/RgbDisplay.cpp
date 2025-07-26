@@ -4,7 +4,8 @@
 #include <chrono>
 #include <thread>
 
-#include "../Src/MetaData.zzc"
+#define MAIN_TARGET_DECODE
+#include "../../Src/MetaData.zzc"
 
 // Vertex Shader Source
 const char* vertexShaderSource = R"(

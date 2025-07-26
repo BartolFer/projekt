@@ -34,7 +34,7 @@ typedef struct {
 	u8 sf_x;
 } LaneInfo;
 
-typedef u64 CodedUnit[26];
+typedef u32 CodedUnit[52];
 
 __constant u8 const from_zigzag[64] = { 0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63, };
 __constant u8 const to_zigzag[8][8] = {
@@ -106,7 +106,7 @@ kernel void dct_quantization_zigzag/* 2: mcu_count, mcu_length */(
 ) {
 	u32 const mcu_index = get_global_id(0);
 	u32 const unit_index = get_global_id(1);
-	u8  const q_id = lane_infos[unit_index].c_id - 1;
+	u8  const q_id = lane_infos[unit_index].c_id == 1 ? 0 : 1;
 	u32 const index = get_global_linear_id();
 	
 	__private float temp[8][8];
@@ -173,18 +173,18 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 	u32 const mcu_index = get_global_id(0);
 	u32 const unit_index = get_global_id(1);
 	u32 const index = get_global_linear_id();
-	u8  const c_id_m1 = lane_infos[unit_index].c_id - 1;
+	u8  const h_id = lane_infos[unit_index].c_id == 1 ? 0 : 1;
 	
 	u16 length = 0;
 	#pragma region DC
 	{
 		i32 value = coefficients[index][0][0];
 		u8 SSSS = 32 - clz(abs(value));
-		CodeAndLength code_and_length = htables[0][c_id_m1][SSSS];
+		CodeAndLength code_and_length = htables[0][h_id][SSSS];
 		u32 mask = (1U << SSSS) - 1;
-		u64 code = 0
-			| (code_and_length.code << (64 - code_and_length.length))
-			| ((value & mask)       << (64 - code_and_length.length - SSSS))
+		u32 code = 0
+			| (code_and_length.code << (32 - code_and_length.length))
+			| ((value & mask)       << (32 - code_and_length.length - SSSS))
 		;
 		codes[index][0] = code;
 		length = code_and_length.length + SSSS;
@@ -214,19 +214,19 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 			i32 value = ac_infos[i].value;
 			u8 SSSS = 32 - clz(abs(value));
 			u8 RRRR = ac_infos[i].zeroes;
-			CodeAndLength code_and_length = htables[1][c_id_m1][(RRRR << 4) | SSSS];
+			CodeAndLength code_and_length = htables[1][h_id][RRRR << 4 | SSSS];
 			u32 my_length = code_and_length.length + SSSS;
 			u32 mask = (1U << SSSS) - 1;
-			u64 code = 0
-				| (code_and_length.code << (64 - code_and_length.length))
-				| ((value & mask)       << (64 - code_and_length.length - SSSS))
+			u32 code = 0
+				| (code_and_length.code << (32 - code_and_length.length))
+				| ((value & mask)       << (32 - code_and_length.length - SSSS))
 			;
-			u64 code_mask = ((1U << my_length) - 1) << (64 - my_length);
-			u8 word   = length / 64;
-			u8 offset = length % 64;
-			code = rotate(code, (u64) 64 - offset); //	this is left rotation
+			u32 code_mask = ((1U << my_length) - 1) << (32 - my_length);
+			u8 word   = length / 32;
+			u8 offset = length % 32;
+			code = rotate(code, (u32) 32 - offset); //	this is left rotation
 			codes[index][word    ] |= code & (code_mask >> offset); //	obviously, 1st bit must be at offset from MSB
-			codes[index][word + 1] |= code & (code_mask << (64 - offset)); //	obviously, must be shifted left the same amount as rotation
+			codes[index][word + 1] |= code & (code_mask << (32 - offset)); //	obviously, must be shifted left the same amount as rotation
 				//	lets say we have 8 bits, offset 3, my_length = 4
 				//	code      = 10100000
 				//	rotated   = 00010100
@@ -242,15 +242,15 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 			length += my_length;
 		}
 		if (ac_infos[last_zero].zeroes) {
-			CodeAndLength code_and_length = htables[1][c_id_m1][0];
+			CodeAndLength code_and_length = htables[1][h_id][0];
 			u32 my_length = code_and_length.length;
-			u64 code = code_and_length.code << (64 - code_and_length.length);
-			u64 code_mask = ((1U << my_length) - 1) << (64 - my_length);
-			u8 word   = length / 64;
-			u8 offset = length % 64;
-			code = rotate(code, (u64) 64 - offset); //	this is left rotation
+			u32 code = code_and_length.code << (32 - code_and_length.length);
+			u32 code_mask = ((1U << my_length) - 1) << (32 - my_length);
+			u8 word   = length / 32;
+			u8 offset = length % 32;
+			code = rotate(code, (u32) 32 - offset); //	this is left rotation
 			codes[index][word    ] |= code & (code_mask >> offset); //	obviously, 1st bit must be at offset from MSB
-			codes[index][word + 1] |= code & (code_mask << (64 - offset)); //	obviously, must be shifted left the same amount as rotation
+			codes[index][word + 1] |= code & (code_mask << (32 - offset)); //	obviously, must be shifted left the same amount as rotation
 			length += my_length;
 		}
 	}
@@ -303,40 +303,59 @@ kernel void concatCodes/* 1: unit_count */(
 	//	also be sure that there is enough in the next code
 	//	also, codes and lengths should be initialized with 1 more last element length >=8, code 0xFF...
 	
-	u32 const unit_index = get_global_id(0);
-	u32 const start_bit = lengths[unit_index];
-	u32 const length_bit = lengths[unit_index + 1] - start_bit;
-	u32 const start_bit_actual = ROUND_UP_8(start_bit);
-	u32 const delta_actual = start_bit_actual - start_bit;
-	u32 const length_bit_actual = length_bit - delta_actual;
-	u32 const start_byte = start_bit_actual / 8;
-	u32 const length_byte = length_bit_actual / 8;
-	u32 const length_byte_actual = ROUND_UP_8(length_bit_actual) / 8;
+	u32 const unit_index = get_global_id(0); // - get_global_offset(0);
+	u32 const start_bit = lengths[unit_index];                          //	start_bit >= 0
+	u32 const length_bit = lengths[unit_index + 1] - start_bit;         //	length_bit > 0
+	u32 const start_bit_actual = ROUND_UP_8(start_bit);                 //	start_bit_actual >= start_bit
+	//	bbx TODO uncomment when finished with bbx bb8a012d-0c86-4b16-8f75-bc722937dde6
+	if (start_bit + length_bit <= start_bit_actual) { return; }
+	u32 const delta_actual = start_bit_actual - start_bit;              //	length_bit > delta_actual
+	u32 const length_bit_actual = length_bit - delta_actual;            //	length_bit_actual > 0
+	u32 const start_byte = start_bit_actual / 8;                        //	start_byte * 8 == start_bit_actual
+	u32 const length_byte = length_bit_actual / 8;                      //	length_byte >= 0, but 0 is ok, since we do handle u to ceil(length_bit_actual / 8)
+	//	bbx bb8a012d-0c86-4b16-8f75-bc722937dde6
+	//	if (start_bit + length_bit <= start_bit_actual) { 
+	//		codes[unit_index][0] = 0xCCCCCCCC;
+	//		codes[unit_index][1] = 0xCCCCCCCC;
+	//		codes[unit_index][2] = 0xCCCCCCCC;
+	//		return; 
+	//	} else {
+	//		codes[unit_index][0] = start_byte;
+	//		codes[unit_index][1] = length_byte;
+	//		codes[unit_index][2] = start_byte + length_byte;
+	//		return; 
+	//	}
 	
-	//	start_bit = 5; start_bit_actual = 8;
-	//	delta_actual = 3;
-	//	0b 11111111 00000000 11111111 00000000 11111111 00000000 11111111 00000000
-	//	0b xxx11111 00000000 11111111 00000000 11111111 00000000 11111111 00000000
-	//	0b 11111000 00000111 11111000 00000111 11111000 00000111 11111000 00000???
-	u8 amount_to_shift = 64 - 8 - delta_actual;
-	u64 mask1 = N_ONES(8 - delta_actual) << delta_actual;
-	u64 mask2 = N_ONES(delta_actual) << (8 - delta_actual);
 	
-	for (int index = start_byte; index < length_byte; ++index) {
-		int index_code = index / sizeof(64);
-		u8 data = (codes[unit_index][index_code] >> amount_to_shift) & mask1;
-		if (amount_to_shift == 0) {
-			data |= codes[unit_index][index_code + 1] >> (64 - delta_actual);
+	//	TODO check/fix this comment
+	//	//	start_bit = 5; start_bit_actual = 8;
+	//	//	delta_actual = 3;
+	//	//	0b 11111111 00000000 11111111 00000000 11111111 00000000 11111111 00000000
+	//	//	0b xxx11111 00000000 11111111 00000000 11111111 00000000 11111111 00000000
+	//	//	0b 11111000 00000111 11111000 00000111 11111000 00000111 11111000 00000???
+	u8 amount_to_shift = 32 - 8 - delta_actual;
+	
+	for (u32 index = 0; index < length_byte; ++index) {
+		u32 index_code = index / sizeof(u32);
+		u8 data = codes[unit_index][index_code] >> delta_actual << delta_actual >> amount_to_shift;
+		if (amount_to_shift < 8) {
+			data |= codes[unit_index][index_code + 1] >> (32 - delta_actual);
 		}
-		payload[index] = data;
+		payload[start_byte + index] = data;
 		amount_to_shift -= 8;
-		amount_to_shift %= 64;
+		amount_to_shift %= 32;
 	}
-	if (length_byte_actual > length_byte) {
-		int index = length_byte;
-		int index_code = index / sizeof(64);
-		u8 data = (codes[unit_index][index_code] >> amount_to_shift) & mask1;
-		data |= codes[unit_index + 1][0] >> (64 - (length_bit_actual % 8));
-		payload[index] = data;
+	if (length_bit_actual % 8 != 0) {
+		u32 remaining_bits = length_bit_actual % 8;
+		i32 required_bit_length = 8 - remaining_bits;
+		u32 index = length_byte;
+		u32 index_code = index / sizeof(u32);
+		u8 data = codes[unit_index][index_code] >> amount_to_shift;
+		for (int their_index = unit_index + 1; required_bit_length > 0; ++their_index) {
+			u32 their_length_bit = lengths[their_index + 1] - lengths[their_index];
+			data |= codes[their_index][0] >> (32 - required_bit_length);
+			required_bit_length -= their_length_bit;
+		}
+		payload[start_byte + index] = data;
 	}
 }

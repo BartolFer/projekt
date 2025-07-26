@@ -12,11 +12,8 @@ pass
 
 import subprocess;
 
-def maybe_exit(r):
-	if r != 0: sys.exit(r);
-pass
 
-maybe_exit(subprocess.run([sys.executable, __actual_dir__ + "/../../../ZZC/zzc.py", __actual_dir__]).returncode);
+subprocess.run([sys.executable, __actual_dir__ + "/../../../../ZZC/zzc.py", __actual_dir__]).check_returncode();
 
 def copy_file(src: str, dst: str):
 	assert os.path.exists(src);

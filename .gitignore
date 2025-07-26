@@ -2,12 +2,13 @@ Build/
 Temp/
 gcm.cache/
 *.exe
-RgbDisplay/OpenGlDep/
-RgbDisplay/test.rgb
-RgbDisplay/V.cpp
+Scripts/RgbDisplay/OpenGlDep/
+Scripts/RgbDisplay/test.rgb
+Scripts/RgbDisplay/V.cpp
 Src/**/*.hpp
 Src/**/*.zzh
 __pycache__
 *.tmp.*
 .zzc.cache.json
 Targets/**/include/inner/
+*.zip

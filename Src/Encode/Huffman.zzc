@@ -44,16 +44,19 @@ namespace BJpeg {
 				size_t size = 2;
 				for (int dc_ac = 0; dc_ac < 2; ++dc_ac) {
 					for (int id = 0; id < 2; ++id) {
-						HuffmanTable copy; memcpy(&copy, &table[dc_ac][id], sizeof(HuffmanTable));
-						std :: sort(std :: begin(copy), std :: end(copy), [] (auto a, auto b) { return a.code < b.code; }); //	if a.code < b.code, then a.length < b.length
+						u8 sorted_values[256]; for (u16 v = 0; v < 256; ++v) { sorted_values[v] = v; }
+						HuffmanTable& huf = table[dc_ac][id];
+						std :: sort(std :: begin(sorted_values), std :: end(sorted_values), [&huf] (auto a, auto b) { return huf[a].code < huf[b].code; }); //	if a.code < b.code, then a.length < b.length
 						
 						dst[2 + size] = (dc_ac << 4) | id;
 						u8* counts = &dst[2 + size + 1 - 1]; //	offset by 1 because 1st length is 1
 						u8* values = &dst[2 + size + 1 + 16];
 						size += 1 + 16;
+						for (int l = 1; l <= 16; ++l) { counts[l] = 0; }
 						int value_index = 0;
-						for (int value = 0; value < 256; ++value) {
-							auto [code, length] = copy[value];
+						for (int i = 0; i < 256; ++i) {
+							u8 value = sorted_values[i];
+							auto [code, length] = huf[value];
 							if (length) {
 								++counts[length];
 								++size;
