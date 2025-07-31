@@ -31,17 +31,18 @@ namespace BJpeg {
 		
 		namespace {
 			DECODE_FUN(misc) {
+				clog("bbx misc");
 				// while (true) { // actually, while has something to read
 				for (int i = 0; i < 100; ++i) { // actually, while has something to read
-					if (DECODE_READ_U8 != 0xFF) { return DECODE_RESULT_ERR; }
+					if (DECODE_READ_U8 != 0xFF) { clog("bbx 7"); return DECODE_RESULT_ERR; }
 					u8 m = DECODE_READ_U8;
 					u16 segment_length; DECODE_READ_U16(segment_length);
 					switch (m) {
-						case Marker :: DHT: {
+						case Marker :: DHT: clog("bbx DHT"); {
 							auto end = index + segment_length - 2;
 							while (index < end) {
 								u8 table_class, table_dest; DECODE_READ_U4(table_class, table_dest);
-								if (table_class > 1 || table_dest > 3) { return DECODE_RESULT_ERR; }
+								if (table_class > 1 || table_dest > 3) { clog("bbx 1"); return DECODE_RESULT_ERR; }
 								HuffmanTree& huffman = context.huffman_tree[table_class][table_dest];
 								huffman.reset();
 								u16 last_assigned_index = 0;
@@ -66,32 +67,32 @@ namespace BJpeg {
 									code <<= 1;
 								}
 								if (last_code + 1 != 1 << last_length) {
-									return DECODE_RESULT_ERR;
+									clog("bbx 2"); return DECODE_RESULT_ERR;
 								}
 								huffman.setLastNode(last_length);
 								index = values_start + value_index;
 							}
-							if (!context.updateHuffmanCL()) { return DECODE_RESULT_ERR; }
+							if (!context.updateHuffmanCL()) { clog("bbx 3"); return DECODE_RESULT_ERR; }
 						} break;
-						case Marker :: DAC: {
+						case Marker :: DAC: clog("bbx DAC"); {
 							// not implemented
 							index += segment_length - 2;
 						} break;
-						case Marker :: DQT: {
+						case Marker :: DQT: clog("bbx DQT"); {
 							for (u32 end = index - 2 + segment_length; index < end; ) {
 								u8 Pq, Tq; DECODE_READ_U4(Pq, Tq);
-								if (Tq > 3) { return DECODE_RESULT_ERR; }
+								if (Tq > 3) { clog("bbx 4"); return DECODE_RESULT_ERR; }
 								u16* table = &context.quantization_table[Tq][0][0];
 								// or just memcpy + index update // but not actually (it complicates things, but is done once per image (not worth it))
 								if (Pq == 0) { for (u8 i = 0; i < 64; ++i) { table[i] = DECODE_READ_U8; } } 
 								else         { for (u8 i = 0; i < 64; ++i) { DECODE_READ_U16(table[i]); } }
 							}
-							if (!context.updateQTableCL()) { return DECODE_RESULT_ERR; }
+							if (!context.updateQTableCL()) { clog("bbx 5"); return DECODE_RESULT_ERR; }
 						} break;
-						case Marker :: DRI: {
+						case Marker :: DRI: clog("bbx DRI"); {
 							DECODE_READ_U16(context.restart_interval);
 						} break;
-						case Marker :: COM: { index += segment_length - 2; } break;
+						case Marker :: COM: clog("bbx COM"); { index += segment_length - 2; } break;
 						default: {
 							if (Marker :: isAPP(m)) {
 								index += segment_length - 2;
@@ -106,9 +107,10 @@ namespace BJpeg {
 				return DECODE_RESULT_OK;
 			}
 			DECODE_FUN(hierarchical) {
+				clog("bbx hierarchical");
 				std :: cerr << "Hierarchical mode not supported\n";
 				// TODO if enabled, refactor frame (see [564678324])
-				return DECODE_RESULT_ERR;
+				clog("bbx 6"); return DECODE_RESULT_ERR;
 				u32 result;
 				ASSERT_MARKER(Marker :: DHP);
 				u16 Lf; DECODE_READ_U16(Lf);
@@ -131,11 +133,12 @@ namespace BJpeg {
 				}
 			}
 			DECODE_FUN(frame) {
+				clog("bbx frame");
 				u32 result;
-				if (DECODE_READ_U8 != 0xFF) { return DECODE_RESULT_ERR; }
+				if (DECODE_READ_U8 != 0xFF) { clog("bbx 0"); return DECODE_RESULT_ERR; }
 				// TODO
 				u8 marker = DECODE_READ_U8;
-				if (!Marker :: isSOF(marker)) { return DECODE_RESULT_ERR; }
+				if (!Marker :: isSOF(marker)) { clog("bbx 8"); return DECODE_RESULT_ERR; }
 				context.sof_data = Marker :: SOFData(marker);
 				u16 Lf; DECODE_READ_U16(Lf);
 				context.precision = DECODE_READ_U8;
@@ -146,7 +149,7 @@ namespace BJpeg {
 				u8 Nf = DECODE_READ_U8;
 				if (Nf >= MAX_COMPONENTS) { 
 					std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: " << Nf << "\n";
-					return DECODE_RESULT_ERR;
+					clog("bbx 9"); return DECODE_RESULT_ERR;
 				}
 				context.component_count = Nf;
 				context.size.file_size = file.length;
@@ -154,14 +157,14 @@ namespace BJpeg {
 				context.size.x_mayor = context.X;
 				context.size.y_minor = ROUND_UP_8(context.Y) / 8;
 				context.size.x_minor = ROUND_UP_8(context.X) / 8;
-				if (!context.initBuffers1()) { return DECODE_RESULT_ERR; }
+				if (!context.initBuffers1()) { clog("bbx 10"); return DECODE_RESULT_ERR; }
 				defer { context.finishBuffers1(); };
-				//	if (!context.cl.initBuffers(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { return DECODE_RESULT_ERR; }
+				//	if (!context.cl.initBuffers(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { clog("bbx 11"); return DECODE_RESULT_ERR; }
 				for (u8 i = 0; i < Nf; ++i) {
 					u8 C = DECODE_READ_U8;
 					if (C >= MAX_COMPONENTS) {
 						std :: cerr << "Not supported more than " << MAX_COMPONENTS << " components: c=" << C << "\n";
-						return DECODE_RESULT_ERR;
+						clog("bbx 12"); return DECODE_RESULT_ERR;
 					}
 					auto& component_data = context.component_data[C];
 					DECODE_READ_U4(component_data.sampling_factor_x, component_data.sampling_factor_y);
@@ -172,7 +175,7 @@ namespace BJpeg {
 				// DNL
 				if (CHECK_MARKER(Marker :: DNL)) {
 					std :: cerr << "DNL not supported\n";
-					return DECODE_RESULT_ERR;
+					clog("bbx 13"); return DECODE_RESULT_ERR;
 					u16 Ld; DECODE_READ_U16(Ld);
 					u16 NL; DECODE_READ_U16(NL);
 				}

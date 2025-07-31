@@ -92,6 +92,7 @@ pass
 if timing: print("index:", timer, flush = True);
 
 outdated = [file for file in zzc_files if isOutdated(file)];
+#	print(outdated);
 if not outdated: sys.exit(0);
 for file in zzc_files:
 	if file in outdated: continue;
@@ -174,7 +175,7 @@ for file in outdated:
 	pass
 pass
 if timing: print("2nd  :", timer, flush = True);
-if config.nocompile or "-nocompile" in sys.argv[2 : ]:
+if config.nocompile:
 	print("nocompile");
 	sys.exit();
 pass

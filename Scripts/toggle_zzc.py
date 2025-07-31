@@ -12,7 +12,7 @@ pass
 
 
 
-with open(__actual_dir__ + "/.zzc.config.json") as file:
+with open(__actual_dir__ + "/" + "./.zzc.config.json") as file:
 	raw = file.read();
 pass
 index = raw.index('"nocompile": ') + len('"nocompile": ');
@@ -25,7 +25,7 @@ else:
 	nc = False;
 	b = "false" + b[4 : ];
 pass
-with open(__actual_dir__ + "/.zzc.config.json", "w") as file:
+with open(__actual_dir__ + "/" + "./.zzc.config.json", "w") as file:
 	file.write(a + b);
 pass
 

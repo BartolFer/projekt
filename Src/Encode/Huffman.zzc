@@ -69,6 +69,93 @@ namespace BJpeg {
 				dst[3] = size & 0xFF;
 				return dst + 2 + size;
 			}
+			fun void generateTable(u32 (&frequencies)[256], HuffmanTable& huffman) {
+				constexpr u8 VALUE_THAT_IS_NOT_USED = 0XE0;
+				frequencies[VALUE_THAT_IS_NOT_USED] = 1;
+				u8  code_size[256] = { 0 };
+				i16 others   [256]; for (auto& x : others) { x = -1; }
+				auto searchLeastFrequent = [&frequencies](int v0 = -1) {
+					u32 min_f = UINT32_MAX;
+					u8 res = v0;
+					for (u8 v = 256 - 1; v-- > 0; ) {
+						if (v == v0) { continue; }
+						auto f = frequencies[v];
+						if (f > 0 && f < min_f) {
+							min_f = f;
+							res = v;
+						}
+					}
+					return res;
+				};
+				
+				//	Code_SIZE
+				while (true) {
+					i16 v1 = searchLeastFrequent();
+					i16 v2 = searchLeastFrequent(v1);
+					if (v2 == v1) { break; }
+					frequencies[v1] += frequencies[v2];
+					frequencies[v2] = 0;
+					while (true) {
+						++code_size[v1];
+						if (others[v1] == -1) { break; }
+						v1 = others[v1];
+					}
+					others[v1] = v2;
+					while (true) {
+						++code_size[v2];
+						if (others[v2] == -1) { break; }
+						v2 = others[v2];
+					}
+				}
+				
+				//	Count_BITS
+				u8 bits[32] = { 0 };
+				for (int i = 0; i < 257; ++i) {
+					auto cs = code_size[i];
+					if (cs != 0) {
+						++bits[cs - 1];
+					}
+				}
+				
+				//	Adjust_BITS
+				int i = 31;
+				for (; i > 15; --i) {
+					while (bits[i] > 0) {
+						int j = i - 1;
+						do { --j; } while (bits[j] == 0);
+						bits[i    ] -= 2;
+						bits[i - 1] += 1;
+						bits[j + 1] += 2;
+						bits[j    ] -= 1;
+					}
+				}
+				while (bits[i] == 0) { --i; }
+				--bits[i]; //	remove last code
+				code_size[VALUE_THAT_IS_NOT_USED] = 0;
+				
+				//	fill table
+				u8 values[256]; for (int v = 0; v < 256; ++v) { values[v] = v; }
+				std :: stable_sort(std :: begin(values), std :: end(values), [&code_size](u8 v1, u8 v2) { return code_size[v1] < code_size[v2] && code_size[v1] != 0; });
+				for (auto& c_l : huffman) { c_l = { 0, 0 }; }
+				u16 code = 0;
+				u8 value_index = 0;
+				u8 last_length = 1;
+				u32 last_code  = 0;
+				for (u8 length = 1; length <= 16; ++length) {
+					u8 const count = bits[length - 1];
+					for (u8 i = 0; i < count; ++i) {
+						u8 value = values[value_index];
+						huffman[value] = { code, length };
+						
+						++code;
+						++value_index;
+						
+						last_code = code;
+						last_length = length;
+					}
+					code <<= 1;
+				}
+			}
 		}
 		//	This should've gone to Encoder.zzc, but bug in ZZC causes error when using circular imports
 		fun inline u8* writeMarker(u8* dst, u8 marker) {

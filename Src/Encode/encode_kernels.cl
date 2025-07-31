@@ -23,6 +23,7 @@ typedef struct { float arr[4]; } RGBAF_ARR;
 #define MAX_MCU_LENGTH 10
 #define ROUND_UP_8(x) ((x + 7) & ~7)
 #define N_ONES(n) ((1 << (n)) - 1)
+#define VALUE_THAT_IS_NOT_USED ((u8)0XE0)
 
 typedef struct { u16 code, length; } CodeAndLength;
 typedef CodeAndLength HuffmanTable[256];
@@ -79,8 +80,8 @@ kernel void interleave_downsample/* 2: MCU_Y, MCU_X */(
 	u32 const mcu_y = get_global_id(0);
 	u32 const mcu_x = get_global_id(1);
 	u32 const base_index = get_global_linear_id() * mcu_length;
-	u32 const base_y = mcu_y * max_sf.y;
-	u32 const base_x = mcu_x * max_sf.x;
+	u32 const base_y = mcu_y * max_sf.y * 8;
+	u32 const base_x = mcu_x * max_sf.x * 8;
 	int index = 0; //	hacky, but not bad
 	for (int c_id_m1 = 0; c_id_m1 < 3; ++c_id_m1) {
 		u8 sf_y = lane_infos[c_id_m1].sf_y;
@@ -163,6 +164,168 @@ kernel void deltaDC2/* 1: unit_count */(
 	coefficients[index][0][0] = dc_temp[index];
 }
 
+kernel void gatherHuffmanValues/* 2: mcu_count, mcu_length */(
+	__global   i32          arg(coefficients)[][8][8] ,
+	__global   u8           arg(hvalues_dc_0)[]       ,
+	__global   u8           arg(hvalues_dc_1)[]       ,
+	__global   u8           arg(hvalues_ac_0)[]       ,
+	__global   u8           arg(hvalues_ac_1)[]       ,
+	__constant LaneInfo     arg(lane_infos  )[]       ,
+	__constant HuffmanTable arg(htables     )[2][4]   
+) {
+	u32 const mcu_index = get_global_id(0);
+	u32 const lane_id = get_global_id(1);
+	u32 const index = get_global_linear_id();
+	u8  const h_id = lane_infos[lane_id].c_id == 1 ? 0 : 1;
+	
+	__global u8* dc = h_id ? hvalues_dc_0 : hvalues_dc_1;
+	__global u8* ac = h_id ? hvalues_ac_0 : hvalues_ac_1;
+	
+	#pragma region DC
+	{
+		i32 value = coefficients[index][0][0];
+		u8 SSSS = 32 - clz(abs(value));
+		dc[index] = SSSS;
+	}
+	#pragma endregion
+	#pragma region AC
+	{
+		u8 RRRR = 0;
+		u8 last_nonzero = 0;
+		for (u8 ac_index = 0; ac_index < 63; ++ac_index) {
+			i32 value = coefficients[index][0][ac_index + 1];
+			if (value == 0) {
+				if (RRRR == 15) {
+					ac[ac_index] = 0xF0;
+					RRRR = 0;
+				} else {
+					ac[ac_index] = VALUE_THAT_IS_NOT_USED;
+					++RRRR;
+				}
+			} else {
+				u8 SSSS = 32 - clz(abs(value));
+				ac[ac_index] = RRRR << 4 | SSSS;
+				RRRR = 0;
+				last_nonzero = ac_index;
+			}
+		}
+		if (last_nonzero == 62) { return; }
+		ac[last_nonzero + 1] = 0x00;
+		for (u8 ac_index = last_nonzero + 2; ac_index < 63; ++ac_index) {
+			ac[ac_index] = VALUE_THAT_IS_NOT_USED;
+		}
+		
+	}
+	#pragma endregion
+}
+kernel void radixSort_createAB/* 1: hvalues.length - 1 */(
+	__global   u8           arg(hvalues     )[]       ,
+	__global   u32          arg(A           )[]       , //	rmember to initialize first element //	we can save space by allocating only the largest array and reusing it
+	__global   u32          arg(B           )[]       , //	rmember to initialize first element //	we can save space by allocating only the largest array and reusing it
+	           u8           arg(pow         )         
+) {
+	u32 index = get_global_id(0);
+	u32 n_m1 = get_global_size(0);
+	A[index + 1   ] = !(hvalues[index    ] >> pow & 1);
+	B[n_m1 - index] =   hvalues[index + 1] >> pow & 1 ;
+}
+kernel void radixSort_prefixSum1/* 1: hvalues.length / full_step */(
+	__global   u8           arg(hvalues     )[]       ,
+	__global   u32          arg(A           )[]       ,
+	__global   u32          arg(B           )[]       ,
+	           u32          arg(half_step   )         
+) {
+	u32 const index = get_global_id(0);
+	u32 full_step = half_step * 2;
+	
+	u32 const index_b = full_step + index * full_step - 1;
+	u32 const index_a = index_b - half_step;
+	
+	A[index_b] += A[index_a];
+	B[index_b] += B[index_a];
+}
+kernel void radixSort_prefixSum2/* 1: (hvalues.length - half_step) / full_step, if hvalues.length > half_step */(
+	__global   u8           arg(hvalues     )[]       ,
+	__global   u32          arg(A           )[]       ,
+	__global   u32          arg(B           )[]       ,
+	           u32          arg(half_step   )         
+) {
+	u32 const index = get_global_id(0);
+	u32 full_step = half_step * 2;
+	
+	u32 const index_a = full_step + index * full_step - 1;
+	u32 const index_b = index_a + half_step;
+	
+	A[index_b] += A[index_a];
+	B[index_b] += B[index_a];
+}
+kernel void radixSort_rearange/* 1: hvalues.length */(
+	__global   u8           arg(hvalues     )[]       ,
+	__global   u8           arg(hvalues_dst )[]       ,
+	__global   u32          arg(A           )[]       ,
+	__global   u32          arg(B           )[]       ,
+	           u8           arg(pow         )         
+) {
+	u32 const index = get_global_id(0);
+	u32 const n_m1 = get_global_size(0) - 1;
+	u32 const index_dst = hvalues[index] >> pow & 1 ? n_m1 - B[n_m1 - index] : A[index];
+	hvalues_dst[index_dst] = hvalues[index];
+}
+
+kernel void initCountsLarge/* 1: hvalues.length */(
+	__global   u32          arg(counts_large)[]       
+) {
+	counts_large[get_global_id(0)] = 1;
+}
+kernel void initCounts/* 2: 4, 256 */(
+	__global   u32          arg(last_writers)[4][256] ,
+	__global   u32          arg(counts      )[4][256]  
+) {
+	last_writers[get_global_id(0)][get_global_id(1)] = 0;
+	counts      [get_global_id(0)][get_global_id(1)] = 0;
+}
+kernel void countOccurances1/* 1: hvalues.length / full_step */(
+	__global   u8           arg(hvalues     )[]       ,
+	__global   u32          arg(counts_large)[]       ,
+	           u32          arg(half_step   )         
+) {
+	u32 const index = get_global_id(0);
+	u32 full_step = half_step * 2;
+	
+	u32 const index_b = full_step + index * full_step - 1;
+	u32 const index_a = index_b - half_step;
+	
+	if (hvalues[index_a] == hvalues[index_b]) {
+		counts_large[index_b] += counts_large[index_a];
+	}
+}
+kernel void countOccurances2/* 1: (hvalues.length - half_step) / full_step, if hvalues.length > half_step */(
+	__global   u8           arg(hvalues     )[]       ,
+	__global   u32          arg(counts_large)[]       ,
+	__global   u32          arg(last_writers)[4][256] ,
+	__global   u32          arg(counts      )[4][256] ,
+	           u8           arg(id          )         , //	id = binary(DC/AC, Y/CbCr)
+	           u32          arg(half_step   )         
+) {
+	u32 const index = get_global_id(0);
+	u32 full_step = half_step * 2;
+	
+	u32 const index_a = index * full_step - 1;
+	u32 const index_b = index_a + half_step;
+
+	u32 const count = counts_large[index_b];
+	u8  const value = hvalues     [index_b];
+	u32 const current     = counts      [id][value];
+	u32 const last_writer = last_writers[id][value];
+	
+	if (last_writer > index_b) { return; }
+	
+	
+	counts      [id][value] += count;
+	last_writers[id][value] = index_b;
+}
+
+
 kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 	__global   i32          arg(coefficients)[][8][8] ,
 	__global   u32          arg(lengths     )[]       ,
@@ -171,15 +334,20 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 	__constant HuffmanTable arg(htables     )[2][4]   
 ) {
 	u32 const mcu_index = get_global_id(0);
-	u32 const unit_index = get_global_id(1);
+	u32 const lane_id = get_global_id(1);
 	u32 const index = get_global_linear_id();
-	u8  const h_id = lane_infos[unit_index].c_id == 1 ? 0 : 1;
+	u8  const h_id = lane_infos[lane_id].c_id == 1 ? 0 : 1;
+	
+	for (int i = 0; i < sizeof(CodedUnit) / sizeof(codes[0][0]); ++i) {
+		codes[index][i] = 0;
+	}
 	
 	u16 length = 0;
 	#pragma region DC
 	{
 		i32 value = coefficients[index][0][0];
 		u8 SSSS = 32 - clz(abs(value));
+		if (value < 0) { --value; }
 		CodeAndLength code_and_length = htables[0][h_id][SSSS];
 		u32 mask = (1U << SSSS) - 1;
 		u32 code = 0
@@ -192,20 +360,20 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 	#pragma endregion
 	#pragma region AC
 	{
-		struct ACInfo { i32 value; u8 zeroes; u8 valid; } ac_infos[64] = {0};
+		struct ACInfo { i32 value; u8 zeroes; /* u8 valid; */ } ac_infos[64] = {0};
 		int current_index = 0;
 		int last_zero = 0;
 		for (int ac_index = 1; ac_index < 64; ++ac_index) {
 			i32 value = coefficients[index][0][ac_index];
 			if (value == 0) {
 				if (ac_infos[current_index].zeroes == 15) {
-					ac_infos[current_index].valid = true;
+					//	ac_infos[current_index].valid = true;
 					++current_index;
 				} else {
 					++ac_infos[current_index].zeroes;
 				}
 			} else {
-				ac_infos[current_index].valid = true;
+				//	ac_infos[current_index].valid = true;
 				ac_infos[current_index].value = value;
 				last_zero = ++current_index;
 			}
@@ -213,6 +381,7 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 		for (int i = 0; i < last_zero; ++i) {
 			i32 value = ac_infos[i].value;
 			u8 SSSS = 32 - clz(abs(value));
+			if (value < 0) { --value; }
 			u8 RRRR = ac_infos[i].zeroes;
 			CodeAndLength code_and_length = htables[1][h_id][RRRR << 4 | SSSS];
 			u32 my_length = code_and_length.length + SSSS;
@@ -224,7 +393,7 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 			u32 code_mask = ((1U << my_length) - 1) << (32 - my_length);
 			u8 word   = length / 32;
 			u8 offset = length % 32;
-			code = rotate(code, (u32) 32 - offset); //	this is left rotation
+			code = rotate(code, (u32) 32 - offset); //	rotate is left rotation, so this is actually right rotation by `offset` bits
 			codes[index][word    ] |= code & (code_mask >> offset); //	obviously, 1st bit must be at offset from MSB
 			codes[index][word + 1] |= code & (code_mask << (32 - offset)); //	obviously, must be shifted left the same amount as rotation
 				//	lets say we have 8 bits, offset 3, my_length = 4
@@ -248,7 +417,7 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 			u32 code_mask = ((1U << my_length) - 1) << (32 - my_length);
 			u8 word   = length / 32;
 			u8 offset = length % 32;
-			code = rotate(code, (u32) 32 - offset); //	this is left rotation
+			code = rotate(code, (u32) 32 - offset); //	rotate is left rotation, so this is actually right rotation by `offset` bits
 			codes[index][word    ] |= code & (code_mask >> offset); //	obviously, 1st bit must be at offset from MSB
 			codes[index][word + 1] |= code & (code_mask << (32 - offset)); //	obviously, must be shifted left the same amount as rotation
 			length += my_length;
@@ -333,24 +502,37 @@ kernel void concatCodes/* 1: unit_count */(
 	//	//	0b 11111111 00000000 11111111 00000000 11111111 00000000 11111111 00000000
 	//	//	0b xxx11111 00000000 11111111 00000000 11111111 00000000 11111111 00000000
 	//	//	0b 11111000 00000111 11111000 00000111 11111000 00000111 11111000 00000???
-	u8 amount_to_shift = 32 - 8 - delta_actual;
 	
-	for (u32 index = 0; index < length_byte; ++index) {
-		u32 index_code = index / sizeof(u32);
-		u8 data = codes[unit_index][index_code] >> delta_actual << delta_actual >> amount_to_shift;
-		if (amount_to_shift < 8) {
-			data |= codes[unit_index][index_code + 1] >> (32 - delta_actual);
+	for (u32 index_code = 0, index = 0; index < length_byte; ++index_code) {
+		__attribute__((opencl_unroll_hint(4)))
+		for (int amount_to_shift = 32 - 8; amount_to_shift >= 0 && index < length_byte; amount_to_shift -= 8, ++index) {
+			u8 data = codes[unit_index][index_code] << delta_actual >> amount_to_shift;
+			if (amount_to_shift == 0) {
+				data |= codes[unit_index][index_code + 1] << delta_actual >> 32;
+			}
+			payload[start_byte + index] = data;
 		}
-		payload[start_byte + index] = data;
-		amount_to_shift -= 8;
-		amount_to_shift %= 32;
 	}
+	//	u8 amount_to_shift = 32 - 8;
+	//	
+	//	for (u32 index = 0; index < length_byte; ++index) {
+	//		u32 index_code = index / sizeof(u32);
+	//		u8 data = codes[unit_index][index_code] >> delta_actual << delta_actual >> amount_to_shift;
+	//		if (amount_to_shift < 8) {
+	//			data |= codes[unit_index][index_code + 1] >> (32 - delta_actual);
+	//		}
+	//		payload[start_byte + index] = data;
+	//		amount_to_shift -= 8;
+	//		amount_to_shift %= 32;
+	//	}
+	
 	if (length_bit_actual % 8 != 0) {
-		u32 remaining_bits = length_bit_actual % 8;
-		i32 required_bit_length = 8 - remaining_bits;
+		u32 my_bit_length = length_bit_actual % 8;
+		i32 required_bit_length = 8 - my_bit_length;
 		u32 index = length_byte;
 		u32 index_code = index / sizeof(u32);
-		u8 data = codes[unit_index][index_code] >> amount_to_shift;
+		u8 amount_to_shift = 32 - 8 - 8 * (index % sizeof(u32));
+		u8 data = codes[unit_index][index_code] << delta_actual >> amount_to_shift;
 		for (int their_index = unit_index + 1; required_bit_length > 0; ++their_index) {
 			u32 their_length_bit = lengths[their_index + 1] - lengths[their_index];
 			data |= codes[their_index][0] >> (32 - required_bit_length);

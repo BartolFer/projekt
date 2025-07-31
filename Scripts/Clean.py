@@ -21,7 +21,7 @@ pass
 def rmfile(path):
 	if os.path.exists(path) and os.path.isfile(path): os.remove(path);
 pass
-for (base, folders, files) in os.walk(__actual_dir__ + "/../Src/"):
+for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src/"):
 	for filename in files:
 		if filename.endswith(".zzh"):
 			os.remove(base + "/" + filename);
@@ -30,7 +30,7 @@ for (base, folders, files) in os.walk(__actual_dir__ + "/../Src/"):
 		pass
 	pass
 pass
-for (base, folders, files) in os.walk(__actual_dir__ + "/../Targets/"):
+for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Targets/"):
 	if ".zzc.config.json" not in files: continue;
 	if "Clean.py" in files:
 		if subprocess.run([sys.executable, base + "/Clean.py"]).returncode != 0: print("Could not Clean", base);

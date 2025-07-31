@@ -18,5 +18,5 @@ def rmdir(path):
 	if os.path.exists(path) and os.path.isdir(path): shutil.rmtree(path);
 pass
 
-rmdir(__actual_dir__ + "/include/inner/");
+rmdir(__actual_dir__ + "/" + "./include/inner/");
 

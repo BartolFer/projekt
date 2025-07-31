@@ -120,6 +120,8 @@ namespace MyOpenCL {
 		fun bool callKernel(Queue queue, size_t const* global_size, size_t const* global_offset = nullptr, size_t const* local_size = nullptr) {
 			cl_int err = clEnqueueNDRangeKernel(queue.queue, self.kernel, N, global_offset, global_size, local_size, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, self.name << " Failed to enqueue kernel");
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, self.name << " Failed to enqueue kernel f");
 			return true;
 		}
 	};
@@ -143,47 +145,65 @@ namespace MyOpenCL {
 		fun bool write(Queue queue, T* buffer) {
 			cl_int err = clEnqueueWriteBuffer(queue.queue, self.buffer, CL_TRUE, 0, self.length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to write buffer - ");
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to write buffer f - ");
 			return true;
 		}
 		fun bool write(Queue queue, T* buffer, size_t length) {
 			cl_int err = clEnqueueWriteBuffer(queue.queue, self.buffer, CL_TRUE, 0, length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to write buffer l ");
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to write buffer f l ");
 			return true;
 		}
 		fun bool write(Queue queue, T* buffer, size_t length, size_t offset) {
 			cl_int err = clEnqueueWriteBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T), length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to write buffer o ");
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to write buffer f o ");
 			return true;
 		}
 		fun bool write(Queue queue, void* buffer, size_t length, size_t offset, size_t part_length, size_t part_offset) {
 			cl_int err = clEnqueueWriteBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T) + part_offset, length * sizeof(T) + part_length, buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to write buffer o+");
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to write buffer f o+");
 			return true;
 		}
 		fun bool read(Queue queue, T* buffer) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, 0, self.length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to read buffer -");
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to read buffer f -");
 			return true;
 		}
 		fun bool read(Queue queue, T* buffer, size_t length) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, 0, length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to read buffer l " << length);
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to read buffer f l " << length);
 			return true;
 		}
 		fun bool read(Queue queue, T* buffer, size_t length, size_t offset) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T), length * sizeof(T), buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to read buffer o " << length << " @" << offset);
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to read buffer f o " << length << " @" << offset);
 			return true;
 		}
 		fun bool read(Queue queue, void* buffer, size_t length, size_t offset, size_t part_length, size_t part_offset) {
 			cl_int err = clEnqueueReadBuffer(queue.queue, self.buffer, CL_TRUE, offset * sizeof(T) + part_offset, length * sizeof(T) + part_length, buffer, 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to read buffer o+ ");
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to read buffer f o+ ");
 			return true;
 		}
 		
 		fun bool copy(Queue queue, size_t length, size_t offset, Buffer<T> dst, size_t dst_offset) {
 			cl_int err = clEnqueueCopyBuffer(queue.queue, self.buffer, dst.buffer, offset * sizeof(T), dst_offset * sizeof(T), length * sizeof(T), 0, nullptr, nullptr);
 			ERROR_HANDLING(err, "Failed to copy buffer");
+			err = clFinish(queue.queue);
+			ERROR_HANDLING(err, "Failed to copy buffer f");
 			return true;
 		}
 	};

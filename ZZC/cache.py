@@ -47,9 +47,10 @@ def buildDependancies() -> tuple[Dependancies, Dependancies]:
 	return (inflated, reversed);
 pass
 def isOutdated(file: File) -> bool:
-	if not os.path.exists(file.abs_file.obj): return True;
+	relevant = file.abs_file.obj if not config.nocompile else file.abs_file.macro_temp_1;
+	if not os.path.exists(relevant): return True;
 	a = os.stat(file.abs_file.path);
-	b = os.stat(file.abs_file.obj);
+	b = os.stat(relevant);
 	if a.st_mtime > b.st_mtime: return True;
 	return False;
 pass

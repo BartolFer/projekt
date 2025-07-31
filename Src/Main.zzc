@@ -71,7 +71,7 @@ namespace BJpeg {
 		if (argc > 5) {
 			printf("Usage: <exe> path/to/file.rgba path/to/definitions/jpg path/to/output.jpg sampling_factors\n");
 			exit(EXIT_FAILURE);
-		}
+		} 
 		char const* path        = argc >= 2 ? argv[1] : "D:/Personal/nastava/projekt/Temp/output.rgba";
 		std :: string def_path  = argc >= 3 ? argv[2] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.def.jpg";
 		char const* output_path = argc >= 4 ? argv[3] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.out.jpg";

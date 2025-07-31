@@ -13,7 +13,7 @@ pass
 import subprocess;
 
 
-subprocess.run([sys.executable, __actual_dir__ + "/../../../../ZZC/zzc.py", __actual_dir__]).check_returncode();
+subprocess.run([sys.executable, __actual_dir__ + "/" + "./../../../ZZC/zzc.py", __actual_dir__]).check_returncode();
 
 def copy_file(src: str, dst: str):
 	assert os.path.exists(src);
@@ -42,8 +42,8 @@ def rebase(path, base_src, base_dst):
 	return res;
 pass
 
-src = __actual_dir__ + "/Build/Cpp/";
-inner = __actual_dir__ + "/include/inner/";
+src = __actual_dir__ + "/" + "./Build/Cpp/";
+inner = __actual_dir__ + "/" + "./include/inner/";
 if not os.path.exists(inner): os.mkdir(inner);
 for (base, folders, files) in os.walk(src):
 	for folder in folders:

@@ -38,37 +38,52 @@ def cl_to_zzc(filename: str):
 	pass
 pass
 
-for (base, folders, files) in os.walk(__actual_dir__ + "/../Src"):
+for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src"):
 	for filename in files:
 		if filename.endswith(".cl"): cl_to_zzc(base + "/" + filename);
 	pass
 pass
 
-subprocess.run(["make"], cwd = __actual_dir__ + "/ClValidate/", stdout = subprocess.DEVNULL).check_returncode();
-for (base, folders, files) in os.walk(__actual_dir__ + "/../Src"):
+subprocess.run(["make"], cwd = __actual_dir__ + "/" + "./ClValidate/", stdout = subprocess.DEVNULL).check_returncode();
+for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src"):
 	for filename in files:
-		if filename.endswith(".cl"): subprocess.run([__actual_dir__ + "/ClValidate/a.exe", base + "/" + filename]).check_returncode();
+		if filename.endswith(".cl"): subprocess.run([__actual_dir__ + "/" + "./ClValidate/a.exe", base + "/" + filename]).check_returncode();
 	pass
 pass
 
-def build(base, files):
+def build(base, files = None):
+	if files is None: files = [path for path in os.listdir(base) if os.path.isfile(path)];
+	print("Building", base);
 	if "Build.py" in files:
-		subprocess.run([sys.executable, base + "/Build.py", *sys.argv[1 : ]]).check_returncode();
+		return subprocess.Popen([sys.executable, base + "/Build.py", *sys.argv[1 : ]]);
 	else:
-		subprocess.run([sys.executable, __actual_dir__ + "/../ZZC/zzc.py", base, *sys.argv[1 : ]]).check_returncode();
+		return subprocess.Popen([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", base, *sys.argv[1 : ]]);
 	pass
 pass
 
-for (base, folders, files) in os.walk(__actual_dir__ + "/../Targets/"):
+processes: list[subprocess.Popen] = [];
+for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Targets/"):
 	if ".zzc.config.json" not in files: continue;
 	if base.endswith("Ide") or base.endswith("Ide/"): continue;
-	build(base, files);
+	processes.append(build(base, files));
 pass
-build(__actual_dir__ + "/../Targets/Ide/");
-#	subprocess.run([sys.executable, __actual_dir__ + "/../ZZC/zzc.py", __actual_dir__ + "/Targets/Decode/", *sys.argv[1 : ]]).check_returncode();
-#	subprocess.run([sys.executable, __actual_dir__ + "/../ZZC/zzc.py", __actual_dir__ + "/Targets/Encode/", *sys.argv[1 : ]]).check_returncode();
-#	subprocess.run([sys.executable, __actual_dir__ + "/../Targets/Library/Static/Build.py"                , *sys.argv[1 : ]]).check_returncode();
-#	subprocess.run([sys.executable, __actual_dir__ + "/../ZZC/zzc.py", __actual_dir__ + "/Targets/Test/"  , *sys.argv[1 : ]]).check_returncode();
+failed = False;
+for p in processes:
+	if p.wait() != 0:
+		failed = True;
+		for pp in processes: pp.terminate();
+		break;
+	pass
+pass
+if failed:
+	raise Exception(str(p.args));
+pass
+
+build(__actual_dir__ + "/" + "./../Targets/Ide/");
+#	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", __actual_dir__ + "/" + "./Targets/Decode/", *sys.argv[1 : ]]).check_returncode();
+#	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", __actual_dir__ + "/" + "./Targets/Encode/", *sys.argv[1 : ]]).check_returncode();
+#	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../Targets/Library/Static/Build.py"                , *sys.argv[1 : ]]).check_returncode();
+#	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", __actual_dir__ + "/" + "./Targets/Test/"  , *sys.argv[1 : ]]).check_returncode();
 
 try: import winsound;
 except ImportError: pass;

@@ -12,6 +12,8 @@ pass
 
 import tkinter as tk;
 from tkinter import ttk;
+from tkinter import filedialog;
+import json;
 
 import subprocess;
 
@@ -19,14 +21,15 @@ class Command:
 	child_proc: None | subprocess.Popen = None;
 	def __init__(self, *args):
 		self.frame = tk.Frame(frame);
-		self.entries = [];
-		self.variables = [];
-		self.run_button = tk.Button(self.frame, text = "▶", command = self.run);
-		self.run_button.pack(side = tk.LEFT)
-		self.add_button = tk.Button(self.frame, text = "+", command = self.addEntry);
-		self.add_button.pack(side = tk.RIGHT);
+		self.entries: list[SmartEntry] = [];
+		self.run_button       = tk.Button(self.frame, text = "▶", command = self.run);
+		self.inner            = tk.Frame (self.frame);
+		self.add_button       = tk.Button(self.frame, text = "+", command = self.addEntry);
 		self.terminate_button = tk.Button(self.frame, text = "X", command = self.terminate);
+		self.run_button      .pack(side = tk.LEFT)
+		self.inner           .pack(side = tk.LEFT, fill = tk.X, expand = True);
 		self.terminate_button.pack(side = tk.RIGHT, padx = 5);
+		self.add_button      .pack(side = tk.RIGHT);
 		if args:
 			for arg in args: self.addEntry(arg);
 		else:
@@ -34,15 +37,13 @@ class Command:
 		pass
 	pass
 	def addEntry(self, arg = None):
-		var = tk.StringVar(self.frame, arg);
-		#	entry = ttk.Entry(self.frame, textvariable = var);
-		entry = SmartEntry(self.frame, textvariable = var);
+		var = tk.StringVar(self.inner, arg);
+		entry = SmartEntry(self.inner, var);
 		entry.pack(side = tk.LEFT, fill = tk.X, expand = True);
 		self.entries.append(entry);
-		self.variables.append(var);
 	pass
 	def run(self):
-		args = [var.get() for var in self.variables];
+		args = [en.var.get() for en in self.entries];
 		if self.child_proc is not None:
 			if self.child_proc.poll() is None:
 				return;
@@ -117,8 +118,14 @@ def detectWordBoundary(text: str, current_index: int) -> tuple[int, int]:
 	return (start, end);
 pass
 class SmartEntry(ttk.Entry):
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
+	def __init__(self, master, var: tk.StringVar, *args, **kwargs):
+		self.var = var;
+		ttk.Entry.__init__(self, master, *args, **kwargs, textvariable = var);
+		self.openfile   = tk.Button(self, text = "📄", takefocus = False, command = self.commandOpenfile  );
+		self.openfolder = tk.Button(self, text = "📁", takefocus = False, command = self.commandOpenfolder);
+		self.openfolder.pack(side = tk.RIGHT);
+		self.openfile  .pack(side = tk.RIGHT);
+		
 		self.bind("<Double-Button-1>"    , self.onDoubleClick   );
 		self.bind("<ButtonRelease-1>"    , self.onB1Release     );
 		self.bind("<B1-Motion>"          , self.onDrag          );
@@ -131,6 +138,23 @@ class SmartEntry(ttk.Entry):
 		self.bind("<Control-Shift-Left>" , self.onCtrlShiftLeft );
 		self.bind("<Control-Shift-Right>", self.onCtrlShiftRight);
 		self.dragging_double_anchor = None;
+	pass
+	
+	def commandOpenfile(self):
+		path = self.get();
+		if path.startswith("."): path = cwd + "/" + path;
+		path = filedialog.askopenfilename(initialdir = os.path.dirname(path), initialfile = path);
+		if not path: return;
+		if os.path.normpath(path).startswith(os.path.normpath(cwd)): path = "./" + os.path.relpath(path, cwd);
+		self.var.set(path);
+	pass
+	def commandOpenfolder(self):
+		path = self.get();
+		if path.startswith("."): path = cwd + "/" + path;
+		path = filedialog.askdirectory(initialdir = path);
+		if not path: return;
+		if os.path.normpath(path).startswith(os.path.normpath(cwd)): path = "./" + os.path.relpath(path, cwd);
+		self.var.set(path);
 	pass
 	
 	def indexAtEvent(self, event): return self.index(f"@{event.x}");
@@ -256,6 +280,8 @@ class SmartEntry(ttk.Entry):
 	pass
 pass
 
+
+
 window = tk.Tk();
 frame = tk.Frame(window);
 frame.place(relheight = 1, relwidth = 1);
@@ -268,8 +294,38 @@ def addCommand(*args):
 	return command;
 pass
 
+def setGUI(config):
+	for child in list(frame.children.values()): child.destroy();
+	for args in config: addCommand(*args);
+pass
+def loadConfig():
+	path = filedialog.askopenfilename(filetypes = [("JSON", "*.json"), ("Any", "*")], title = "Load Config", initialdir = __actual_dir__ + "/" + "./RunnerConfigs/");
+	if not path: return;
+	loadConfigFromPath(path);
+pass
+def loadConfigFromPath(path: str):
+	with open(path) as file: config = json.load(file);
+	assert type(config) is list;
+	assert all(type(args) is list for args in config);
+	assert all(type(arg) is str for args in config for arg in args);
+	setGUI(config);
+pass
+def storeConfig():
+	config = [[en.var.get() for en in command.entries] for command in commands];
+	path = filedialog.asksaveasfilename(filetypes = [("JSON", "*.json"), ("Any", "*")], title = "Store Config", initialdir = __actual_dir__ + "/" + "./RunnerConfigs/");
+	if not path: return;
+	with open(path, "w") as file: json.dump(config, file);
+pass
+
 add_button = ttk.Button(window, text = "Add", command = addCommand);
 add_button.place(x = 10, width = 100, rely = 1, anchor = tk.SW);
+
+load_button = ttk.Button(window, text = "Load", command = loadConfig);
+load_button.place(x = 120, width = 100, rely = 1, anchor = tk.SW);
+add_button = ttk.Button(window, text = "Store", command = storeConfig);
+add_button.place(x = 230, width = 100, rely = 1, anchor = tk.SW);
+
+
 
 #	dbg_button = ttk.Button(window, text = "Debug", command = lambda: print("Nothing to debug", sep = "\n"));
 dbg_button = ttk.Button(window, text = "Debug", command = lambda: print(sys.stdout, sep = "\n"));
@@ -278,19 +334,23 @@ dbg_button.place(relx = 1, width = 100, rely = 1, anchor = tk.SE);
 cwd = "D:/Personal/nastava/projekt";
 os.chdir(cwd);
 initial = [
-	[sys.executable, "/Scripts/Clean.py"],
-	[sys.executable, "/Scripts/Compile.py"],
+	[sys.executable, "./Scripts/Clean.py"],
+	[sys.executable, "./Scripts/Compile.py"],
 	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.rgba", ],
 	["./Scripts/RgbDisplay/a.exe", "./Temp/Zugpsitze_mountain.rgba", ],
 	[sys.executable, "./Scripts/JPG_to_JPGDEF.py", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.def.jpg", ],
 	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain.rgba", "./Temp/Zugpsitze_mountain.def.jpg", "./Temp/Zugpsitze_mountain.out.jpg", "122"],
-	[sys.executable, "-c", "import time; print(1); time.sleep(5); print(2);"],
 ];
 
-for args in initial:
-	addCommand(*args);
+if len(sys.argv) == 1:
+	setGUI(initial);
+elif len(sys.argv) == 2:
+	loadConfigFromPath(sys.argv[1]);
+else:
+	raise Exception;
 pass
 
-window.geometry("1200x400");
+
+window.geometry("1500x400");
 
 window.mainloop();

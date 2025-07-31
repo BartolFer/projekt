@@ -1,4 +1,4 @@
-import os, json;
+import sys, os, json;
 
 from common import *;
 
@@ -14,6 +14,7 @@ def configModuleInit(_root):
 	else:
 		config = Config({});
 	pass
+	if "-nocompile" in sys.argv[2 : ]: config.nocompile = True;
 	mirrorFolders(config);
 pass
 

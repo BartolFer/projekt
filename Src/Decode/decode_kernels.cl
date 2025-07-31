@@ -472,7 +472,7 @@ kernel void uninterleave_upsample/* 2 */(
 				u8 c_id = lane_infos[lane_id].c_id; //	TODO
 				//	TODO calculate x and source (in mcu)
 				u32 x_of_data_unit_in_mcu = xx / 8 / (max_sf.x / component_sf.x);
-				u32 data_unit_index = y_of_data_unit_in_mcu * (max_sf.x / component_sf.x) + x_of_data_unit_in_mcu;
+				u32 data_unit_index = y_of_data_unit_in_mcu * component_sf.x + x_of_data_unit_in_mcu;
 				u32 src_index = data_unit_base + data_unit_index;
 				u32 dst_index = (base.y + yy) * image_size.x + (base.x + xx);
 				image_temp[dst_index].arr[(c_id - 1) % 4] = coefficients[src_index][yy / (max_sf.y / component_sf.y) % 8][xx / (max_sf.x / component_sf.x) % 8]; //	TODO this is float[0->1] -> u8 //	when do we do YCbCr -> RGB?
