@@ -15,7 +15,7 @@ namespace BJpeg {
 	namespace Encode {
 		typedef struct {
 			u8 c_id;
-			u8 _; //	padding
+			u8 hvalues_step;
 			u8 sf_y;
 			u8 sf_x;
 		} LaneInfo;
@@ -53,14 +53,14 @@ namespace BJpeg {
 					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } //	__global   i32          arg(coefficients)[][8][8] ,
 					fun bool setArg_dc_temp     (MyOpenCL :: Buffer<i32            > x) { return self.setArg(x, 1); } //	__global   i32          arg(dc_temp     )[]       
 				} deltaDC2;
-				struct gatherHuffmanValues : MyOpenCL :: Kernel<2> {
+				struct gatherHuffmanValues : MyOpenCL :: Kernel<1> {
 					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } //	__global   i32          arg(coefficients)[][8][8] ,
 					fun bool setArg_hvalues_dc_0(MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 1); } //	__global   u8           arg(hvalues_dc_0)[]       ,
 					fun bool setArg_hvalues_dc_1(MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 2); } //	__global   u8           arg(hvalues_dc_1)[]       ,
 					fun bool setArg_hvalues_ac_0(MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 3); } //	__global   u8           arg(hvalues_ac_0)[]       ,
 					fun bool setArg_hvalues_ac_1(MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 4); } //	__global   u8           arg(hvalues_ac_1)[]       ,
 					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 5); } //	__constant LaneInfo     arg(lane_infos  )[]       ,
-					fun bool setArg_htables     (MyOpenCL :: Buffer<HuffmanTable[4]> x) { return self.setArg(x, 6); } //	__constant HuffmanTable arg(htables     )[2][4]   ,
+					fun bool setArg_mcu_length  (u8                                  x) { return self.setArg(x, 6); } //	           u8           arg(mcu_length  )         
 				} gatherHuffmanValues;
 				struct radixSort_createAB : MyOpenCL :: Kernel<1> {
 					fun bool setArg_hvalues     (MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 0); } //	__global   u8           arg(hvalues     )[]       ,
@@ -69,16 +69,14 @@ namespace BJpeg {
 					fun bool setArg_pow         (u8                                  x) { return self.setArg(x, 3); } //	           u8           arg(pow         )         
 				} radixSort_createAB;
 				struct radixSort_prefixSum1 : MyOpenCL :: Kernel<1> {
-					fun bool setArg_hvalues     (MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 0); } //	__global   u8           arg(hvalues     )[]       ,
-					fun bool setArg_A           (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 1); } //	__global   u32          arg(A           )[]       ,
-					fun bool setArg_B           (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 2); } //	__global   u32          arg(B           )[]       ,
-					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 3); } //	           u32          arg(half_step   )         
+					fun bool setArg_A           (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } //	__global   u32          arg(A           )[]       ,
+					fun bool setArg_B           (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 1); } //	__global   u32          arg(B           )[]       ,
+					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 2); } //	           u32          arg(half_step   )         
 				} radixSort_prefixSum1;
 				struct radixSort_prefixSum2 : MyOpenCL :: Kernel<1> {
-					fun bool setArg_hvalues     (MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 16); } //	__global   u8           arg(hvalues     )[]       ,
-					fun bool setArg_A           (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 17); } //	__global   u32          arg(A           )[]       ,
-					fun bool setArg_B           (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 18); } //	__global   u32          arg(B           )[]       ,
-					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 19); } //	           u32          arg(half_step   )         
+					fun bool setArg_A           (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 0); } //	__global   u32          arg(A           )[]       ,
+					fun bool setArg_B           (MyOpenCL :: Buffer<u32            > x) { return self.setArg(x, 1); } //	__global   u32          arg(B           )[]       ,
+					fun bool setArg_half_step   (u32                                 x) { return self.setArg(x, 2); } //	           u32          arg(half_step   )         
 				} radixSort_prefixSum2;
 				struct radixSort_rearange : MyOpenCL :: Kernel<1> {
 					fun bool setArg_hvalues     (MyOpenCL :: Buffer<u8             > x) { return self.setArg(x, 0); } //	__global   u8           arg(hvalues     )[]       ,
@@ -205,8 +203,8 @@ namespace BJpeg {
 					if (!self.htables          .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , 2                  )) { return false; }
 					if (!self.qtables          .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , 4                  )) { return false; }
 					if (!self.lane_infos       .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , MAX_MCU_LENGTH     )) { return false; }
-					if (!self.last_writers     .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , 4                  )) { return false; }
-					if (!self.counts           .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , 4                  )) { return false; }
+					if (!self.last_writers     .init(context, CL_MEM_HOST_NO_ACCESS   | CL_MEM_READ_ONLY , 4                  )) { return false; }
+					if (!self.counts           .init(context, CL_MEM_HOST_READ_ONLY   | CL_MEM_READ_ONLY , 4                  )) { return false; }
 					
 					return true;
 				}
@@ -216,33 +214,34 @@ namespace BJpeg {
 					self.lane_infos  .finish();
 				}
 				fun bool init1(MyOpenCL :: Context context, MyOpenCL :: Queue queue, size_t height, size_t width, size_t unit_count, size_t dc_count_0, size_t dc_count_1) {
-					if (unit_count != (dc_count_0 + dc_count_1) * 64) { return false; }
+					if (unit_count != dc_count_0 + dc_count_1) { clog("assertion failed %zu != %zu + %zu"); return false; }
 					size_t max_hvalue_size = (dc_count_0 > dc_count_1 ? dc_count_0 : dc_count_1) * 63;
 					size_t pixel_count = height * width;
 					//	size_t coefficients_count = 0; //	sum(r8(h)/sf.y * r8(w)/sf.x for sf in sfs)
 					//	for (auto sf : sampling_factors) { coefficients_count += ROUND_UP_8(height) / sf.y * ROUND_UP_8(width) / sf.x; }
-					if (!self.image_temp       .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, pixel_count         )) { return false; }
-					if (!self.coefficients     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, unit_count          )) { return false; }
-					if (!self.dc_temp          .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, unit_count          )) { return false; }
-					if (!self.hvalues_dc_0     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, dc_count_0          )) { return false; }
-					if (!self.hvalues_dc_1     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, dc_count_1          )) { return false; }
-					if (!self.hvalues_ac_0     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, dc_count_0 * 63     )) { return false; }
-					if (!self.hvalues_ac_1     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, dc_count_1 * 63     )) { return false; }
-					if (!self.hvalues_temp     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
-					if (!self.sort_A           .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
-					if (!self.sort_B           .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
-					if (!self.counts_large     .init(context, CL_MEM_HOST_NO_ACCESS  | CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
-					if (!self.lengths          .init(context,                          CL_MEM_READ_WRITE, unit_count + 2      )) { return false; }
-					if (!self.codes            .init(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_WRITE, unit_count + 1      )) { return false; }
+					if (!self.image_temp       .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, pixel_count         )) { return false; }
+					if (!self.coefficients     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, unit_count          )) { return false; }
+					if (!self.dc_temp          .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, unit_count          )) { return false; }
+					if (!self.hvalues_dc_0     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, dc_count_0          )) { return false; }
+					if (!self.hvalues_dc_1     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, dc_count_1          )) { return false; }
+					if (!self.hvalues_ac_0     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, dc_count_0 * 63     )) { return false; }
+					if (!self.hvalues_ac_1     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, dc_count_1 * 63     )) { return false; }
+					if (!self.hvalues_temp     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
+					if (!self.sort_A           .init(context, /* CL_MEM_HOST_WRITE_ONLY | */ CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
+					if (!self.sort_B           .init(context, /* CL_MEM_HOST_WRITE_ONLY | */ CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
+					if (!self.counts_large     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
+					if (!self.lengths          .init(context, /*                          */ CL_MEM_READ_WRITE, unit_count + 2      )) { return false; }
+					if (!self.codes            .init(context, /* CL_MEM_HOST_WRITE_ONLY | */ CL_MEM_READ_WRITE, unit_count + 1      )) { return false; }
 					
 					{
+						//	it's enough to set it once, since noone changes [0]
 						u32 zero[1] = { 0 };
 						if (!self.sort_A.write(queue, zero, 1)) { return false; }
 						if (!self.sort_B.write(queue, zero, 1)) { return false; }
 					}
 					{
 						u32 zero[1] = { 0 };
-						u32 last_length[1] = { UINT32_MAX };
+						u32 last_length[1] = { UINT32_MAX / 4 /* should be enough */ };
 						CodedUnit last_coded_unit[1] = { { ~(u32)0 } };
 						if (!self.lengths.write(queue, zero           , 1, 0             )) { return false; }
 						if (!self.lengths.write(queue, last_length    , 1, unit_count + 1)) { return false; }
@@ -320,7 +319,6 @@ namespace BJpeg {
 				
 				if (!self.kernel.deltaDC1               .setArg_lane_infos  (self.buffer.lane_infos       )) { return false; }
 				
-				if (!self.kernel.gatherHuffmanValues    .setArg_htables     (self.buffer.htables          )) { return false; }
 				if (!self.kernel.gatherHuffmanValues    .setArg_lane_infos  (self.buffer.lane_infos       )) { return false; }
 				
 				if (!self.kernel.initCounts             .setArg_last_writers(self.buffer.last_writers     )) { return false; }
@@ -358,6 +356,7 @@ namespace BJpeg {
 				if (!self.kernel.gatherHuffmanValues    .setArg_hvalues_dc_1(self.buffer.hvalues_dc_1)) { return false; }
 				if (!self.kernel.gatherHuffmanValues    .setArg_hvalues_ac_0(self.buffer.hvalues_ac_0)) { return false; }
 				if (!self.kernel.gatherHuffmanValues    .setArg_hvalues_ac_1(self.buffer.hvalues_ac_1)) { return false; }
+				if (!self.kernel.gatherHuffmanValues    .setArg_mcu_length  (mcu_length              )) { return false; }
 				
 				if (!self.kernel.radixSort_createAB     .setArg_A           (self.buffer.sort_A      )) { return false; }
 				if (!self.kernel.radixSort_createAB     .setArg_B           (self.buffer.sort_B      )) { return false; }

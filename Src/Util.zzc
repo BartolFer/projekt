@@ -91,6 +91,18 @@ fun void* operator new(size_t size) /* noexcept */ { return std :: malloc(size);
 	//	my implementation is `noexcept`, but stdlib declares it as `throws(std::bad_alloc)`
 	//	so I can't redeclare differently
 
+#if defined MAIN_TARGET_DECODE || defined MAIN_TARGET_ENCODE || defined TESTING
+	
+	template<typename T, size_t N> requires (!std :: same_as<T, char> && !std :: same_as<T, char const>)
+	fun std :: ostream& operator <<(std :: ostream& stream, T (&arr)[N]) {
+		stream << "[ ";
+		for (auto& x : arr) { stream << x << ", "; }
+		stream << " ]";
+		return stream;
+	}
+	
+#endif
+
 
 
 

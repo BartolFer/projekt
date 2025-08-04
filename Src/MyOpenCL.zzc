@@ -206,5 +206,19 @@ namespace MyOpenCL {
 			ERROR_HANDLING(err, "Failed to copy buffer f");
 			return true;
 		}
+		
+		fun bool debugWrite(Queue queue, size_t length = SIZE_MAX, size_t offset = 0, std :: ostream& stream = std :: cout, void (*f)(std :: ostream& stream, T& t) = [](std :: ostream& stream, T& t) {stream << t;}) {
+			if (length > self.length) { length = self.length; }
+			T* array = new T[length];
+			if (!array) { return false; }
+			if (!self.read(queue, array, length, offset)) { return false; }
+			for (int i = 0; i < length; ++i) {
+				f(stream, array[i]);
+				stream << ", ";
+			}
+			return true;
+		}
+		fun bool debugWrite(Queue queue, size_t length, std :: ostream& stream, void (*f)(std :: ostream& stream, T& t) = [](std :: ostream& stream, T& t) {stream << t;}) { return self.debugWrite(queue,      length, 0, stream, f); }
+		fun bool debugWrite(Queue queue,                std :: ostream& stream, void (*f)(std :: ostream& stream, T& t) = [](std :: ostream& stream, T& t) {stream << t;}) { return self.debugWrite(queue, self.length, 0, stream, f); }
 	};
 }

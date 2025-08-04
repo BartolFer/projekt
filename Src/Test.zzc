@@ -9,7 +9,8 @@
 
 namespace BJpeg {
 	#ifdef TESTING
-		static std :: ofstream output = std :: ofstream("./Build/log.txt");
+		static std :: ofstream output = std :: ofstream("./log.txt");
+		//	static std :: ostream& output = std :: cout;
 		static std :: ostream& error = std :: cerr;
 		struct Test {
 			fun static std :: ostream& getOutput() {

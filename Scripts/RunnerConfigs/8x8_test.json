@@ -7,5 +7,6 @@
 	["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/JPG_to_JPGDEF.py", "./Temp/jpgs\\8x8_test.jpg", "./Temp/jpgs\\8x8_test.def.jpg"],
 	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs\\8x8_test.rgba", "./Temp/jpgs\\8x8_test.def.jpg", "./Temp/jpgs\\8x8_test.out.jpg", "111"],
 	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs\\8x8_test.out.jpg", "./Temp/jpgs\\8x8_test.out.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs\\8x8_test.out.rgba"]
+	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs\\8x8_test.out.rgba"],
+	["./Temp/JPEGsnoop.exe"]
 ]

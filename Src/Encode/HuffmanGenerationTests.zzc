@@ -1,0 +1,375 @@
+
+#include <vector>
+#include <array>
+#include <bitset>
+#include <iostream>
+
+#include "../Util.zzh"
+#include "../Test.zzh"
+#include "./ClContext.zzh"
+#include "./encode_kernels.cl.tmp.hdr.zzh"
+
+#ifdef TESTING
+namespace BJpeg {
+	namespace Encode {
+		namespace {
+			#define full_step (2 * half_step)
+			using namespace MyOpenCL;
+			
+			CLContext :: Kernels ker_var;
+			
+			fun cl_device_id getDeviceId() {
+				cl_device_id device_id;
+				if (!MyOpenCL :: getDeviceId(device_id)) { return nullptr; }
+				return device_id;
+			}
+			struct RAII_TestCL {
+				cl_device_id device_id = getDeviceId();
+				Resource<Context> context{device_id};
+				Resource<Queue  > queue  {device_id, context};
+				Resource<Program> program{device_id, context, encode_kernels};
+				fun operator bool() { return self.device_id && self.context && self.queue && self.program; }
+			};
+			
+			
+			struct Test_radixSort_createAB : Test {
+				constexpr static size_t hv_length = 5;
+				std :: array<u8 , hv_length> hvalues = {0b0110, 0b0010, 0b0111, 0b1100, 0b0001};
+				std :: array<u32, hv_length> A  = { 884,   0  ,    1  ,    0  ,    0          };
+				//std :: array<u32, hv_length> B= {                0  ,    1  ,    1  ,    0  }; //	backwards and positive
+				std :: array<u32, hv_length> B  = { 884,   0  ,    1  ,    1  ,    0          }; //	backwards and positive
+				u8 pow = 2;
+				
+				fun char const* getDescription() { return "Test radixSort_createAB"; }
+				
+				fun bool test() {
+					RAII_TestCL cl; if (!cl) { clog("Failed at id: 53"); return false; }
+					Resource kernel{ ker_var.radixSort_createAB, cl.program, "radixSort_createAB" }; if (!kernel) { clog("Failed at id: 1"); return false; }
+					
+					Resource<Buffer<u8 >> hvalues(cl.context, CL_MEM_READ_WRITE, hv_length); if (!hvalues) { clog("Failed at id: 2"); return false; }
+					Resource<Buffer<u32>> A      (cl.context, CL_MEM_READ_WRITE, hv_length); if (!A      ) { clog("Failed at id: 3"); return false; }
+					Resource<Buffer<u32>> B      (cl.context, CL_MEM_READ_WRITE, hv_length); if (!B      ) { clog("Failed at id: 4"); return false; }
+					
+					if (!hvalues.write(cl.queue, self.hvalues.data())) { clog("Failed at id: 5"); return false; }
+					if (!A.write(cl.queue, self.A.data(), 1)) { clog("Failed at id: 6"); return false; }
+					if (!B.write(cl.queue, self.B.data(), 1)) { clog("Failed at id: 7"); return false; }
+					
+					if (!kernel.setArg_hvalues(hvalues )) { clog("Failed at id: 8"); return false; }
+					if (!kernel.setArg_A      (A       )) { clog("Failed at id: 9"); return false; }
+					if (!kernel.setArg_B      (B       )) { clog("Failed at id: 10"); return false; }
+					if (!kernel.setArg_pow    (self.pow)) { clog("Failed at id: 11"); return false; }
+					
+					if (!kernel.call(cl.queue, { hv_length - 1 })) { clog("Failed at id: 12"); return false; }
+					
+					u32 res_A[hv_length];
+					u32 res_B[hv_length];
+					if (!A.read(cl.queue, res_A)) { clog("Failed at id: 13"); return false; }
+					if (!B.read(cl.queue, res_B)) { clog("Failed at id: 14"); return false; }
+					
+					for (int i = 0; i < hv_length; ++i) {
+						if (self.A[i] != res_A[i]) {
+							Test :: getError() << "Error at A " << i << ": expected: " << self.A[i] << "  got: " << res_A[i] << std :: endl;
+							auto& e = Test :: getError();
+							for (u32 a : res_A) { e << std :: bitset<4>(a) << ", "; }
+							clog("Failed at id: 15"); return false;
+						}
+					}
+					for (int i = 0; i < hv_length; ++i) {
+						if (self.B[i] != res_B[i]) {
+							Test :: getError() << "Error at B " << i << ": expected: " << self.B[i] << "  got: " << res_B[i] << std :: endl;
+							auto& e = Test :: getError();
+							for (u32 b : res_B) { e << std :: bitset<4>(b) << ", "; }
+							clog("Failed at id: 16"); return false;
+						}
+					}
+					
+					return true;
+				}
+			};
+			
+			struct Test_radixSort_prefixSum : Test {
+				constexpr static size_t hv_length = 10; //	0000101110
+				std :: array<u32, hv_length> A     = { 0, 1, 1, 1, 1, 0, 1, 0, 0, 0 }; //	negative
+				std :: array<u32, hv_length> A_exp = { 0, 1, 2, 3, 4, 4, 5, 5, 5, 5 }; //	negative
+				std :: array<u32, hv_length> B     = { 0, 0, 1, 1, 1, 0, 1, 0, 0, 0 }; //	reversed
+				std :: array<u32, hv_length> B_exp = { 0, 0, 1, 2, 3, 3, 4, 4, 4, 4 }; //	reversed
+				
+				fun char const* getDescription() { return "Test radixSort_prefixSum 1&2"; }
+				
+				fun bool test() {
+					RAII_TestCL cl; if (!cl) { clog("Failed at id: 17"); return false; }
+					Resource kernel1{ ker_var.radixSort_prefixSum1, cl.program, "radixSort_prefixSum1" }; if (!kernel1) { clog("Failed at id: 18"); return false; }
+					Resource kernel2{ ker_var.radixSort_prefixSum2, cl.program, "radixSort_prefixSum2" }; if (!kernel2) { clog("Failed at id: 19"); return false; }
+					
+					Resource<Buffer<u32>> A(cl.context, CL_MEM_READ_WRITE, hv_length); if (!A      ) { clog("Failed at id: 20"); return false; }
+					Resource<Buffer<u32>> B(cl.context, CL_MEM_READ_WRITE, hv_length); if (!B      ) { clog("Failed at id: 21"); return false; }
+					
+					if (!A.write(cl.queue, self.A.data())) { clog("Failed at id: 22"); return false; }
+					if (!B.write(cl.queue, self.B.data())) { clog("Failed at id: 23"); return false; }
+					
+					if (!kernel1.setArg_A(A)) { clog("Failed at id: 24"); return false; }
+					if (!kernel1.setArg_B(B)) { clog("Failed at id: 25"); return false; }
+					if (!kernel2.setArg_A(A)) { clog("Failed at id: 26"); return false; }
+					if (!kernel2.setArg_B(B)) { clog("Failed at id: 27"); return false; }
+					
+					u32 half_step = 1;
+					for (; full_step - 1 < hv_length; half_step *= 2) {
+						if (!kernel1.setArg_half_step(half_step)) { clog("Failed at id: 28"); return false; }
+						if (!kernel1.call(cl.queue, { hv_length / full_step })) { clog("Failed at id: 29"); return false; }
+					}
+					while (half_step /= 2) {
+						if (hv_length <= half_step) { continue; }
+						if (!kernel2.setArg_half_step(half_step)) { clog("Failed at id: 30"); return false; }
+						if (!kernel2.call(cl.queue, { (hv_length - half_step) / full_step })) { clog("Failed at id: 31"); return false; }
+					}
+					
+					u32 res_A[hv_length];
+					u32 res_B[hv_length];
+					if (!A.read(cl.queue, res_A)) { clog("Failed at id: 32"); return false; }
+					if (!B.read(cl.queue, res_B)) { clog("Failed at id: 33"); return false; }
+					
+					for (int i = 0; i < hv_length; ++i) {
+						if (self.A_exp[i] != res_A[i]) {
+							Test :: getError() << "Error at A " << i << ": expected: " << self.A[i] << "  got: " << res_A[i] << std :: endl;
+							auto& e = Test :: getError();
+							for (u32 a : res_A) { e << a << ", "; }
+							clog("Failed at id: 34"); return false;
+						}
+					}
+					for (int i = 0; i < hv_length; ++i) {
+						if (self.B_exp[i] != res_B[i]) {
+							Test :: getError() << "Error at B " << i << ": expected: " << self.B[i] << "  got: " << res_B[i] << std :: endl;
+							auto& e = Test :: getError();
+							for (u32 b : res_B) { e << b << ", "; }
+							clog("Failed at id: 35"); return false;
+						}
+					}
+					
+					return true;
+				}
+			};
+			
+			struct Test_radixSort_rearange : Test {
+				constexpr static size_t hv_length = 5;
+				std :: array<u8 , hv_length> hvalues  = {0b0110, 0b0010, 0b0111, 0b1100, 0b0001};
+				std :: array<u32, hv_length> A    =  { 0,   0  ,    1  ,    1  ,    1          };
+				//std :: array<u32, hv_length> B  =  {              0  ,    1  ,    1  ,    0  }; //	backwards and positive
+				std :: array<u32, hv_length> B    =  { 0,   0  ,    1  ,    2  ,    2          }; //	backwards and positive
+				std :: array<u8 , hv_length> expected = {0b0010, 0b0001, 0b0110, 0b0111, 0b1100};
+				u8 pow = 2;
+				
+				fun char const* getDescription() { return "Test radixSort_rearange"; }
+				
+				fun bool test() {
+					RAII_TestCL cl; if (!cl) { clog("Failed at id: 36"); return false; }
+					Resource kernel{ ker_var.radixSort_rearange, cl.program, "radixSort_rearange" }; if (!kernel) { clog("Failed at id: 37"); return false; }
+					
+					Resource<Buffer<u8 >> hvalues    (cl.context, CL_MEM_READ_WRITE, hv_length); if (!hvalues    ) { clog("Failed at id: 38"); return false; }
+					Resource<Buffer<u8 >> hvalues_dst(cl.context, CL_MEM_READ_WRITE, hv_length); if (!hvalues_dst) { clog("Failed at id: 39"); return false; }
+					Resource<Buffer<u32>> A          (cl.context, CL_MEM_READ_WRITE, hv_length); if (!A          ) { clog("Failed at id: 40"); return false; }
+					Resource<Buffer<u32>> B          (cl.context, CL_MEM_READ_WRITE, hv_length); if (!B          ) { clog("Failed at id: 41"); return false; }
+					
+					if (!hvalues.write(cl.queue, self.hvalues.data())) { clog("Failed at id: 42"); return false; }
+					if (!A.write(cl.queue, self.A.data())) { clog("Failed at id: 43"); return false; }
+					if (!B.write(cl.queue, self.B.data())) { clog("Failed at id: 44"); return false; }
+					
+					if (!kernel.setArg_hvalues    (hvalues    )) { clog("Failed at id: 45"); return false; }
+					if (!kernel.setArg_hvalues_dst(hvalues_dst)) { clog("Failed at id: 46"); return false; }
+					if (!kernel.setArg_A          (A          )) { clog("Failed at id: 47"); return false; }
+					if (!kernel.setArg_B          (B          )) { clog("Failed at id: 48"); return false; }
+					if (!kernel.setArg_pow        (self.pow   )) { clog("Failed at id: 49"); return false; }
+					
+					if (!kernel.call(cl.queue, { hv_length })) { clog("Failed at id: 50"); return false; }
+					
+					u8 result[hv_length];
+					if (!hvalues_dst.read(cl.queue, result)) { clog("Failed at id: 51"); return false; }
+					
+					for (int i = 0; i < hv_length; ++i) {
+						if (self.expected[i] != result[i]) {
+							Test :: getError() << "Error at " << i << ": expected: " << self.expected[i] << "  got: " << result[i] << std :: endl;
+							auto& e = Test :: getError();
+							for (u32 x : result) { e << std :: bitset<4>(x) << ", "; }
+							clog("Failed at id: 52"); return false;
+						}
+					}
+					return true;
+				}
+			};
+			
+			struct Test_radixSort : Test {
+				constexpr static size_t hv_length = 5;
+				std :: array<u8 , hv_length> hvalues  = {6, 2, 7, 12, 1};
+				std :: array<u8 , hv_length> expected = {1, 2, 6, 7, 12};
+				
+				fun char const* getDescription() { return "Test radixSort"; }
+				
+				fun bool test() {
+					RAII_TestCL cl; if (!cl) { clog("Failed at id: 0"); return false; }
+					Resource radixSort_createAB  { ker_var.radixSort_createAB  , cl.program, "radixSort_createAB"   }; if (!radixSort_createAB  ) { clog("Failed at id: 54"); return false; }
+					Resource radixSort_prefixSum1{ ker_var.radixSort_prefixSum1, cl.program, "radixSort_prefixSum1" }; if (!radixSort_prefixSum1) { clog("Failed at id: 55"); return false; }
+					Resource radixSort_prefixSum2{ ker_var.radixSort_prefixSum2, cl.program, "radixSort_prefixSum2" }; if (!radixSort_prefixSum2) { clog("Failed at id: 56"); return false; }
+					Resource radixSort_rearange  { ker_var.radixSort_rearange  , cl.program, "radixSort_rearange"   }; if (!radixSort_rearange  ) { clog("Failed at id: 57"); return false; }
+					
+					Resource<Buffer<u8 >> hvalues    (cl.context, CL_MEM_READ_WRITE, hv_length); if (!hvalues    ) { clog("Failed at id: 58"); return false; }
+					Resource<Buffer<u8 >> hvalues_dst(cl.context, CL_MEM_READ_WRITE, hv_length); if (!hvalues_dst) { clog("Failed at id: 59"); return false; }
+					Resource<Buffer<u32>> A          (cl.context, CL_MEM_READ_WRITE, hv_length); if (!A          ) { clog("Failed at id: 60"); return false; }
+					Resource<Buffer<u32>> B          (cl.context, CL_MEM_READ_WRITE, hv_length); if (!B          ) { clog("Failed at id: 61"); return false; }
+					
+					if (!hvalues.write(cl.queue, self.hvalues.data())) { clog("Failed at id: 62"); return false; }
+					u32 zero[1] = { 0 };
+					if (!A.write(cl.queue, zero, 1)) { clog("Failed at id: 63"); return false; }
+					if (!B.write(cl.queue, zero, 1)) { clog("Failed at id: 64"); return false; }
+					
+					if (!radixSort_createAB.setArg_hvalues    (hvalues    )) { clog("Failed at id: 65"); return false; }
+					if (!radixSort_createAB.setArg_A          (A          )) { clog("Failed at id: 66"); return false; }
+					if (!radixSort_createAB.setArg_B          (B          )) { clog("Failed at id: 67"); return false; }
+					
+					if (!radixSort_prefixSum1.setArg_A          (A          )) { clog("Failed at id: 68"); return false; }
+					if (!radixSort_prefixSum1.setArg_B          (B          )) { clog("Failed at id: 69"); return false; }
+					
+					if (!radixSort_prefixSum2.setArg_A          (A          )) { clog("Failed at id: 70"); return false; }
+					if (!radixSort_prefixSum2.setArg_B          (B          )) { clog("Failed at id: 71"); return false; }
+					
+					if (!radixSort_rearange.setArg_hvalues    (hvalues    )) { clog("Failed at id: 72"); return false; }
+					if (!radixSort_rearange.setArg_hvalues_dst(hvalues_dst)) { clog("Failed at id: 73"); return false; }
+					if (!radixSort_rearange.setArg_A          (A          )) { clog("Failed at id: 74"); return false; }
+					if (!radixSort_rearange.setArg_B          (B          )) { clog("Failed at id: 75"); return false; }
+					
+					for (int pow = 0; pow < 8; ++pow) {
+						if (!radixSort_createAB.setArg_hvalues(hvalues)) { clog("Failed at id: 76"); return false; }
+						if (!radixSort_rearange.setArg_hvalues(hvalues)) { clog("Failed at id: 77"); return false; }
+						
+						if (!radixSort_createAB.setArg_pow(pow)) { clog("Failed at id: 78"); return false; }
+						if (!radixSort_createAB.call(cl.queue, { hv_length - 1 })) { clog("Failed at id: 79"); return false; }
+						
+						u32 half_step = 1;
+						for (; full_step - 1 < hv_length; half_step *= 2) {
+							if (!radixSort_prefixSum1.setArg_half_step(half_step)) { clog("Failed at id: 80"); return false; }
+							if (!radixSort_prefixSum1.call(cl.queue, { hv_length / full_step })) { clog("Failed at id: 81"); return false; }
+						}
+						while (half_step /= 2) {
+							if (hv_length <= half_step) { continue; }
+							if (!radixSort_prefixSum2.setArg_half_step(half_step)) { clog("Failed at id: 82"); return false; }
+							if (!radixSort_prefixSum2.call(cl.queue, { (hv_length - half_step) / full_step })) { clog("Failed at id: 83"); return false; }
+						}
+						
+						if (!radixSort_rearange.setArg_hvalues_dst(hvalues_dst)) { clog("Failed at id: 84"); return false; }
+						if (!radixSort_rearange.setArg_pow        (pow                   )) { clog("Failed at id: 85"); return false; }
+						if (!radixSort_rearange.call(cl.queue, { hv_length })) { clog("Failed at id: 86"); return false; }
+						
+						cl_mem temp = hvalues.buffer;
+						hvalues.buffer = hvalues_dst.buffer;
+						hvalues_dst.buffer = temp;
+							//	swap hvalue and hvalue_temp
+							//	this will not be seen outside of this function, since cl is passed by copy
+							//	buffers are not of the same length (propery in MyOpenCL :: Buffer),
+							//	but that is ok if we don't use it ;)
+							//	and we do this 8 times, so it cancels itself out
+					}
+					
+					u8 result[hv_length];
+					if (!hvalues_dst.read(cl.queue, result)) { clog("Failed at id: 87"); return false; }
+					
+					for (int i = 0; i < hv_length; ++i) {
+						if (self.expected[i] != result[i]) {
+							Test :: getError() << "Error at " << i << ": expected: " << self.expected[i] << "  got: " << result[i] << std :: endl;
+							auto& e = Test :: getError();
+							for (u32 x : result) { e << std :: bitset<4>(x) << ", "; }
+							clog("Failed at id: 88"); return false;
+						}
+					}
+					return true;
+				}
+			};
+			
+			struct Test_countOccurances : Test {
+				constexpr static size_t hv_length = 27;
+				std :: array<u8 , hv_length> hvalues  = {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 3, 3, 3, 4, 5, 5, 5, 6, 6, 7, 7, 8, 8, 8, 9, };
+				//	u32 expected[256] = { [0]=1, [1]=9, [2]=1, [3]=4, [4]=1, [5]=3, [6]=2, [7]=2, [8]=3, [9]=1, };
+				u32 expected[256] = { 1, 9, 1, 4, 1, 3, 2, 2, 3, 1, };
+				u8 id = 0;
+				
+				fun char const* getDescription() { return "Test countOccurances"; }
+				
+				fun bool test() {
+					RAII_TestCL cl; if (!cl) { clog("Failed at id: 89"); return false; }
+					Resource initCountsLarge { ker_var.initCountsLarge , cl.program, "initCountsLarge" }; if (!initCountsLarge ) { clog("Failed at id: 90"); return false; }
+					Resource initCounts      { ker_var.initCounts      , cl.program, "initCounts"      }; if (!initCounts      ) { clog("Failed at id: 91"); return false; }
+					Resource countOccurances1{ ker_var.countOccurances1, cl.program, "countOccurances1"}; if (!countOccurances1) { clog("Failed at id: 92"); return false; }
+					Resource countOccurances2{ ker_var.countOccurances2, cl.program, "countOccurances2"}; if (!countOccurances2) { clog("Failed at id: 93"); return false; }
+					
+					Resource<Buffer<u8      >> hvalues     (cl.context, CL_MEM_READ_WRITE, hv_length); if (!hvalues     ) { clog("Failed at id: 94"); return false; }
+					Resource<Buffer<u32     >> counts_large(cl.context, CL_MEM_READ_WRITE, hv_length); if (!counts_large) { clog("Failed at id: 95"); return false; }
+					Resource<Buffer<u32[256]>> last_writers(cl.context, CL_MEM_READ_WRITE, 1        ); if (!last_writers) { clog("Failed at id: 96"); return false; }
+					Resource<Buffer<u32[256]>> counts      (cl.context, CL_MEM_READ_WRITE, 1        ); if (!counts      ) { clog("Failed at id: 97"); return false; }
+					
+					if (!hvalues.write(cl.queue, self.hvalues.data())) { clog("Failed at id: 98"); return false; }
+					
+					if (!initCountsLarge.setArg_counts_large(counts_large)) { clog("Failed at id: 99"); return false; }
+					
+					if (!initCounts.setArg_last_writers(last_writers)) { clog("Failed at id: 100"); return false; }
+					if (!initCounts.setArg_counts      (counts      )) { clog("Failed at id: 101"); return false; }
+					
+					if (!countOccurances1.setArg_hvalues     (hvalues     )) { clog("Failed at id: 102"); return false; }
+					if (!countOccurances1.setArg_counts_large(counts_large)) { clog("Failed at id: 103"); return false; }
+					
+					if (!countOccurances2.setArg_hvalues     (hvalues     )) { clog("Failed at id: 104"); return false; }
+					if (!countOccurances2.setArg_counts_large(counts_large)) { clog("Failed at id: 105"); return false; }
+					if (!countOccurances2.setArg_last_writers(last_writers)) { clog("Failed at id: 106"); return false; }
+					if (!countOccurances2.setArg_counts      (counts      )) { clog("Failed at id: 107"); return false; }
+					if (!countOccurances2.setArg_id          (self.id     )) { clog("Failed at id: 108"); return false; }
+					
+					if (!initCounts     .call(cl.queue, { 4, 256 })) { clog("Failed at id: 110"); return false; }
+					
+					if (!initCountsLarge.call(cl.queue, { hv_length })) { clog("Failed at id: 109"); return false; }
+					
+					//	void (*f)(typename std :: ostream& stream, u32 (&t)[256]) = [](std :: ostream& stream, u32 (&t)[256]) {
+					//		stream << "[ ";
+					//		for (int i = 0; i < 10; ++i) { stream << t[i] << ", "; }
+					//		//	for (auto x : t) { stream << x << ", "; }
+					//		stream << " ]";
+					//	}
+					//	;
+					//	if (!last_writers.debugWrite(cl.queue, 1, Test :: getOutput(), f)) { clog("Failed at id: 111"); return false; }
+					//	if (!counts      .debugWrite(cl.queue, 1, Test :: getOutput(), f)) { clog("Failed at id: 112"); return false; }
+					//	if (!counts_large.debugWrite(cl.queue, Test :: getOutput())) { clog("Failed at id: 113"); return false; }
+					
+					{
+						u32 half_step = 1;
+						for (; full_step - 1 < hv_length; half_step *= 2) {
+							if (!countOccurances1.setArg_half_step(half_step)) { clog("Failed at id: 114"); return false; }
+							if (!countOccurances1.call(cl.queue, { hv_length / full_step })) { clog("Failed at id: 115"); return false; }
+							//	if (!counts_large.debugWrite(cl.queue, Test :: getOutput() << half_step << ": ")) { clog("Failed at id: 116"); return false; }
+						}
+						for (; half_step; half_step /= 2) {
+							if (!countOccurances2.setArg_half_step(half_step)) { clog("Failed at id: 117"); return false; }
+							if (!countOccurances2.call(cl.queue, { (hv_length + half_step) / full_step })) { clog("Failed at id: 118"); return false; }
+							//	if (!last_writers.debugWrite(cl.queue, 1, Test :: getOutput() << half_step << ": ", f)) { clog("Failed at id: 119"); return false; }
+							//	if (!counts      .debugWrite(cl.queue, 1, Test :: getOutput() << half_step << ": ", f)) { clog("Failed at id: 120"); return false; }
+						}
+					}
+					
+					u32 result[256];
+					if (!counts.read(cl.queue, &result, 1)) { clog("Failed at id: 121"); return false; }
+					
+					for (int i = 0; i < 256; ++i) {
+						if (self.expected[i] != result[i]) {
+							Test :: getError() << "Error at " << i << ": expected: " << self.expected[i] << "  got: " << result[i] << std :: endl;
+							auto& e = Test :: getError();
+							for (u32 x : result) { e << x << ", "; }
+							clog("Failed at id: 122"); return false;
+						}
+					}
+					return true;
+				}
+			};
+			
+			Test_radixSort_createAB  test_radixSort_createAB ;
+			Test_radixSort_prefixSum test_radixSort_prefixSum;
+			Test_radixSort_rearange  test_radixSort_rearange ;
+			Test_radixSort           test_radixSort          ;
+			Test_countOccurances     test_countOccurances    ;
+		}
+	}
+}
+#endif

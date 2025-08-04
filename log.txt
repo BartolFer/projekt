@@ -1,0 +1,40 @@
+
+LOG: 		Test <Test radixSort_createAB> success
+
+LOG: 		Test <Test radixSort_prefixSum 1&2> success
+
+LOG: 		Test <Test radixSort_rearange> success
+
+LOG: 		Test <Test radixSort> success
+
+LOG: 		Test <Test countOccurances> success
+
+LOG: 		Test <Test decodeHuffman1> success
+
+LOG: 		Test <Test decodeRaise> success
+
+LOG: 		Test <Test decodeLower> success
+
+LOG: 		Test <Test positionsToIndexes> success
+
+LOG: 		Test <Test prepareMCUs> success
+
+LOG: 		Test <Test prefixSum1 1 15> success
+
+LOG: 		Test <Test prefixSum1 1 16> success
+
+LOG: 		Test <Test prefixSum1 1 17> success
+
+LOG: 		Test <Test prefixSum1 1 18> success
+
+LOG: 		Test <Test prefixSum1 4> success
+
+LOG: 		Test <Test unzigzag_quantization_dct> success
+
+LOG: 		Test <Test uninterleave_upsample> success
+
+LOG: 		Test <Test initializeBufferU32> success
+
+LOG: 		Finished with 18 tests
+
+LOG: 			Successful 18        failed 0

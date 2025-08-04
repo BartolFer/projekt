@@ -80,7 +80,8 @@
 		"*.hzz": "cpp",
 		"cstring": "cpp",
 		"ranges": "cpp",
-		"__debug": "cpp"
+		"__debug": "cpp",
+		"bitset": "cpp"
 	},
 	"emeraldwalk.runonsave": {
 		"commands": [

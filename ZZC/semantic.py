@@ -1211,6 +1211,10 @@ def _findClosingGenerics(tokens: list[Token], index: int) -> int:
 			return i;
 		pass
 	pass
+	print(index);
+	print(tokens[index - 100 : index]);
+	print(tokens[index : index + 100]);
+	print(index);
 	raise ParseError;
 pass
 

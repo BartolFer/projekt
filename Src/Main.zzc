@@ -96,7 +96,7 @@ namespace BJpeg {
 		}
 		
 		Resource<Encode :: CLContext> cl;
-		Resource<MyOpenCL :: Buffer<RGBA>> image(cl.context, /* CL_MEM_HOST_WRITE_ONLY | */ CL_MEM_READ_ONLY, total_pixels);
+		Resource<MyOpenCL :: Buffer<RGBA>> image(cl.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY, total_pixels);
 		if (!image) { std :: cerr << "!image" << std :: endl; return EXIT_FAILURE; }
 		if (!image.write(cl.queue, arr)) { std :: cerr << "!image.write" << std :: endl; return EXIT_FAILURE; }
 		
@@ -109,7 +109,8 @@ namespace BJpeg {
 		}
 		
 		//	SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 1, 1 }, { 2, 2 }, { 2, 2 }};
-		SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 1, 1 }, { 1, 1 }, { 1, 1 }};
+		SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 2, 2 }, { 1, 1 }, { 1, 1 }};
+		//	SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 1, 1 }, { 1, 1 }, { 1, 1 }};
 		if (!parseSF(sfs, sampling_factors)) { std :: cerr << "invalid SF" << std :: endl;  return EXIT_FAILURE; }
 		
 		auto res = Encode :: image(image, cl, metadata.height, metadata.width, qtables, htables, sampling_factors);

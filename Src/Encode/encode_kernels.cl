@@ -30,7 +30,7 @@ typedef CodeAndLength HuffmanTable[256];
 
 typedef struct {
 	u8 c_id;
-	u8 _; //	padding
+	u8 hvalues_step;
 	u8 sf_y;
 	u8 sf_x;
 } LaneInfo;
@@ -164,59 +164,108 @@ kernel void deltaDC2/* 1: unit_count */(
 	coefficients[index][0][0] = dc_temp[index];
 }
 
-kernel void gatherHuffmanValues/* 2: mcu_count, mcu_length */(
+kernel void gatherHuffmanValues/* 1: mcu_count */(
 	__global   i32          arg(coefficients)[][8][8] ,
 	__global   u8           arg(hvalues_dc_0)[]       ,
 	__global   u8           arg(hvalues_dc_1)[]       ,
 	__global   u8           arg(hvalues_ac_0)[]       ,
 	__global   u8           arg(hvalues_ac_1)[]       ,
 	__constant LaneInfo     arg(lane_infos  )[]       ,
-	__constant HuffmanTable arg(htables     )[2][4]   
+	           u8           arg(mcu_length  )         
 ) {
 	u32 const mcu_index = get_global_id(0);
-	u32 const lane_id = get_global_id(1);
-	u32 const index = get_global_linear_id();
-	u8  const h_id = lane_infos[lane_id].c_id == 1 ? 0 : 1;
 	
-	__global u8* dc = h_id ? hvalues_dc_0 : hvalues_dc_1;
-	__global u8* ac = h_id ? hvalues_ac_0 : hvalues_ac_1;
-	
-	#pragma region DC
-	{
-		i32 value = coefficients[index][0][0];
-		u8 SSSS = 32 - clz(abs(value));
-		dc[index] = SSSS;
-	}
-	#pragma endregion
-	#pragma region AC
-	{
-		u8 RRRR = 0;
-		u8 last_nonzero = 0;
-		for (u8 ac_index = 0; ac_index < 63; ++ac_index) {
-			i32 value = coefficients[index][0][ac_index + 1];
-			if (value == 0) {
-				if (RRRR == 15) {
-					ac[ac_index] = 0xF0;
-					RRRR = 0;
-				} else {
-					ac[ac_index] = VALUE_THAT_IS_NOT_USED;
-					++RRRR;
+	u8 lane_id = 0;
+	{ //	C1
+		__global u8* dc = hvalues_dc_0 + mcu_index * lane_infos[0].hvalues_step;
+		__global u8* ac = hvalues_ac_0 + mcu_index * lane_infos[0].hvalues_step * 63;
+		u8 const c_id_m1 = 0;
+		u8 sf_y = lane_infos[c_id_m1].sf_y;
+		u8 sf_x = lane_infos[c_id_m1].sf_x;
+		for (int unit_y = 0; unit_y < sf_y; ++unit_y) {
+			for (int unit_x = 0; unit_x < sf_x; ++unit_x, ++lane_id) {
+				u32 index = mcu_index * mcu_length + lane_id;
+				{ //	DC
+					i32 value = coefficients[index][0][0];
+					u8 SSSS = 32 - clz(abs(value));
+					*dc++ = SSSS;
 				}
-			} else {
-				u8 SSSS = 32 - clz(abs(value));
-				ac[ac_index] = RRRR << 4 | SSSS;
-				RRRR = 0;
-				last_nonzero = ac_index;
+				{ //	AC
+					u8 RRRR = 0;
+					u8 last_nonzero = 0;
+					for (u8 ac_index = 0; ac_index < 63; ++ac_index) {
+						i32 value = coefficients[index][0][ac_index + 1];
+						if (value == 0) {
+							if (RRRR == 15) {
+								ac[ac_index] = 0xF0;
+								RRRR = 0;
+							} else {
+								ac[ac_index] = VALUE_THAT_IS_NOT_USED;
+								++RRRR;
+							}
+						} else {
+							u8 SSSS = 32 - clz(abs(value));
+							ac[ac_index] = RRRR << 4 | SSSS;
+							RRRR = 0;
+							last_nonzero = ac_index;
+						}
+					}
+					if (last_nonzero == 62) { continue; }
+					ac[last_nonzero + 1] = 0x00;
+					for (u8 ac_index = last_nonzero + 2; ac_index < 63; ++ac_index) {
+						ac[ac_index] = VALUE_THAT_IS_NOT_USED;
+					}
+					ac += 63;
+				}
 			}
 		}
-		if (last_nonzero == 62) { return; }
-		ac[last_nonzero + 1] = 0x00;
-		for (u8 ac_index = last_nonzero + 2; ac_index < 63; ++ac_index) {
-			ac[ac_index] = VALUE_THAT_IS_NOT_USED;
-		}
-		
 	}
-	#pragma endregion
+	{ //	C2 & C3
+		__global u8* dc = hvalues_dc_1 + mcu_index * lane_infos[1].hvalues_step;
+		__global u8* ac = hvalues_ac_1 + mcu_index * lane_infos[1].hvalues_step * 63;
+		__attribute__((opencl_unroll_hint(2)))
+		for (u8 c_id_m1 = 1; c_id_m1 < 3; ++c_id_m1) {
+			u8 sf_y = lane_infos[c_id_m1].sf_y;
+			u8 sf_x = lane_infos[c_id_m1].sf_x;
+			for (int unit_y = 0; unit_y < sf_y; ++unit_y) {
+				for (int unit_x = 0; unit_x < sf_x; ++unit_x, ++lane_id) {
+					u32 index = mcu_index * mcu_length + lane_id;
+					{ //	DC
+						i32 value = coefficients[index][0][0];
+						u8 SSSS = 32 - clz(abs(value));
+						*dc++ = SSSS;
+					}
+					{ //	AC
+						u8 RRRR = 0;
+						u8 last_nonzero = 0;
+						for (u8 ac_index = 0; ac_index < 63; ++ac_index) {
+							i32 value = coefficients[index][0][ac_index + 1];
+							if (value == 0) {
+								if (RRRR == 15) {
+									ac[ac_index] = 0xF0;
+									RRRR = 0;
+								} else {
+									ac[ac_index] = VALUE_THAT_IS_NOT_USED;
+									++RRRR;
+								}
+							} else {
+								u8 SSSS = 32 - clz(abs(value));
+								ac[ac_index] = RRRR << 4 | SSSS;
+								RRRR = 0;
+								last_nonzero = ac_index;
+							}
+						}
+						if (last_nonzero == 62) { continue; }
+						ac[last_nonzero + 1] = 0x00;
+						for (u8 ac_index = last_nonzero + 2; ac_index < 63; ++ac_index) {
+							ac[ac_index] = VALUE_THAT_IS_NOT_USED;
+						}
+						ac += 63;
+					}
+				}
+			}
+		}
+	}
 }
 kernel void radixSort_createAB/* 1: hvalues.length - 1 */(
 	__global   u8           arg(hvalues     )[]       ,
@@ -226,11 +275,12 @@ kernel void radixSort_createAB/* 1: hvalues.length - 1 */(
 ) {
 	u32 index = get_global_id(0);
 	u32 n_m1 = get_global_size(0);
-	A[index + 1   ] = !(hvalues[index    ] >> pow & 1);
-	B[n_m1 - index] =   hvalues[index + 1] >> pow & 1 ;
+	A[index + 1   ] = !((hvalues[index    ] >> pow) & 1);
+	B[n_m1 - index] =   (hvalues[index + 1] >> pow) & 1 ;
+	//	A[index] = hvalues[index];
+	//	B[n_m1 - index] = 0b10000 + pow;
 }
 kernel void radixSort_prefixSum1/* 1: hvalues.length / full_step */(
-	__global   u8           arg(hvalues     )[]       ,
 	__global   u32          arg(A           )[]       ,
 	__global   u32          arg(B           )[]       ,
 	           u32          arg(half_step   )         
@@ -245,7 +295,6 @@ kernel void radixSort_prefixSum1/* 1: hvalues.length / full_step */(
 	B[index_b] += B[index_a];
 }
 kernel void radixSort_prefixSum2/* 1: (hvalues.length - half_step) / full_step, if hvalues.length > half_step */(
-	__global   u8           arg(hvalues     )[]       ,
 	__global   u32          arg(A           )[]       ,
 	__global   u32          arg(B           )[]       ,
 	           u32          arg(half_step   )         
@@ -299,7 +348,7 @@ kernel void countOccurances1/* 1: hvalues.length / full_step */(
 		counts_large[index_b] += counts_large[index_a];
 	}
 }
-kernel void countOccurances2/* 1: (hvalues.length - half_step) / full_step, if hvalues.length > half_step */(
+kernel void countOccurances2/* 1: (hvalues.length + half_step) / full_step */(
 	__global   u8           arg(hvalues     )[]       ,
 	__global   u32          arg(counts_large)[]       ,
 	__global   u32          arg(last_writers)[4][256] ,
@@ -324,7 +373,6 @@ kernel void countOccurances2/* 1: (hvalues.length - half_step) / full_step, if h
 	counts      [id][value] += count;
 	last_writers[id][value] = index_b;
 }
-
 
 kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 	__global   i32          arg(coefficients)[][8][8] ,
@@ -395,7 +443,7 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 			u8 offset = length % 32;
 			code = rotate(code, (u32) 32 - offset); //	rotate is left rotation, so this is actually right rotation by `offset` bits
 			codes[index][word    ] |= code & (code_mask >> offset); //	obviously, 1st bit must be at offset from MSB
-			codes[index][word + 1] |= code & (code_mask << (32 - offset)); //	obviously, must be shifted left the same amount as rotation
+			codes[index][word + 1] |= code & (code_mask << 1 << (31 - offset)); //	obviously, must be shifted left the same amount as rotation
 				//	lets say we have 8 bits, offset 3, my_length = 4
 				//	code      = 10100000
 				//	rotated   = 00010100
@@ -419,7 +467,7 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 			u8 offset = length % 32;
 			code = rotate(code, (u32) 32 - offset); //	rotate is left rotation, so this is actually right rotation by `offset` bits
 			codes[index][word    ] |= code & (code_mask >> offset); //	obviously, 1st bit must be at offset from MSB
-			codes[index][word + 1] |= code & (code_mask << (32 - offset)); //	obviously, must be shifted left the same amount as rotation
+			codes[index][word + 1] |= code & (code_mask << 1 << (31 - offset)); //	obviously, must be shifted left the same amount as rotation
 			length += my_length;
 		}
 	}
@@ -475,10 +523,10 @@ kernel void concatCodes/* 1: unit_count */(
 	u32 const unit_index = get_global_id(0); // - get_global_offset(0);
 	u32 const start_bit = lengths[unit_index];                          //	start_bit >= 0
 	u32 const length_bit = lengths[unit_index + 1] - start_bit;         //	length_bit > 0
-	u32 const start_bit_actual = ROUND_UP_8(start_bit);                 //	start_bit_actual >= start_bit
+	u32 const start_bit_actual = ROUND_UP_8(start_bit);                 //	start_bit + 8 > start_bit_actual >= start_bit
 	//	bbx TODO uncomment when finished with bbx bb8a012d-0c86-4b16-8f75-bc722937dde6
 	if (start_bit + length_bit <= start_bit_actual) { return; }
-	u32 const delta_actual = start_bit_actual - start_bit;              //	length_bit > delta_actual
+	u32 const delta_actual = start_bit_actual - start_bit;              //	length_bit > delta_actual && 0 <= delta_actual < 8
 	u32 const length_bit_actual = length_bit - delta_actual;            //	length_bit_actual > 0
 	u32 const start_byte = start_bit_actual / 8;                        //	start_byte * 8 == start_bit_actual
 	u32 const length_byte = length_bit_actual / 8;                      //	length_byte >= 0, but 0 is ok, since we do handle u to ceil(length_bit_actual / 8)
@@ -507,10 +555,14 @@ kernel void concatCodes/* 1: unit_count */(
 		__attribute__((opencl_unroll_hint(4)))
 		for (int amount_to_shift = 32 - 8; amount_to_shift >= 0 && index < length_byte; amount_to_shift -= 8, ++index) {
 			u8 data = codes[unit_index][index_code] << delta_actual >> amount_to_shift;
-			if (amount_to_shift == 0) {
-				data |= codes[unit_index][index_code + 1] << delta_actual >> 32;
+			if (/* delta_actual != 0 && */ amount_to_shift == 0) {
+				//	data |= codes[unit_index][index_code + 1] >> (32 - delta_actual); //	 << delta_actual >> 32;
+				//	data |= codes[unit_index][index_code + 1] >> 31;//>> (32 - delta_actual); //	 << delta_actual >> 32;
+				//	ok, for some reason, when you right-shift by 32, it does nothing
+				data |= codes[unit_index][index_code + 1] >> 16 >> (16 - delta_actual); //	 << delta_actual >> 32;
 			}
 			payload[start_byte + index] = data;
+			//	payload[start_byte + index] = unit_index;
 		}
 	}
 	//	u8 amount_to_shift = 32 - 8;
@@ -536,8 +588,14 @@ kernel void concatCodes/* 1: unit_count */(
 		for (int their_index = unit_index + 1; required_bit_length > 0; ++their_index) {
 			u32 their_length_bit = lengths[their_index + 1] - lengths[their_index];
 			data |= codes[their_index][0] >> (32 - required_bit_length);
+			//	data = their_index - unit_index;
+			//	break;
+			//	data = codes[their_index][0];
+			//	data = required_bit_length;
 			required_bit_length -= their_length_bit;
 		}
 		payload[start_byte + index] = data;
+		//	payload[start_byte + index] = unit_index;
+		
 	}
 }

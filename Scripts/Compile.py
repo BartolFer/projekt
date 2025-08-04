@@ -13,6 +13,13 @@ pass
 import json;
 import subprocess;
 
+serial = False;
+SERIAL_FLAG = "-bjpeg-compile-serial";
+if SERIAL_FLAG in sys.argv[1 : ]:
+	serial = True;
+	i = sys.argv.index(SERIAL_FLAG, 1);
+	sys.argv[i : i + 1] = [];
+pass
 
 def cl_to_zzc(filename: str):
 	filename = filename.replace("\\", "/");
@@ -55,10 +62,12 @@ def build(base, files = None):
 	if files is None: files = [path for path in os.listdir(base) if os.path.isfile(path)];
 	print("Building", base);
 	if "Build.py" in files:
-		return subprocess.Popen([sys.executable, base + "/Build.py", *sys.argv[1 : ]]);
+		p = subprocess.Popen([sys.executable, base + "/Build.py", *sys.argv[1 : ]]);
 	else:
-		return subprocess.Popen([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", base, *sys.argv[1 : ]]);
+		p = subprocess.Popen([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", base, *sys.argv[1 : ]]);
 	pass
+	if serial and p.wait() != 0: raise Exception(str(p.args));
+	return p;
 pass
 
 processes: list[subprocess.Popen] = [];
@@ -79,7 +88,7 @@ if failed:
 	raise Exception(str(p.args));
 pass
 
-build(__actual_dir__ + "/" + "./../Targets/Ide/");
+if build(__actual_dir__ + "/" + "./../Targets/Ide/").wait() != 0: raise Exception;
 #	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", __actual_dir__ + "/" + "./Targets/Decode/", *sys.argv[1 : ]]).check_returncode();
 #	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", __actual_dir__ + "/" + "./Targets/Encode/", *sys.argv[1 : ]]).check_returncode();
 #	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../Targets/Library/Static/Build.py"                , *sys.argv[1 : ]]).check_returncode();
