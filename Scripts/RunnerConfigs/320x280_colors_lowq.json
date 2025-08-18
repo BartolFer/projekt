@@ -1,0 +1,11 @@
+[
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
+	["./Targets/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/jpgs/320x280_colors_lowq.jpg", "./Temp/jpgs/320x280_colors_lowq.rgba"],
+	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/320x280_colors_lowq.rgba"],
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "D:/Personal/nastava/projekt/Temp/jpgs/320x280_colors_lowq.jpg", "./Temp/jpgs/320x280_colors_lowq.def.jpg"],
+	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/320x280_colors_lowq.rgba", "./Temp/jpgs/320x280_colors_lowq.def.jpg", "./Temp/jpgs/320x280_colors_lowq.out.jpg", "11"],
+	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/320x280_colors_lowq.out.jpg", "./Temp/jpgs/320x280_colors_lowq.out.rgba"],
+	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/320x280_colors_lowq.out.rgba"],
+	["./Temp/JPEGsnoop.exe"]
+]

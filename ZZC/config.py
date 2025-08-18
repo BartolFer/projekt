@@ -15,6 +15,7 @@ def configModuleInit(_root):
 		config = Config({});
 	pass
 	if "-nocompile" in sys.argv[2 : ]: config.nocompile = True;
+	if "-noinc"     in sys.argv[2 : ]: config.noinc     = True;
 	mirrorFolders(config);
 pass
 
@@ -145,6 +146,7 @@ class Config:
 		self.paths     = _ConfigPaths   (json.get("paths"   , {}));
 		self.compiler  =  ConfigCompiler(json.get("compiler", {}), self.vars);
 		self.nocompile = json.get("nocompile", False);
+		self.noinc     = json.get("noinc"    , False);
 	pass
 pass
 

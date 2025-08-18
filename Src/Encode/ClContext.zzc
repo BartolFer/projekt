@@ -200,11 +200,11 @@ namespace BJpeg {
 				MyOpenCL :: Buffer<u8> payload;
 				
 				fun bool initConst(MyOpenCL :: Context context) {
-					if (!self.htables          .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , 2                  )) { return false; }
-					if (!self.qtables          .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , 4                  )) { return false; }
-					if (!self.lane_infos       .init(context, CL_MEM_HOST_WRITE_ONLY  | CL_MEM_READ_ONLY , MAX_MCU_LENGTH     )) { return false; }
-					if (!self.last_writers     .init(context, CL_MEM_HOST_NO_ACCESS   | CL_MEM_READ_ONLY , 4                  )) { return false; }
-					if (!self.counts           .init(context, CL_MEM_HOST_READ_ONLY   | CL_MEM_READ_ONLY , 4                  )) { return false; }
+					if (!self.htables          .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_WRITE_ONLY  |) CL_MEM_READ_ONLY , 2                  )) { return false; }
+					if (!self.qtables          .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_WRITE_ONLY  |) CL_MEM_READ_ONLY , 4                  )) { return false; }
+					if (!self.lane_infos       .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_WRITE_ONLY  |) CL_MEM_READ_ONLY , MAX_MCU_LENGTH     )) { return false; }
+					if (!self.last_writers     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS   |) CL_MEM_READ_ONLY , 4                  )) { return false; }
+					if (!self.counts           .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_READ_ONLY   |) CL_MEM_READ_ONLY , 4                  )) { return false; }
 					
 					return true;
 				}
@@ -219,19 +219,19 @@ namespace BJpeg {
 					size_t pixel_count = height * width;
 					//	size_t coefficients_count = 0; //	sum(r8(h)/sf.y * r8(w)/sf.x for sf in sfs)
 					//	for (auto sf : sampling_factors) { coefficients_count += ROUND_UP_8(height) / sf.y * ROUND_UP_8(width) / sf.x; }
-					if (!self.image_temp       .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, pixel_count         )) { return false; }
-					if (!self.coefficients     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, unit_count          )) { return false; }
-					if (!self.dc_temp          .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, unit_count          )) { return false; }
-					if (!self.hvalues_dc_0     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, dc_count_0          )) { return false; }
-					if (!self.hvalues_dc_1     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, dc_count_1          )) { return false; }
-					if (!self.hvalues_ac_0     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, dc_count_0 * 63     )) { return false; }
-					if (!self.hvalues_ac_1     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, dc_count_1 * 63     )) { return false; }
-					if (!self.hvalues_temp     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
-					if (!self.sort_A           .init(context, /* CL_MEM_HOST_WRITE_ONLY | */ CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
-					if (!self.sort_B           .init(context, /* CL_MEM_HOST_WRITE_ONLY | */ CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
-					if (!self.counts_large     .init(context, /* CL_MEM_HOST_NO_ACCESS  | */ CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
-					if (!self.lengths          .init(context, /*                          */ CL_MEM_READ_WRITE, unit_count + 2      )) { return false; }
-					if (!self.codes            .init(context, /* CL_MEM_HOST_WRITE_ONLY | */ CL_MEM_READ_WRITE, unit_count + 1      )) { return false; }
+					if (!self.image_temp       .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, pixel_count         )) { return false; }
+					if (!self.coefficients     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, unit_count          )) { return false; }
+					if (!self.dc_temp          .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, unit_count          )) { return false; }
+					if (!self.hvalues_dc_0     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, dc_count_0          )) { return false; }
+					if (!self.hvalues_dc_1     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, dc_count_1          )) { return false; }
+					if (!self.hvalues_ac_0     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, dc_count_0 * 63     )) { return false; }
+					if (!self.hvalues_ac_1     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, dc_count_1 * 63     )) { return false; }
+					if (!self.hvalues_temp     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
+					if (!self.sort_A           .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_WRITE_ONLY |) CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
+					if (!self.sort_B           .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_WRITE_ONLY |) CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
+					if (!self.counts_large     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, max_hvalue_size     )) { return false; }
+					if (!self.lengths          .init(context, BJPEG_IF_NOT_DEBUG_ALL(                        ) CL_MEM_READ_WRITE, unit_count + 2      )) { return false; }
+					if (!self.codes            .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_WRITE_ONLY |) CL_MEM_READ_WRITE, unit_count + 1      )) { return false; }
 					
 					{
 						//	it's enough to set it once, since noone changes [0]
@@ -266,7 +266,7 @@ namespace BJpeg {
 					self.codes       .finish();
 				}
 				fun bool init2(MyOpenCL :: Context context, size_t size) {
-					if (!self.payload          .init(context, CL_MEM_HOST_READ_ONLY  | CL_MEM_WRITE_ONLY, size               )) { return false; }
+					if (!self.payload          .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_READ_ONLY  |) CL_MEM_WRITE_ONLY, size               )) { return false; }
 					return true;
 				}
 				fun void finish2() noexcept {

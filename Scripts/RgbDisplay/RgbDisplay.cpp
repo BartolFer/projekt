@@ -60,6 +60,11 @@ std :: ostream& operator<<(std :: ostream& stream, const MetaData& meta_data) {
 	return stream << "Image(" << meta_data.width << " x " << meta_data.height << ")";
 }
 
+//	void resizeToAspectRatio(MetaData meta_data) {
+//		glfwGetWindowFrameSize()
+//		glfwSetWindowAspectRatio
+//	}
+
 int main(int const argc, char const* const argv[]) {
 	std :: cout << "Starting" << std :: endl;
 	if (argc < 2) {
@@ -111,20 +116,23 @@ int main(int const argc, char const* const argv[]) {
 
 	// Create a GLFW window
 	
-	GLFWwindow* window = glfwCreateWindow(std :: max(meta_data.width, 100), std :: max(meta_data.height, 100), "RGB Display", NULL, NULL);
+	int w_width  = std :: max(meta_data.width , 100);
+	int w_height = std :: max(meta_data.height, 100);
+	GLFWwindow* window = glfwCreateWindow(w_width, w_height, "RGB Display", NULL, NULL);
 	if (window == NULL) {
 		std::cerr << "Failed to create GLFW window" << std::endl;
 		glfwTerminate();
 		return -1;
 	}
 	glfwMakeContextCurrent(window);
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
+	
 	// Initialize GLAD
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		std::cerr << "Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glfwSetWindowAspectRatio(window, meta_data.width, meta_data.height);
 
 	// Compile shaders
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);

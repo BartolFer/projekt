@@ -52,20 +52,15 @@ def step1(file: File):
 pass
 def updateCache(file: File):
 	direct_dependancy = cache.direct_dependancies[file] = [];
-	dirname = config.paths.zzc + "/" + (os.path.dirname(file.path) or ".");
-	#	print(repr(dirname), "        ", root + "/" + config.paths.zzc);
-	#	dirname = os.path.relpath(dirname1, root + "/" + config.paths.zzc);
 	for token in file.tokens:
 		if token.typ != tokenizer.TokenType.MACRO: continue;
 		if token.macro_type != macro_processor.MacroType.INCLUDE: continue;
 		if not token.relevant_info.is_zzc: continue;
 		filename = token.relevant_info.filename;
 		if filename.endswith(".zzh"): filename = filename[ : -4] + ".zzc";
-		f = File(dirname + "/" + filename);
+		f = file.relativeFile(filename); # File(dirname + "/" + filename);
 		if f not in direct_dependancy: direct_dependancy.append(f);
-		#	print(dirname, file.path, f.path, sep="         ");
 	pass
-	#	print(file, direct_dependancy);
 pass
 
 timer = Timer();
@@ -89,11 +84,15 @@ for (base, folders, files) in os.walk(root + "/" + config.paths.zzc):
 		pass
 	pass
 pass
-if timing: print("index:", timer, flush = True);
 
 outdated = [file for file in zzc_files if isOutdated(file)];
-#	print(outdated);
-if not outdated: sys.exit(0);
+dirty = outdated.copy();
+if not outdated: 
+	print("none :", total);
+	sys.exit(0);
+pass
+
+if timing: print("index:", timer, flush = True);
 for file in zzc_files:
 	if file in outdated: continue;
 	if file in cache.direct_dependancies.keys(): continue;
@@ -115,6 +114,8 @@ for file in outdated:
 		if f not in outdated: outdated.append(f);
 	pass
 pass
+print("Dirty:", dirty); 
+print("Dependant:", [file for file in outdated if file not in dirty]);
 
 for file in outdated: step1(file);
 if timing: print("1st  :", timer, flush = True);
@@ -129,6 +130,11 @@ for file in outdated:
 	file.tokens = list(tokenizer.tokenize(raw));
 	macro_processor.transformIntoRTokens(file.tokens);
 	macro_processor.transformMacroTokensAfterPreprocess(file.tokens);
+	with open(file.abs_file.final_temp, "w") as f:
+		for token in file.tokens:
+			f.write(token.raw);
+		pass
+	pass
 	semantic.semanticAnalysis(file.tokens);
 	
 	#	file_id = random.randint(1<<32, (1<<64)-1);
@@ -163,20 +169,22 @@ for file in outdated:
 			if getattr(token.region, k): setattr(token.region, k, token.raw);
 		pass
 	pass
-	with open(file.abs_file.inc, "w") as f:
-		f.write("#pragma once\n");
-		for chunk in file_composer.compose(file.tokens, "hdr_decl"):
-			f.write(chunk);
-		pass
-		f.write("\n");
-		for chunk in file_composer.compose(file.tokens, "hdr_impl"):
-			f.write(chunk);
+	if not config.noinc:
+		with open(file.abs_file.inc, "w") as f:
+			f.write("#pragma once\n");
+			for chunk in file_composer.compose(file.tokens, "hdr_decl"):
+				f.write(chunk);
+			pass
+			f.write("\n");
+			for chunk in file_composer.compose(file.tokens, "hdr_impl"):
+				f.write(chunk);
+			pass
 		pass
 	pass
 pass
 if timing: print("2nd  :", timer, flush = True);
 if config.nocompile:
-	print("nocompile");
+	print("nocompile:", total);
 	sys.exit();
 pass
 for file in outdated:

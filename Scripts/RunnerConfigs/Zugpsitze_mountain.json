@@ -1,1 +1,10 @@
-[["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/Clean.py"], ["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/Compile.py"], ["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.rgba"], ["./Scripts/RgbDisplay/a.exe", "./Temp/Zugpsitze_mountain.rgba"], ["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/JPG_to_JPGDEF.py", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.def.jpg"], ["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain.rgba", "./Temp/Zugpsitze_mountain.def.jpg", "./Temp/Zugpsitze_mountain.out.jpg", "122"], ["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.out.jpg", "./Temp/Zugpsitze_mountain.out.rgba"], ["./Scripts/RgbDisplay/a.exe", "./Temp/Zugpsitze_mountain.out.rgba"]]
+[
+	["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/Clean.py"], 
+	["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/Compile.py"], 
+	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.rgba"], 
+	["./Scripts/RgbDisplay/a.exe", "./Temp/Zugpsitze_mountain.rgba"], 
+	["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/JPG_to_JPGDEF.py", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.def.jpg"], 
+	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain.rgba", "./Temp/Zugpsitze_mountain.def.jpg", "./Temp/Zugpsitze_mountain.out.jpg", "12"], 
+	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.out.jpg", "./Temp/Zugpsitze_mountain.out.rgba"], 
+	["./Scripts/RgbDisplay/a.exe", "./Temp/Zugpsitze_mountain.out.rgba"]
+]

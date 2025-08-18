@@ -20,5 +20,5 @@
 		"OpenCL_include": "-IC:/Programs/Cuda/include/",
 		"OpenCL_link": ["-LC:/Programs/Cuda/lib/x64/", "-lOpenCl"]
 	},
-	"nocompile": false
-}
+	"nocompile": false,
+	"noinc": true}

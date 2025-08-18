@@ -1,0 +1,11 @@
+[
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
+	["./Targets/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/jpgs/32x32_grayscale_2xb11.jpg", "./Temp/jpgs/32x32_grayscale_2xb11.rgba"],
+	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/32x32_grayscale_2xb11.rgba"],
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "D:/Personal/nastava/projekt/Temp/jpgs/32x32_grayscale_2xb11.jpg", "./Temp/jpgs/32x32_grayscale_2xb11.def.jpg"],
+	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/32x32_grayscale_2xb11.rgba", "./Temp/jpgs/32x32_grayscale_2xb11.def.jpg", "./Temp/jpgs/32x32_grayscale_2xb11.out.jpg", "11"],
+	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/32x32_grayscale_2xb11.out.jpg", "./Temp/jpgs/32x32_grayscale_2xb11.out.rgba"],
+	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/32x32_grayscale_2xb11.out.rgba"],
+	["./Temp/JPEGsnoop.exe"]
+]

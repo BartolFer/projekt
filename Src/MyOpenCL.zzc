@@ -216,6 +216,7 @@ namespace MyOpenCL {
 				f(stream, array[i]);
 				stream << ", ";
 			}
+			stream << std :: endl;
 			return true;
 		}
 		fun bool debugWrite(Queue queue, size_t length, std :: ostream& stream, void (*f)(std :: ostream& stream, T& t) = [](std :: ostream& stream, T& t) {stream << t;}) { return self.debugWrite(queue,      length, 0, stream, f); }

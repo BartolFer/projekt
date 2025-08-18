@@ -14,11 +14,15 @@
 
 namespace BJpeg {
 	namespace Encode {
-		fun ArrayWithLength<u8> image(MyOpenCL :: Buffer<RGBA> image, CLContext cl, size_t height, size_t width, QuantizationTable qtables[4], HuffmanTable htables[2][4], SamplingFactor sampling_factors[MAX_COMPONENTS]) {
+		fun ArrayWithLength<u8> image(MyOpenCL :: Buffer<RGBA> image, CLContext cl, size_t height, size_t width, QuantizationTable qtables[4], SamplingFactor sampling_factors[MAX_COMPONENTS]) {
 			//	we will assume image has 3 components
 			//	There are 2 qtables and 4 htables: 
 			//		C1 has qtables[0] and both htables[DC/AC][0]
 			//		C2 & C3 share qtables[1] and both htables[DC/AC][1]
+			
+			BJPEG_IF_DEBUG_ALL(if (!image.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, BJpeg::RGBA& t) { stream << '(' << t.r << ',' << t.g << ',' << t.b << ')'; })) { clog("bbx eee 42") return {}; })
+			
+			HuffmanTable htables[2][4];
 			
 			LaneInfo lane_infos[MAX_MCU_LENGTH]; LaneInfo* lane_infos_ptr = lane_infos;
 			u8 max_sf_y = 1;
@@ -52,51 +56,61 @@ namespace BJpeg {
 			clog("mcu_count = %d", mcu_count);
 			clog("unit_count = %d", unit_count);
 			
-			if (!cl.buffer.htables   .write(cl.queue, htables   )) { return {}; }
-			if (!cl.buffer.qtables   .write(cl.queue, qtables   )) { return {}; }
-			if (!cl.buffer.lane_infos.write(cl.queue, lane_infos)) { return {}; }
+			if (!cl.buffer.htables   .write(cl.queue, htables   )) { clog("bbx eee 1") return {}; }
+			if (!cl.buffer.qtables   .write(cl.queue, qtables   )) { clog("bbx eee 2") return {}; }
+			if (!cl.buffer.lane_infos.write(cl.queue, lane_infos)) { clog("bbx eee 3") return {}; }
 			
 			size_t dc_count_0 = mcu_count *  sampling_factors[0].y * sampling_factors[0].x;
 			size_t dc_count_1 = mcu_count * (sampling_factors[1].y * sampling_factors[1].x + sampling_factors[2].y * sampling_factors[2].x);
 			
-			if (!cl.initBuffers1(height, width, unit_count, max_sf, mcu_length, dc_count_0, dc_count_1)) { return {}; }
+			if (!cl.initBuffers1(height, width, unit_count, max_sf, mcu_length, dc_count_0, dc_count_1)) { clog("bbx eee 4") return {}; }
 			defer { cl.finishBuffers1(); };
 			
-			if (!cl.kernel.RGB_to_YCbCr.setArg_image(image)) { return {}; }
-			if (!cl.kernel.RGB_to_YCbCr.call(cl.queue, { height, width })) { return {}; }
+			if (!cl.kernel.RGB_to_YCbCr.setArg_image(image)) { clog("bbx eee 5") return {}; }
+			if (!cl.kernel.RGB_to_YCbCr.call(cl.queue, { height, width })) { clog("bbx eee 6") return {}; }
+			#ifdef BJPEG_DEBUG_ALL
+				if (!cl.buffer.image_temp.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, BJpeg::RGBAF& t) { stream << '(' << t.r << ',' << t.g << ',' << t.b << ')'; })) { clog("bbx eee 7") return {}; }
+			#endif
 			
 			//	TODO fill missing in both de & en
-			if (!cl.kernel.interleave_downsample.call(cl.queue, { mcu_y, mcu_x })) { return {}; }
+			if (!cl.kernel.interleave_downsample.call(cl.queue, { mcu_y, mcu_x })) { clog("bbx eee 8") return {}; }
+			BJPEG_IF_DEBUG_ALL(if (!debugPrintCoefficients<f32>(cl)) { clog("bbx eee 9") return {}; })
 			
-			if (!cl.kernel.dct_quantization_zigzag.call(cl.queue, { mcu_count, mcu_length })) { return {}; }
+			if (!cl.kernel.dct_quantization_zigzag.call(cl.queue, { mcu_count, mcu_length })) { clog("bbx eee 10") return {}; }
+			BJPEG_IF_DEBUG_ALL(if (!debugPrintCoefficients<i32>(cl)) { clog("bbx eee 11") return {}; })
 			
-			//	debugPrintCoefficients(cl);
-			//	FI fi0; if (!cl.buffer.coefficients.read(cl.queue, &fi0, 0, 0, 1, 0)) { return {}; } clog("fi = %d or %f", fi0.i, fi0.f);
-			if (!cl.kernel.deltaDC1.call(cl.queue, { mcu_count })) { return {}; }
-			if (!cl.kernel.deltaDC2.call(cl.queue, { unit_count })) { return {}; }
-			//	debugPrintCoefficients(cl);
+			//	FI fi0; if (!cl.buffer.coefficients.read(cl.queue, &fi0, 0, 0, 1, 0)) { clog("bbx eee 12") return {}; } clog("fi = %d or %f", fi0.i, fi0.f);
+			if (!cl.kernel.deltaDC1.call(cl.queue, { mcu_count })) { clog("bbx eee 13") return {}; }
+			if (!cl.kernel.deltaDC2.call(cl.queue, { unit_count })) { clog("bbx eee 14") return {}; }
+			BJPEG_IF_DEBUG_ALL(if (!debugPrintCoefficients<i32>(cl)) { clog("bbx eee 15") return {}; })
 			
 			{ //	generate Huffman
-				if (!cl.kernel.initCounts         .call(cl.queue, { 4, 256 })) { return {}; }
-				//	if (!cl.buffer.hvalues_dc_0.debugWrite(cl.queue, 1)) { return {}; }
-				if (!cl.kernel.gatherHuffmanValues.call(cl.queue, { mcu_count })) { return {}; }
-				//	if (!cl.buffer.hvalues_dc_0.debugWrite(cl.queue, 1)) { return {}; }
+				if (!cl.kernel.initCounts         .call(cl.queue, { 4, 256 })) { clog("bbx eee 16") return {}; }
+				//	if (!cl.buffer.hvalues_dc_0.debugWrite(cl.queue, 1)) { clog("bbx eee 17") return {}; }
+				if (!cl.kernel.gatherHuffmanValues.call(cl.queue, { mcu_count })) { clog("bbx eee 18") return {}; }
+				
+				#ifdef BJPEG_DEBUG_ALL
+					if (!cl.buffer.hvalues_dc_0.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, u8& t) { stream << (t >> 4) << '|' << (t & 0x0F); })) { clog("bbx eee 19 0") return {}; }
+					if (!cl.buffer.hvalues_dc_1.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, u8& t) { stream << (t >> 4) << '|' << (t & 0x0F); })) { clog("bbx eee 19 1") return {}; }
+					if (!cl.buffer.hvalues_ac_0.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, u8& t) { stream << (t >> 4) << '|' << (t & 0x0F); })) { clog("bbx eee 19 2") return {}; }
+					if (!cl.buffer.hvalues_ac_1.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, u8& t) { stream << (t >> 4) << '|' << (t & 0x0F); })) { clog("bbx eee 19 3") return {}; }
+				#endif
 				//	debugPrintCoefficients(cl);
-				//	FI fi0; if (!cl.buffer.coefficients.read(cl.queue, &fi0, 0, 0, 1, 0)) { return {}; } clog("fi = %d or %f", fi0.i, fi0.f);
-				//	if (!cl.buffer.hvalues_dc_0.debugWrite(cl.queue)) { return {}; } clog();
-				if (!countOccurances(cl, cl.buffer.hvalues_dc_0, dc_count_0     , 0b00)) { return {}; }
-				//	if (!cl.buffer.hvalues_dc_0.debugWrite(cl.queue)) { return {}; } clog();
+				//	FI fi0; if (!cl.buffer.coefficients.read(cl.queue, &fi0, 0, 0, 1, 0)) { clog("bbx eee 20") return {}; } clog("fi = %d or %f", fi0.i, fi0.f);
+				//	if (!cl.buffer.hvalues_dc_0.debugWrite(cl.queue)) { clog("bbx eee 21") return {}; } clog();
+				if (!countOccurances(cl, cl.buffer.hvalues_dc_0, dc_count_0     , 0b00)) { clog("bbx eee 22") return {}; }
+				//	if (!cl.buffer.hvalues_dc_0.debugWrite(cl.queue)) { clog("bbx eee 23") return {}; } clog();
 				
 				
 				//	u32 counts[4][256];
-				//	if (!cl.buffer.counts.read(cl.queue, counts)) { return {}; }
+				//	if (!cl.buffer.counts.read(cl.queue, counts)) { clog("bbx eee 24") return {}; }
 				//	//	std :: cout << "[ "; for (u32 x : counts[0]) { if (x) std :: cout << x << ", "; else std :: cout << "." << ", "; } std :: cout << " ]" << std :: endl;
-				if (!countOccurances(cl, cl.buffer.hvalues_dc_1, dc_count_1     , 0b01)) { return {}; }
-				if (!countOccurances(cl, cl.buffer.hvalues_ac_0, dc_count_0 * 63, 0b10)) { return {}; }
-				if (!countOccurances(cl, cl.buffer.hvalues_ac_1, dc_count_1 * 63, 0b11)) { return {}; }
+				if (!countOccurances(cl, cl.buffer.hvalues_dc_1, dc_count_1     , 0b01)) { clog("bbx eee 25") return {}; }
+				if (!countOccurances(cl, cl.buffer.hvalues_ac_0, dc_count_0 * 63, 0b10)) { clog("bbx eee 26") return {}; }
+				if (!countOccurances(cl, cl.buffer.hvalues_ac_1, dc_count_1 * 63, 0b11)) { clog("bbx eee 27") return {}; }
 				
 				u32 counts[4][256];
-				if (!cl.buffer.counts.read(cl.queue, counts)) { return {}; }
+				if (!cl.buffer.counts.read(cl.queue, counts)) { clog("bbx eee 28") return {}; }
 				//	std :: cout << "[ "; for (u32 x : counts[0]) { if (x) std :: cout << x << ", "; else std :: cout << "." << ", "; } std :: cout << " ]" << std :: endl;
 				
 				HuffmanEncoder :: generateTable(counts[0b00], htables[0][0]);
@@ -107,72 +121,77 @@ namespace BJpeg {
 				HuffmanEncoder :: generateTable(counts[0b10], htables[1][0]);
 				HuffmanEncoder :: generateTable(counts[0b11], htables[1][1]);
 				//	std :: cout << "[ "; for (auto [c, x] : htables[0][0]) { if (x) std :: cout << x << ", "; else std :: cout << "." << ", "; } std :: cout << " ]" << std :: endl;
-				//	for (int cls = 0; cls < 2; ++cls) {
-				//		for (int dst = 0; dst < 2; ++dst) {
-				//			clog("Huffman %cC %d", cls?'A':'D', dst);
-				//			for (int v = 0; v < 256; ++v) {
-				//				auto [c, l] = htables[cls][dst][v];
-				//				u8 RRRR = v >> 4, SSSS = v & 0x0F;
-				//				if (l == 0) { continue; }
-				//				clog("\t\t\t%u|%u/%u: %s", RRRR, SSSS, 1 << SSSS >> 1, toBin(c, l));
-				//			}
-				//		}
-				//	}
+				#ifdef BJPEG_DEBUG_ALL
+					for (int cls = 0; cls < 2; ++cls) {
+						for (int dst = 0; dst < 2; ++dst) {
+							clog("Huffman %cC %d", cls?'A':'D', dst);
+							for (int v = 0; v < 256; ++v) {
+								auto [c, l] = htables[cls][dst][v];
+								u8 RRRR = v >> 4, SSSS = v & 0x0F;
+								if (l == 0) { continue; }
+								clog("\t\t\t%u|%u/%u: %s", RRRR, SSSS, 1 << SSSS >> 1, toBin(c, l));
+							}
+						}
+					}
+				#endif
 				
-				if (!cl.buffer.htables.write(cl.queue, htables)) { return {}; }
+				if (!cl.buffer.htables.write(cl.queue, htables)) { clog("bbx eee 29") return {}; }
 			}
-			//	return { 1, new u8[1] };
 			//	debugPrintCoefficients(cl);
 			
-			if (!cl.kernel.encodeHuffman.call(cl.queue, { mcu_count, mcu_length })) { return {}; }
-			//	{
-			//		cl.buffer.codes;
-			//		u32      * lengths = new u32      [unit_count]; if (!lengths) { return {}; } defer { delete[] lengths; };
-			//		CodedUnit* codes   = new CodedUnit[unit_count]; if (!codes  ) { return {}; } defer { delete[] codes  ; };
-			//		if (!cl.buffer.lengths.read(cl.queue, lengths, unit_count, 1)) { return {}; }
-			//		if (!cl.buffer.codes  .read(cl.queue, codes  , unit_count, 0)) { return {}; }
-			//		for (int i = 0; i < unit_count; ++i) {
-			//			u32 length = lengths[i];
-			//			CodedUnit& code = codes[i];
-			//			for (int i = 0; i < length / 32; ++i) {
-			//				for (int j = 32; j-- > 0; ) {
-			//					putchar(code[i] >> j & 1 ? '1' : '0');
-			//				}
-			//				putchar(' ');
-			//			}
-			//			for (int j = 32; j-- > 32 - length % 32; ) {
-			//				putchar(code[length / 32] >> j & 1 ? '1' : '0');
-			//			}
-			//			putchar('\n');
-			//		}
-			//	}
-			//	if (!cl.buffer.lengths.debugWrite(cl.queue, unit_count + 1, 0)) { return {}; }
+			if (!cl.kernel.encodeHuffman.call(cl.queue, { mcu_count, mcu_length })) { clog("bbx eee 30") return {}; }
+			#ifdef BJPEG_DEBUG_ALL
+			{
+				u32      * lengths = new u32      [unit_count]; if (!lengths) { clog("bbx eee 31") return {}; } defer { delete[] lengths; };
+				CodedUnit* codes   = new CodedUnit[unit_count]; if (!codes  ) { clog("bbx eee 32") return {}; } defer { delete[] codes  ; };
+				if (!cl.buffer.lengths.read(cl.queue, lengths, unit_count, 1)) { clog("bbx eee 33") return {}; }
+				if (!cl.buffer.codes  .read(cl.queue, codes  , unit_count, 0)) { clog("bbx eee 34") return {}; }
+				for (int i = 0; i < unit_count; ++i) {
+					u32 length = lengths[i];
+					CodedUnit& code = codes[i];
+					printf("%5u: ", length);
+					for (int i = 0; i < length / 32; ++i) {
+						for (int j = 32; j-- > 0; ) {
+							putchar(code[i] >> j & 1 ? '1' : '0');
+						}
+						putchar(' ');
+					}
+					for (int j = 32; j-- > 32 - length % 32; ) {
+						putchar(code[length / 32] >> j & 1 ? '1' : '0');
+					}
+					putchar('\n');
+				}
+				if (!cl.buffer.lengths.debugWrite(cl.queue, unit_count + 1, 0)) { clog("bbx eee 35") return {}; }
+			}
+			#endif
 			
 			u32 total_size = prefixSumLengths(cl, unit_count, mcu_length);
-			//	if (!cl.buffer.lengths.debugWrite(cl.queue, unit_count + 1, 0)) { return {}; }
-			if (total_size == 0) { return {}; }
+			BJPEG_IF_DEBUG_ALL(if (!cl.buffer.lengths.debugWrite(cl.queue, unit_count + 1, 0)) { clog("bbx eee 36") return {}; })
+			if (total_size == 0) { clog("bbx eee 37") return {}; }
 			size_t payload_size = ROUND_UP_8(total_size) / 8;
-			if (!cl.initBuffers2(payload_size)) { return {}; }
+			if (!cl.initBuffers2(payload_size)) { clog("bbx eee 38") return {}; }
 			defer { cl.finishBuffers2(); };
 			
 			#define BJPEG_MAX_GLOBAL_WORK_HERE (((size_t)1U) << 13) //	8192
 			size_t remaining_work = unit_count;
 			size_t offset = 0;
-			
-			
+			int bbx_counter = 0;
 			for (; remaining_work > BJPEG_MAX_GLOBAL_WORK_HERE; remaining_work -= BJPEG_MAX_GLOBAL_WORK_HERE, offset += BJPEG_MAX_GLOBAL_WORK_HERE) {
-				if (!cl.kernel.concatCodes.call(cl.queue, { BJPEG_MAX_GLOBAL_WORK_HERE }, { offset })) { return {}; }
+				//	clog("BBX counter %d", bbx_counter++);
+				if (!cl.kernel.concatCodes.call(cl.queue, { BJPEG_MAX_GLOBAL_WORK_HERE }, { offset })) { clog("bbx eee 39") return {}; }
 			}
-			if (!cl.kernel.concatCodes.call(cl.queue, { remaining_work }, { offset })) { return {}; }
+			//	clog("BBX ct last %d", bbx_counter++);
+			if (!cl.kernel.concatCodes.call(cl.queue, { remaining_work }, { offset })) { clog("bbx eee 40") return {}; }
 			
 			u8* payload = new u8[payload_size];
 			if (!payload) { std :: cerr << "Not enough RAM" << std :: endl; return {}; }
 			defer { delete[] payload; };
-			if (!cl.buffer.payload.read(cl.queue, payload, payload_size)) { return {}; }
+			if (!cl.buffer.payload.read(cl.queue, payload, payload_size)) { clog("bbx eee 41") return {}; }
+			BJPEG_IF_DEBUG_ALL(if (!cl.buffer.payload.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, BJpeg::u8& t) { stream << std :: bitset<8>(t); })) { clog("bbx eee 0") return {}; })
 			//	clog("01100101 10100111 10001011 10001101 01100111 01010001 11011011 00100101 10110110 01100001 10111000 00011100 01101000 01010100 10000000 00111001 00111110 00000110 11100110 00101011 00000100 00111010 01001010 01110100 00111110 11111010 10001010 11101001 00001110 11101000 11010111 10101110 00011011 10110101 01110110 10010010 10111010 01011110 00111110 01100010 11100001 01011111 00110110 11001011 11011110 10110110 00010011 00011000 10111100 10001000 00111110 10010000 11100101 01000111 11100010 00111110 10000101 10000100 00010101 00101101 10100000 10000100 00111010 01001010 01011101 1111010")
 			//	clog();
 			//	for (int i = 0; i < payload_size; ++i) {
-			//		std :: cout << std :: bitset<8>(payload[i]) << " ";
+			//		std :: cout << std :: bitset<8>(payload[i]) ; //	<< " ";
 			//	} std :: cout << std :: endl;
 			
 			size_t old_payload_size = payload_size;
@@ -300,6 +319,21 @@ namespace BJpeg {
 				printf("\n");
 				return true;
 			}
+			template <typename T = i32>
+			fun bool debugPrintCoefficientsDC(CLContext cl) {
+				auto buffer = cl.buffer.coefficients;
+				
+				auto array = new FI[buffer.length][8][8];
+				if (!array) { return false; }
+				if (!buffer.read(cl.queue, array)) { return false; }
+				for (int unit_index = 0; unit_index < buffer.length; ++unit_index) {
+					debugPrintCoefficientsEl(*reinterpret_cast<T*>(&array[unit_index][0][0]));
+					printf("| ");
+				}
+				printf("\n");
+				return true;
+
+			}
 			
 			namespace QTableEncoder {
 				//	assume 16 bit, 3 components (0, 1, 1)
@@ -326,7 +360,7 @@ namespace BJpeg {
 				
 				u32 half_step;
 				size_t work[1];
-				for (half_step = 1; full_step < unit_count; half_step *= 2) {
+				for (half_step = 1; full_step <= unit_count; half_step *= 2) {
 					work[0] = unit_count / full_step;
 					if (!cl.kernel.prefixSumLengths1.setArg_half_step(half_step)) { return 0; }
 					if (!cl.kernel.prefixSumLengths1.call(cl.queue, work)) { return 0; }
@@ -412,7 +446,7 @@ namespace BJpeg {
 			}
 		}
 		
-		fun bool ReadJpegDef(std :: string& path, QuantizationTable qtables[4], HuffmanTable htables[2][4]) {
+		fun bool ReadJpegDef(std :: string& path, QuantizationTable qtables[4]) {
 			Resource<Decode :: InputFileBuffer> file(path);
 			if (!file) {
 				std :: cerr << "Failed to open file " << path << std :: endl;
@@ -440,6 +474,7 @@ namespace BJpeg {
 					}
 					case Marker :: DAC: 
 					case Marker :: DRI: 
+					case Marker :: DHT: 
 					case Marker :: COM: {
 						i += segment_length - 2;
 					} break;
@@ -452,42 +487,7 @@ namespace BJpeg {
 							else         { for (int j = 0; j < 64; ++j) { qtables[Tq][0][j] = (file[i] << 8) | file[i + 1]; i += 2; } }
 						}
 					} break;
-					case Marker :: DHT: {
-						auto end = i + segment_length - 2;
-						while (i < end) {
-							u8 table_class, table_dest; table_class = file[i] >> 4; table_dest = file[i] & 0x0F; ++i;
-							if (table_class > 1 || table_dest > 3) { return false; }
-							HuffmanTable& huffman = htables[table_class][table_dest];
-							for (auto& c_l : huffman) { c_l = { 0, 0 }; }
-							u32 const counts_start = i - 1; // because of 1-indexing
-							u32 const values_start = i + 16;
-							u16 code = 0;
-							u8 value_index = 0;
-							u8 last_length = 1;
-							u32 last_code  = 0;
-							for (u8 length = 1; length <= 16; ++length) {
-								u8 const count = file[counts_start + length];
-								for (u8 i = 0; i < count; ++i) {
-									u8 value = file[values_start + value_index];
-									huffman[value] = { code, length };
-									
-									++code;
-									++value_index;
-									
-									last_code = code;
-									last_length = length;
-								}
-								code <<= 1;
-							}
-							if (last_code + 1 != 1 << last_length) {
-								return false;
-							}
-							i = values_start + value_index;
-						}
-					} break;
 				}
-				
-				
 			}
 			return false;
 		}

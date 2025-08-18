@@ -267,9 +267,12 @@ def transformMacroTokensAfterPreprocess(tokens: list[RToken]):
 		token: MacroToken;
 		if token.macro_type == MacroType.INCLUDE:
 			info: IncludeInfo = token.relevant_info;
-			if not info.is_zzc: continue;
-			new_path = file_names.file_naming.hdr(file_names.FilenameParts(info.filename));
-			token.raw = info.before_filename + new_path + info.after_filename;
+			if info.is_zzc: 
+				new_path = file_names.file_naming.hdr(file_names.FilenameParts(info.filename));
+				token.raw = info.before_filename + new_path + info.after_filename;
+			else:
+				token.raw = "\n#undef fun\n" + token.raw + "\n#define fun\n";
+			pass
 		elif token.macro_type == MacroType.REGION:
 			token.raw = whitespaceReplacement(token.raw);
 		elif token.macro_type == MacroType.ENDREGION:

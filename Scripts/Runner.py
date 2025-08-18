@@ -117,6 +117,11 @@ def detectWordBoundary(text: str, current_index: int) -> tuple[int, int]:
 	
 	return (start, end);
 pass
+def normpath(path):
+	if os.path.normpath(path).startswith(os.path.normpath(cwd)): path = "./" + os.path.relpath(path, cwd);
+	path = path.replace("\\", "/");
+	return path;
+pass
 class SmartEntry(ttk.Entry):
 	def __init__(self, master, var: tk.StringVar, *args, **kwargs):
 		self.var = var;
@@ -145,7 +150,7 @@ class SmartEntry(ttk.Entry):
 		if path.startswith("."): path = cwd + "/" + path;
 		path = filedialog.askopenfilename(initialdir = os.path.dirname(path), initialfile = path);
 		if not path: return;
-		if os.path.normpath(path).startswith(os.path.normpath(cwd)): path = "./" + os.path.relpath(path, cwd);
+		path = normpath(path);
 		self.var.set(path);
 	pass
 	def commandOpenfolder(self):
@@ -153,7 +158,7 @@ class SmartEntry(ttk.Entry):
 		if path.startswith("."): path = cwd + "/" + path;
 		path = filedialog.askdirectory(initialdir = path);
 		if not path: return;
-		if os.path.normpath(path).startswith(os.path.normpath(cwd)): path = "./" + os.path.relpath(path, cwd);
+		path = normpath(path);
 		self.var.set(path);
 	pass
 	
@@ -294,8 +299,15 @@ def addCommand(*args):
 	return command;
 pass
 
+def storeConfigFormatted(config, path):
+	with open(path, "w") as file:
+		file.write("[\n\t" + ",\n\t".join(json.dumps(x) for x in config) + "\n]");
+	pass
+pass
+
 def setGUI(config):
 	for child in list(frame.children.values()): child.destroy();
+	commands.clear();
 	for args in config: addCommand(*args);
 pass
 def loadConfig():
@@ -314,7 +326,53 @@ def storeConfig():
 	config = [[en.var.get() for en in command.entries] for command in commands];
 	path = filedialog.asksaveasfilename(filetypes = [("JSON", "*.json"), ("Any", "*")], title = "Store Config", initialdir = __actual_dir__ + "/" + "./RunnerConfigs/");
 	if not path: return;
-	with open(path, "w") as file: json.dump(config, file);
+	storeConfigFormatted(config, path);
+pass
+
+def setSmartDefault():
+	jpg = filedialog.askopenfilename(filetypes = [("JPEG", ["*.jpg", "*.jpeg"]), ("Any", "*")], title = "Load JPEG for Smart Default", initialdir = __actual_dir__ + "/" + "../Temp/jpgs/");
+	if not jpg: return;
+	jpg = normpath(jpg);
+	(folder, name) = os.path.split(jpg);
+	if not folder: folder = ".";
+	if   name.endswith(".jpg" ): id = name[ : -4];
+	elif name.endswith(".jpeg"): id = name[ : -5];
+	else:                        id = name;
+	rgba = normpath(folder + "/" + id + ".rgba"    );
+	defj = normpath(folder + "/" + id + ".def.jpg" );
+	ojpg = normpath(folder + "/" + id + ".out.jpg" );
+	orgb = normpath(folder + "/" + id + ".out.rgba");
+	config = [
+		["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"          ],                                   
+		["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"        ],                                   
+		["./Targets/Decode/Build/BJpegDecode.exe",                                  jpg,  rgba  ],                                   
+		["./Scripts/RgbDisplay/a.exe",                                              rgba  ],                                   
+		["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", jpg,  defj  ],                                   
+		["./Targets/Encode/Build/BJpegEncode.exe",                                  rgba, defj, ojpg, "11" ],                                   
+		["./Targets/Decode/Build/BJpegDecode.exe",                                  ojpg, orgb  ],                                   
+		["./Scripts/RgbDisplay/a.exe",                                              orgb  ],                                   
+		["./Temp/JPEGsnoop.exe"                                                     ],                     
+	];
+	proposed_path = id + ".json";
+	path = filedialog.asksaveasfilename(filetypes = [("JSON", "*.json"), ("Any", "*")], title = "Store Config", initialdir = __actual_dir__ + "/" + "./RunnerConfigs/", initialfile = proposed_path);
+	if not path: return;
+	storeConfigFormatted(config, path);
+	setGUI(config);
+pass
+def smartRun():
+	for i in [2, 5, 6]:
+		cmd = commands[i];
+		cmd.run();
+		window.update(); window.update_idletasks();
+		p = cmd.child_proc;
+		if p is not None:
+			if p.wait() != 0: return;
+			window.update(); window.update_idletasks();
+		pass
+		cmd.checkProc();
+		window.update(); window.update_idletasks();
+	pass
+	for i in [3, 7]: commands[i].run();
 pass
 
 add_button = ttk.Button(window, text = "Add", command = addCommand);
@@ -322,10 +380,14 @@ add_button.place(x = 10, width = 100, rely = 1, anchor = tk.SW);
 
 load_button = ttk.Button(window, text = "Load", command = loadConfig);
 load_button.place(x = 120, width = 100, rely = 1, anchor = tk.SW);
-add_button = ttk.Button(window, text = "Store", command = storeConfig);
-add_button.place(x = 230, width = 100, rely = 1, anchor = tk.SW);
+store_button = ttk.Button(window, text = "Store", command = storeConfig);
+store_button.place(x = 230, width = 100, rely = 1, anchor = tk.SW);
 
+smart_default_button = ttk.Button(window, text = "Smart default", command = setSmartDefault);
+smart_default_button.place(x = 340, width = 100, rely = 1, anchor = tk.SW);
 
+smart_run_button = ttk.Button(window, text = "Smart Run", command = smartRun);
+smart_run_button.place(x = 450, width = 100, rely = 1, anchor = tk.SW);
 
 #	dbg_button = ttk.Button(window, text = "Debug", command = lambda: print("Nothing to debug", sep = "\n"));
 dbg_button = ttk.Button(window, text = "Debug", command = lambda: print(sys.stdout, sep = "\n"));

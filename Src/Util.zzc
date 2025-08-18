@@ -1,3 +1,14 @@
+#pragma region zzc cpp
+	#if 0
+		#define BJPEG_DEBUG_ALL
+		#define BJPEG_IF_DEBUG_ALL(...) __VA_ARGS__
+		#define BJPEG_IF_NOT_DEBUG_ALL(...) 
+	#else
+		#define BJPEG_IF_DEBUG_ALL(...) 
+		#define BJPEG_IF_NOT_DEBUG_ALL(...) __VA_ARGS__
+	#endif
+#pragma endregion zzc
+
 #include <concepts>
 #include <cstdint>
 #include <CL/cl.h>

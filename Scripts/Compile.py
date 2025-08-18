@@ -12,6 +12,7 @@ pass
 
 import json;
 import subprocess;
+import shutil;
 
 serial = False;
 SERIAL_FLAG = "-bjpeg-compile-serial";
@@ -89,10 +90,6 @@ if failed:
 pass
 
 if build(__actual_dir__ + "/" + "./../Targets/Ide/").wait() != 0: raise Exception;
-#	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", __actual_dir__ + "/" + "./Targets/Decode/", *sys.argv[1 : ]]).check_returncode();
-#	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", __actual_dir__ + "/" + "./Targets/Encode/", *sys.argv[1 : ]]).check_returncode();
-#	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../Targets/Library/Static/Build.py"                , *sys.argv[1 : ]]).check_returncode();
-#	subprocess.run([sys.executable, __actual_dir__ + "/" + "./../ZZC/zzc.py", __actual_dir__ + "/" + "./Targets/Test/"  , *sys.argv[1 : ]]).check_returncode();
 
 try: import winsound;
 except ImportError: pass;

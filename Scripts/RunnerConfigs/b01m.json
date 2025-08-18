@@ -5,7 +5,7 @@
 	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs\\b01m.jpg", "./Temp/jpgs\\b01m.rgba"],
 	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs\\b01m.rgba"],
 	["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/JPG_to_JPGDEF.py", "./Temp/jpgs\\b01m.jpg", "./Temp/jpgs\\b01m.def.jpg"],
-	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs\\b01m.rgba", "./Temp/jpgs\\b01m.def.jpg", "./Temp/jpgs\\b01m.out.jpg", "111"],
+	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs\\b01m.rgba", "./Temp/jpgs\\b01m.def.jpg", "./Temp/jpgs\\b01m.out.jpg", ""],
 	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs\\b01m.out.jpg", "./Temp/jpgs\\b01m.out.rgba"],
 	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs\\b01m.out.rgba"]
 ]

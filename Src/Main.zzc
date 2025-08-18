@@ -75,7 +75,7 @@ namespace BJpeg {
 		char const* path        = argc >= 2 ? argv[1] : "D:/Personal/nastava/projekt/Temp/output.rgba";
 		std :: string def_path  = argc >= 3 ? argv[2] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.def.jpg";
 		char const* output_path = argc >= 4 ? argv[3] : "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain.out.jpg";
-		char const* sfs         = argc >= 5 ? argv[4] : "111";
+		char const* sfs         = argc >= 5 ? argv[4] : "";
 		
 		using namespace BJpeg;
 		
@@ -96,24 +96,23 @@ namespace BJpeg {
 		}
 		
 		Resource<Encode :: CLContext> cl;
-		Resource<MyOpenCL :: Buffer<RGBA>> image(cl.context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY, total_pixels);
+		Resource<MyOpenCL :: Buffer<RGBA>> image(cl.context, /* CL_MEM_HOST_WRITE_ONLY | */ CL_MEM_READ_ONLY, total_pixels);
 		if (!image) { std :: cerr << "!image" << std :: endl; return EXIT_FAILURE; }
 		if (!image.write(cl.queue, arr)) { std :: cerr << "!image.write" << std :: endl; return EXIT_FAILURE; }
 		
 		QuantizationTable qtables[4];
-		Encode :: HuffmanTable htables[2][4];
 		
-		if (!Encode :: ReadJpegDef(def_path, qtables, htables)) {
+		if (!Encode :: ReadJpegDef(def_path, qtables)) {
 			std :: cerr << "Failed to read JPEG definitions from " << def_path << std :: endl;
 			return EXIT_FAILURE;
 		}
 		
 		//	SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 1, 1 }, { 2, 2 }, { 2, 2 }};
-		SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 2, 2 }, { 1, 1 }, { 1, 1 }};
-		//	SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 1, 1 }, { 1, 1 }, { 1, 1 }};
+		//	SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 2, 2 }, { 1, 1 }, { 1, 1 }};
+		SamplingFactor sampling_factors[MAX_COMPONENTS] = {{ 1, 1 }, { 1, 1 }, { 1, 1 }};
 		if (!parseSF(sfs, sampling_factors)) { std :: cerr << "invalid SF" << std :: endl;  return EXIT_FAILURE; }
 		
-		auto res = Encode :: image(image, cl, metadata.height, metadata.width, qtables, htables, sampling_factors);
+		auto res = Encode :: image(image, cl, metadata.height, metadata.width, qtables, sampling_factors);
 		std :: cout << "res len = " << res.length << std :: endl;
 		if (!res) { return EXIT_FAILURE; }
 		defer { res.finish(); };
@@ -127,14 +126,22 @@ namespace BJpeg {
 		return 0;
 	}
 	fun bool parseSF(char const* arg, BJpeg :: SamplingFactor sampling_factors[]) {
-		int acc = 0;
-		for (int i = 0; i < 3; ++i) {
-			if (!('0' <= arg[i] && arg[i] <= '9')) { clog("bbx 0 %d %c", arg[i], arg[i]); return false; }
-			sampling_factors[i].y = sampling_factors[i].x = arg[i] - '0';
-			acc += sampling_factors[i].y * sampling_factors[i].x;
+		signed char sf_y = 1, sf_x = 1;
+		if (arg[0] == '\0') { return true; }
+		if (arg[1] == '\0') {
+			sf_y = sf_x = arg[0] - '0';
+		} else if (arg[2] != '\0') {
+			return false;
+		} else {
+			sf_y = arg[0] - '0';
+			sf_x = arg[1] - '0';
 		}
-		if (acc > MAX_MCU_LENGTH) { clog("bbx 1 %d", acc); return false; }
-		if (arg[3] != '\0') { clog("bbx 2 %d %c", arg[3], arg[3]); return false; }
+		if (!(0 <= sf_y && sf_y <= 9)) { return false; }
+		if (!(0 <= sf_x && sf_x <= 9)) { return false; }
+		if (sf_y * sf_x + 1 + 1 > MAX_MCU_LENGTH) { return false; }
+		
+		sampling_factors[0].y = sf_y;
+		sampling_factors[0].x = sf_x;
 		return true;
 	}
 	

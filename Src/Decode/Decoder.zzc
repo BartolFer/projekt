@@ -157,6 +157,11 @@ namespace BJpeg {
 				context.size.x_mayor = context.X;
 				context.size.y_minor = ROUND_UP_8(context.Y) / 8;
 				context.size.x_minor = ROUND_UP_8(context.X) / 8;
+				clog("file_size = %zu", context.size.file_size);
+				clog("y_mayor   = %zu", context.size.y_mayor  );
+				clog("x_mayor   = %zu", context.size.x_mayor  );
+				clog("y_minor   = %zu", context.size.y_minor  );
+				clog("x_minor   = %zu", context.size.x_minor  );
 				if (!context.initBuffers1()) { clog("bbx 10"); return DECODE_RESULT_ERR; }
 				defer { context.finishBuffers1(); };
 				//	if (!context.cl.initBuffers(file.length, ROUND_UP_8(context.X) * ROUND_UP_8(context.Y) / 64)) { clog("bbx 11"); return DECODE_RESULT_ERR; }

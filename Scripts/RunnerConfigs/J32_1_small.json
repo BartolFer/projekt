@@ -1,0 +1,11 @@
+[
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
+	["./Targets/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/J32_1_small.jpg", "./Temp/J32_1_small.rgba"],
+	["./Scripts/RgbDisplay/a.exe", "./Temp/J32_1_small.rgba"],
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "D:/Personal/nastava/projekt/Temp/J32_1_small.jpg", "./Temp/J32_1_small.def.jpg"],
+	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/J32_1_small.rgba", "./Temp/J32_1_small.def.jpg", "./Temp/J32_1_small.out.jpg", "11"],
+	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/J32_1_small.out.jpg", "./Temp/J32_1_small.out.rgba"],
+	["./Scripts/RgbDisplay/a.exe", "./Temp/J32_1_small.out.rgba"],
+	["./Temp/JPEGsnoop.exe"]
+]

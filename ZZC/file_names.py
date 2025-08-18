@@ -41,6 +41,8 @@ class file_naming:
 	@staticmethod
 	def macro_temp_2(p: FilenameParts) -> str: return p.folder + p.name + ".tmp.2" + (".c"  if p.extension == ".zc" else ".cpp");
 	@staticmethod
+	def final_temp  (p: FilenameParts) -> str: return p.folder + p.name + ".tmp.3" + (".c"  if p.extension == ".zc" else ".cpp");
+	@staticmethod
 	def obj         (p: FilenameParts) -> str: return p.folder + p.name + p.extension + ".o";
 pass
 
@@ -62,10 +64,10 @@ from config import config;
 class File:
 	tokens: list[SMacroToken] = None;
 	abs_file: AbsFile
-	def __init__(self, path: str):
+	def __init__(self, path: str, norm = True):
 		#	print(root + "/" + config.paths.zzc);
 		#	print(os.path.relpath(path, root + "/" + config.paths.zzc));
-		self.path = normpath(os.path.relpath(path, root + "/" + config.paths.zzc));
+		self.path = normpath(os.path.relpath(path, root + "/" + config.paths.zzc)) if norm else path;
 		
 		parts = FilenameParts(self.path);
 		self.src          = file_naming.src         (parts);
@@ -73,6 +75,7 @@ class File:
 		self.inc          = file_naming.inc         (parts);
 		self.macro_temp_1 = file_naming.macro_temp_1(parts);
 		self.macro_temp_2 = file_naming.macro_temp_2(parts);
+		self.final_temp   = file_naming.final_temp  (parts);
 		self.obj          = file_naming.obj         (parts);
 		#	print(path, "        ", config.paths.zzc);
 		#	print(self.path, "   ", self.inc);
@@ -84,7 +87,7 @@ class File:
 	pass
 	
 	def relativeFile(self, path: str):
-		return File(os.path.dirname(self.path) + "/" + path);
+		return File(os.path.dirname(root + "/" + config.paths.zzc + "/" + self.path) + "/" + path);
 	pass
 	
 	def __hash__(self): return hash(self.path);
@@ -103,6 +106,7 @@ class AbsFile:
 	inc          = property(lambda self: root + "/" + config.paths.zzc + "/" + self._base.inc         );
 	macro_temp_1 = property(lambda self: root + "/" + config.paths.tmp + "/" + self._base.macro_temp_1);
 	macro_temp_2 = property(lambda self: root + "/" + config.paths.tmp + "/" + self._base.macro_temp_2);
+	final_temp   = property(lambda self: root + "/" + config.paths.tmp + "/" + self._base.final_temp  );
 	obj          = property(lambda self: root + "/" + config.paths.obj + "/" + self._base.obj         );
 pass
 

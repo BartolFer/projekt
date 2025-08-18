@@ -14,12 +14,13 @@ class Cache:
 	direct_dependancies: Dependancies;
 	def __init__(self, json: dict):
 		x = json.get("direct_dependancies", {});
-		self.direct_dependancies = {File(path): [File(p) for p in ps] for (path, ps) in x.items()};
+		self.direct_dependancies = {File(path, False): [File(p, False) for p in ps] for (path, ps) in x.items()};
 	pass
 	def save(self):
 		x = {
 			"direct_dependancies": {file.path: [f.path for f in ds] for (file, ds) in self.direct_dependancies.items()},
 		};
+		print(CACHE_NAME);
 		with open(CACHE_NAME, "w") as file:
 			json.dump(x, file, indent="\t");
 		pass

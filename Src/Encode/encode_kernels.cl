@@ -79,7 +79,8 @@ kernel void interleave_downsample/* 2: MCU_Y, MCU_X */(
 ) {
 	u32 const mcu_y = get_global_id(0);
 	u32 const mcu_x = get_global_id(1);
-	u32 const base_index = get_global_linear_id() * mcu_length;
+	u32 const MCU_X = get_global_size(1);
+	u32 const base_index = (mcu_y * MCU_X + mcu_x) * mcu_length;
 	u32 const base_y = mcu_y * max_sf.y * 8;
 	u32 const base_x = mcu_x * max_sf.x * 8;
 	int index = 0; //	hacky, but not bad
@@ -106,9 +107,10 @@ kernel void dct_quantization_zigzag/* 2: mcu_count, mcu_length */(
 	__constant LaneInfo     arg(lane_infos  )[]       
 ) {
 	u32 const mcu_index = get_global_id(0);
-	u32 const unit_index = get_global_id(1);
-	u8  const q_id = lane_infos[unit_index].c_id == 1 ? 0 : 1;
-	u32 const index = get_global_linear_id();
+	u32 const lane_id = get_global_id(1);
+	u32 const mcu_length = get_global_size(1);
+	u8  const q_id = lane_infos[lane_id].c_id == 1 ? 0 : 1;
+	u32 const index = mcu_index * mcu_length + lane_id;
 	
 	__private float temp[8][8];
 	
@@ -140,17 +142,16 @@ kernel void deltaDC1/* 1: mcu_count */(
 ) {
 	u32 const mcu_index = get_global_id(0);
 	
-	int unit_index = 0;
+	int lane_id = 0;
 	for (int c_id_m1 = 0; c_id_m1 < 3; ++c_id_m1) {
-		i32 predictor = mcu_index == 0 ? 0 : coefficients[mcu_index * mcu_length + unit_index - mcu_length][0][0];
 		LaneInfo lane_info = lane_infos[c_id_m1];
-		for (int yy = 0; yy < lane_info.sf_y; ++yy) {
-			for (int xx = 0; xx < lane_info.sf_x; ++xx) {
-				i32 value = coefficients[mcu_index * mcu_length + unit_index][0][0];
-				dc_temp[mcu_index * mcu_length + unit_index] = value - predictor;
-				predictor = value;
-				++unit_index;
-			}
+		u8 amount_in_mcu = lane_info.sf_y * lane_info.sf_x;
+		i32 predictor = mcu_index == 0 ? 0 : coefficients[mcu_index * mcu_length - mcu_length + lane_id + amount_in_mcu - 1][0][0];
+		for (int i = 0; i < amount_in_mcu; ++i) {
+			i32 value = coefficients[mcu_index * mcu_length + lane_id][0][0];
+			dc_temp[mcu_index * mcu_length + lane_id] = value - predictor;
+			predictor = value;
+			++lane_id;
 		}
 	}
 	
@@ -228,7 +229,7 @@ kernel void gatherHuffmanValues/* 1: mcu_count */(
 			u8 sf_y = lane_infos[c_id_m1].sf_y;
 			u8 sf_x = lane_infos[c_id_m1].sf_x;
 			for (int unit_y = 0; unit_y < sf_y; ++unit_y) {
-				for (int unit_x = 0; unit_x < sf_x; ++unit_x, ++lane_id) {
+				for (int unit_x = 0; unit_x < sf_x; ++unit_x, ++lane_id, ac += 63) {
 					u32 index = mcu_index * mcu_length + lane_id;
 					{ //	DC
 						i32 value = coefficients[index][0][0];
@@ -260,7 +261,6 @@ kernel void gatherHuffmanValues/* 1: mcu_count */(
 						for (u8 ac_index = last_nonzero + 2; ac_index < 63; ++ac_index) {
 							ac[ac_index] = VALUE_THAT_IS_NOT_USED;
 						}
-						ac += 63;
 					}
 				}
 			}
@@ -383,12 +383,24 @@ kernel void encodeHuffman/* 2: mcu_count, mcu_length */(
 ) {
 	u32 const mcu_index = get_global_id(0);
 	u32 const lane_id = get_global_id(1);
-	u32 const index = get_global_linear_id();
+	u8  const mcu_length = get_global_size(1);
+	u32 const index = mcu_index * mcu_length + lane_id;//	
+	//	get_global_linear_id();
 	u8  const h_id = lane_infos[lane_id].c_id == 1 ? 0 : 1;
 	
 	for (int i = 0; i < sizeof(CodedUnit) / sizeof(codes[0][0]); ++i) {
 		codes[index][i] = 0;
 	}
+	
+	//	lengths[index + 1] = 1000 * mcu_index + lane_id;
+	//	return; 
+	//	if (mcu_index == 0 && lane_id == 2) {
+	//		lengths[index + 1] = 3;
+	//		return;
+	//	} else {
+	//		lengths[index + 1] = 1;
+	//		return;
+	//	}
 	
 	u16 length = 0;
 	#pragma region DC
@@ -543,7 +555,6 @@ kernel void concatCodes/* 1: unit_count */(
 	//		return; 
 	//	}
 	
-	
 	//	TODO check/fix this comment
 	//	//	start_bit = 5; start_bit_actual = 8;
 	//	//	delta_actual = 3;
@@ -585,6 +596,13 @@ kernel void concatCodes/* 1: unit_count */(
 		u32 index_code = index / sizeof(u32);
 		u8 amount_to_shift = 32 - 8 - 8 * (index % sizeof(u32));
 		u8 data = codes[unit_index][index_code] << delta_actual >> amount_to_shift;
+		if (/* delta_actual != 0 && */ amount_to_shift == 0) {
+			//	data |= codes[unit_index][index_code + 1] >> (32 - delta_actual); //	 << delta_actual >> 32;
+			//	data |= codes[unit_index][index_code + 1] >> 31;//>> (32 - delta_actual); //	 << delta_actual >> 32;
+			//	ok, for some reason, when you right-shift by 32, it does nothing
+			data |= codes[unit_index][index_code + 1] >> 16 >> (16 - delta_actual); //	 << delta_actual >> 32;
+		}
+
 		for (int their_index = unit_index + 1; required_bit_length > 0; ++their_index) {
 			u32 their_length_bit = lengths[their_index + 1] - lengths[their_index];
 			data |= codes[their_index][0] >> (32 - required_bit_length);
