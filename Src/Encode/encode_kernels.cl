@@ -52,10 +52,13 @@ __constant u8 const to_zigzag[8][8] = {
 
 kernel void RGB_to_YCbCr/* 2: Y, X */(
 	__global   RGBA         arg(image       )[]       ,
-	__global   RGBAF        arg(image_temp  )[]       
+	__global   RGBAF        arg(image_temp  )[]       ,
+	           u32          arg(image_width )         ,
+	           u32          arg(x_required  )         
 ) {
-	size_t index = get_global_linear_id();
-	RGBA RGB_temp = image[index];
+	u32 y = get_global_id(0);
+	u32 x = get_global_id(1);
+	RGBA RGB_temp = image[y * image_width + x];
 	float3 RGB = (float3) (RGB_temp.r, RGB_temp.g, RGB_temp.b);
 	float4 result;
 	result.x = dot((float3) ( 0.25686190f,  0.5042455f,   0.09799913f), RGB);
@@ -66,7 +69,26 @@ kernel void RGB_to_YCbCr/* 2: Y, X */(
 	//	YCbCr += (float3)(16, 128, 128);
 		//	both = -112, 0, 0
 	result.x -= 112;
-	image_temp[index] = (RGBAF) {result.x, result.y, result.z, result.w};
+	image_temp[y * x_required + x] = (RGBAF) {result.x, result.y, result.z, result.w};
+}
+
+kernel void fillRequiredX/* 2: Y, x_required - X */(
+	__global   RGBAF        arg(image_temp  )[]       ,
+	           u32          arg(image_width )         ,
+	           u32          arg(x_required  )         
+) {
+	u32 y  = get_global_id(0);
+	u32 dx = get_global_id(1);
+	image_temp[y * x_required + image_width + dx] = image_temp[y * x_required + image_width - 1];
+}
+kernel void fillRequiredY/* 2: y_required - Y, x_required */(
+	__global   RGBAF        arg(image_temp  )[]       ,
+	           u32          arg(image_height)         ,
+	           u32          arg(x_required  )         
+) {
+	u32 dy = get_global_id(0);
+	u32 x  = get_global_id(1);
+	image_temp[(image_height + dy) * x_required + x] = image_temp[(image_height - 1) * x_required + x];
 }
 
 kernel void interleave_downsample/* 2: MCU_Y, MCU_X */(
@@ -75,7 +97,7 @@ kernel void interleave_downsample/* 2: MCU_Y, MCU_X */(
 	__constant LaneInfo     arg(lane_infos  )[]       ,
 	           u8x2         arg(max_sf      )         ,
 	           u8           arg(mcu_length  )         ,
-	           u32          arg(image_width )         
+	           u32          arg(x_required  )         
 ) {
 	u32 const mcu_y = get_global_id(0);
 	u32 const mcu_x = get_global_id(1);
@@ -93,7 +115,7 @@ kernel void interleave_downsample/* 2: MCU_Y, MCU_X */(
 					u32 y = base_y + unit_y * 8 + yy * max_sf.y / sf_y;
 					for (int xx = 0; xx < 8; ++xx) {
 						u32 x = base_x + unit_x * 8 + xx * max_sf.x / sf_x;
-						coefficients[base_index][0][index++].f = image_temp[y * image_width + x].arr[c_id_m1];
+						coefficients[base_index][0][index++].f = image_temp[y * x_required + x].arr[c_id_m1];
 					}
 				}
 			}
@@ -184,7 +206,7 @@ kernel void gatherHuffmanValues/* 1: mcu_count */(
 		u8 sf_y = lane_infos[c_id_m1].sf_y;
 		u8 sf_x = lane_infos[c_id_m1].sf_x;
 		for (int unit_y = 0; unit_y < sf_y; ++unit_y) {
-			for (int unit_x = 0; unit_x < sf_x; ++unit_x, ++lane_id) {
+			for (int unit_x = 0; unit_x < sf_x; ++unit_x, ++lane_id, ac += 63) {
 				u32 index = mcu_index * mcu_length + lane_id;
 				{ //	DC
 					i32 value = coefficients[index][0][0];
@@ -216,7 +238,6 @@ kernel void gatherHuffmanValues/* 1: mcu_count */(
 					for (u8 ac_index = last_nonzero + 2; ac_index < 63; ++ac_index) {
 						ac[ac_index] = VALUE_THAT_IS_NOT_USED;
 					}
-					ac += 63;
 				}
 			}
 		}

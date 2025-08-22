@@ -22,6 +22,8 @@ namespace BJpeg {
 			size_t file_size;
 			size_t y_mayor;
 			size_t x_mayor;
+			size_t y_required;
+			size_t x_required;
 			size_t y_minor;
 			size_t x_minor;
 			size_t payload_length;
@@ -34,6 +36,8 @@ namespace BJpeg {
 				printf("file_size      = %zu\n", self.file_size     );
 				printf("y_mayor        = %zu\n", self.y_mayor       );
 				printf("x_mayor        = %zu\n", self.x_mayor       );
+				printf("y_required     = %zu\n", self.y_required    );
+				printf("x_required     = %zu\n", self.x_required    );
 				printf("y_minor        = %zu\n", self.y_minor       );
 				printf("x_minor        = %zu\n", self.x_minor       );
 				printf("payload_length = %zu\n", self.payload_length);
@@ -85,12 +89,13 @@ namespace BJpeg {
 				}
 				fun bool init2(MyOpenCL :: Context context, Sizes size) {
 					size_t lane_total_size = size.lane_depth * size.mcu_length * size.lane_width;
-					size_t total_image_size = size.y_mayor * size.x_mayor;
+					size_t    total_image_size = size.y_mayor    * size.x_mayor   ;
+					size_t required_image_size = size.y_required * size.x_required;
 					if (!self.lanes       .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_READ_ONLY  |) CL_MEM_READ_WRITE, lane_total_size    )) { return false; }
 					if (!self.positions   .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_WRITE_ONLY |) CL_MEM_READ_WRITE, size.lane_width + 8)) { return false; }
 					if (!self.indexes     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, size.unit_count + 1)) { return false; }
 					if (!self.coefficients.init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, size.unit_count    )) { return false; }
-					if (!self.image_temp  .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, total_image_size   )) { return false; }
+					if (!self.image_temp  .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, required_image_size)) { return false; }
 					if (!self.image       .init(context, CL_MEM_READ_WRITE, total_image_size   )) { return false; } //	Only exception
 					return true;
 				}

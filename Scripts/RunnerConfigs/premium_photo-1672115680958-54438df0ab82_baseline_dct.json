@@ -1,0 +1,11 @@
+[
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
+	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.jpg", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.rgba"],
+	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.rgba"],
+	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.jpg", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.def.jpg"],
+	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.rgba", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.def.jpg", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.out.jpg", "22"],
+	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.out.jpg", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.out.rgba"],
+	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/premium_photo-1672115680958-54438df0ab82_baseline_dct.out.rgba"],
+	["./Temp/JPEGsnoop.exe"]
+]

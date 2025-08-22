@@ -28,15 +28,27 @@ namespace BJpeg {
 			struct Kernels {
 				struct RGB_to_YCbCr : MyOpenCL :: Kernel<2> /* 2: Y, X */{
 					fun bool setArg_image       (MyOpenCL :: Buffer<RGBA           > x) { return self.setArg(x, 0); } //	__global   RGBA         arg(image       )[]       ,
-					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 1); } //	__global   RGBAF        arg(image_temp  )[]       
+					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 1); } //	__global   RGBAF        arg(image_temp  )[]       ,
+					fun bool setArg_image_width (u32                                 x) { return self.setArg(x, 2); } //	           u32          arg(image_width )         ,
+					fun bool setArg_x_required  (u32                                 x) { return self.setArg(x, 3); } //	           u32          arg(x_required  )         
 				} RGB_to_YCbCr;
+				struct fillRequiredX : MyOpenCL :: Kernel<2> /* 2: Y, x_required - X */{
+					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 0); } //	__global   RGBAF        arg(image_temp  )[]       ,
+					fun bool setArg_image_width (u32                                 x) { return self.setArg(x, 1); } //	           u32          arg(image_width )         ,
+					fun bool setArg_x_required  (u32                                 x) { return self.setArg(x, 2); } //	           u32          arg(x_required  )         
+				} fillRequiredX;
+				struct fillRequiredY : MyOpenCL :: Kernel<2> /* 2: y_required - Y, x_required */{
+					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 0); } //	__global   RGBAF        arg(image_temp  )[]       ,
+					fun bool setArg_image_height(u32                                 x) { return self.setArg(x, 1); } //	           u32          arg(image_height)         ,
+					fun bool setArg_x_required  (u32                                 x) { return self.setArg(x, 2); } //	           u32          arg(x_required  )         
+				} fillRequiredY;
 				struct interleave_downsample : MyOpenCL :: Kernel<2> /* 2: MCU_Y, MCU_X */{
 					fun bool setArg_image_temp  (MyOpenCL :: Buffer<RGBAF          > x) { return self.setArg(x, 0); } //	__global   RGBAF_ARR    arg(image_temp  )[]       ,
 					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 1); } //	__global   FI           arg(coefficients)[][8][8] ,
 					fun bool setArg_lane_infos  (MyOpenCL :: Buffer<LaneInfo       > x) { return self.setArg(x, 2); } //	__constant LaneInfo     arg(lane_infos  )[]       ,
 					fun bool setArg_max_sf      (u8x2                                x) { return self.setArg(x, 3); } //	           u8x2         arg(max_sf      )         ,
 					fun bool setArg_mcu_length  (u8                                  x) { return self.setArg(x, 4); } //	           u8           arg(mcu_length  )         ,
-					fun bool setArg_image_width (u32                                 x) { return self.setArg(x, 5); } //	           u32          arg(image_width )         
+					fun bool setArg_x_required  (u32                                 x) { return self.setArg(x, 5); } //	           u32          arg(x_required  )         
 				} interleave_downsample;
 				struct dct_quantization_zigzag : MyOpenCL :: Kernel<2> /* 2: mcu_count, mcu_length */{
 					fun bool setArg_coefficients(MyOpenCL :: Buffer<FI[8][8]       > x) { return self.setArg(x, 0); } //	__global   FI           arg(coefficients)[][8][8] ,
@@ -128,6 +140,8 @@ namespace BJpeg {
 
 				fun bool init(MyOpenCL :: Program program) {
 					if (!self.RGB_to_YCbCr           .init(program, "RGB_to_YCbCr"           )) { return false; }
+					if (!self.fillRequiredX          .init(program, "fillRequiredX"          )) { return false; }
+					if (!self.fillRequiredY          .init(program, "fillRequiredY"          )) { return false; }
 					if (!self.interleave_downsample  .init(program, "interleave_downsample"  )) { return false; }
 					if (!self.dct_quantization_zigzag.init(program, "dct_quantization_zigzag")) { return false; }
 					if (!self.deltaDC1               .init(program, "deltaDC1"               )) { return false; }
@@ -149,6 +163,8 @@ namespace BJpeg {
 				}
 				fun void finish() noexcept {
 					self.RGB_to_YCbCr           .finish();
+					self.fillRequiredX          .finish();
+					self.fillRequiredY          .finish();
 					self.interleave_downsample  .finish();
 					self.dct_quantization_zigzag.finish();
 					self.deltaDC1               .finish();
@@ -213,13 +229,13 @@ namespace BJpeg {
 					self.qtables     .finish();
 					self.lane_infos  .finish();
 				}
-				fun bool init1(MyOpenCL :: Context context, MyOpenCL :: Queue queue, size_t height, size_t width, size_t unit_count, size_t dc_count_0, size_t dc_count_1) {
+				fun bool init1(MyOpenCL :: Context context, MyOpenCL :: Queue queue, size_t height, size_t width, size_t y_required, size_t x_required, size_t unit_count, size_t dc_count_0, size_t dc_count_1) {
 					if (unit_count != dc_count_0 + dc_count_1) { clog("assertion failed %zu != %zu + %zu"); return false; }
 					size_t max_hvalue_size = (dc_count_0 > dc_count_1 ? dc_count_0 : dc_count_1) * 63;
-					size_t pixel_count = height * width;
+					size_t required_pixel_count = y_required * x_required;
 					//	size_t coefficients_count = 0; //	sum(r8(h)/sf.y * r8(w)/sf.x for sf in sfs)
 					//	for (auto sf : sampling_factors) { coefficients_count += ROUND_UP_8(height) / sf.y * ROUND_UP_8(width) / sf.x; }
-					if (!self.image_temp       .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, pixel_count         )) { return false; }
+					if (!self.image_temp       .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, required_pixel_count)) { return false; }
 					if (!self.coefficients     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, unit_count          )) { return false; }
 					if (!self.dc_temp          .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, unit_count          )) { return false; }
 					if (!self.hvalues_dc_0     .init(context, BJPEG_IF_NOT_DEBUG_ALL(CL_MEM_HOST_NO_ACCESS  |) CL_MEM_READ_WRITE, dc_count_0          )) { return false; }
@@ -296,9 +312,9 @@ namespace BJpeg {
 				//	self.buffer.image.finish(); //	Only exception
 			}
 			
-			fun bool initBuffers1(size_t height, size_t width, size_t unit_count, u8x2 max_sf, u8 mcu_length, size_t dc_count_0, size_t dc_count_1) {
-				if (!self.buffer.init1(self.context, self.queue, height, width, unit_count, dc_count_0, dc_count_1)) { return false; }
-				return self.setArgs1(max_sf, mcu_length, width);
+			fun bool initBuffers1(size_t height, size_t width, size_t y_required, size_t x_required, size_t unit_count, u8x2 max_sf, u8 mcu_length, size_t dc_count_0, size_t dc_count_1) {
+				if (!self.buffer.init1(self.context, self.queue, height, width, y_required, x_required, unit_count, dc_count_0, dc_count_1)) { return false; }
+				return self.setArgs1(max_sf, mcu_length, height, width, x_required);
 			}
 			fun void finishBuffers1() noexcept {
 				self.buffer.finish1();
@@ -332,15 +348,25 @@ namespace BJpeg {
 				
 				return true;
 			}
-			fun bool setArgs1(u8x2 max_sf, u8 mcu_length, u32 image_width) {
+			fun bool setArgs1(u8x2 max_sf, u8 mcu_length, u32 image_height, u32 image_width, u32 x_required) {
 				if (!self.kernel.RGB_to_YCbCr           .setArg_image_temp  (self.buffer.image_temp  )) { return false; }
+				if (!self.kernel.RGB_to_YCbCr           .setArg_image_width (image_width             )) { return false; }
+				if (!self.kernel.RGB_to_YCbCr           .setArg_x_required  (x_required              )) { return false; }
+				
+				if (!self.kernel.fillRequiredX           .setArg_image_temp  (self.buffer.image_temp  )) { return false; }
+				if (!self.kernel.fillRequiredX           .setArg_image_width (image_width             )) { return false; }
+				if (!self.kernel.fillRequiredX           .setArg_x_required  (x_required              )) { return false; }
+				
+				if (!self.kernel.fillRequiredY          .setArg_image_temp  (self.buffer.image_temp  )) { return false; }
+				if (!self.kernel.fillRequiredY          .setArg_image_height(image_height            )) { return false; }
+				if (!self.kernel.fillRequiredY          .setArg_x_required  (x_required              )) { return false; }
 				
 				if (!self.kernel.interleave_downsample  .setArg_image_temp  (self.buffer.image_temp  )) { return false; }
 				if (!self.kernel.interleave_downsample  .setArg_coefficients(self.buffer.coefficients)) { return false; }
 				if (!self.kernel.interleave_downsample  .setArg_lane_infos  (self.buffer.lane_infos  )) { return false; }
 				if (!self.kernel.interleave_downsample  .setArg_max_sf      (max_sf                  )) { return false; }
 				if (!self.kernel.interleave_downsample  .setArg_mcu_length  (mcu_length              )) { return false; }
-				if (!self.kernel.interleave_downsample  .setArg_image_width (image_width             )) { return false; }
+				if (!self.kernel.interleave_downsample  .setArg_x_required  (x_required              )) { return false; }
 				
 				if (!self.kernel.dct_quantization_zigzag.setArg_coefficients(self.buffer.coefficients)) { return false; }
 				

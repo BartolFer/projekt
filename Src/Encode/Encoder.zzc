@@ -44,12 +44,16 @@ namespace BJpeg {
 			lane_infos[0].hvalues_step = lane_infos[0].sf_y * lane_infos[0].sf_x;
 			lane_infos[1].hvalues_step = lane_infos[1].sf_y * lane_infos[1].sf_x + lane_infos[2].sf_y * lane_infos[2].sf_x;
 			u8x2 max_sf = { max_sf_x, max_sf_y };
-			size_t mcu_y = ROUND_UP_8(height) / 8 / max_sf_y;
-			size_t mcu_x = ROUND_UP_8(width ) / 8 / max_sf_x;
+			size_t y_required = roundUpPow2(height, 8 * max_sf_y);
+			size_t x_required = roundUpPow2(width, 8 * max_sf_x);
+			size_t mcu_y = y_required / 8 / max_sf_y;
+			size_t mcu_x = x_required / 8 / max_sf_x;
 			size_t mcu_count = mcu_x * mcu_y;
 			size_t unit_count = mcu_count * mcu_length;
 			clog("max_sf_y = %d", max_sf_y);
 			clog("max_sf_x = %d", max_sf_x);
+			clog("y_required = %d", y_required);
+			clog("x_required = %d", x_required);
 			clog("mcu_length = %d", mcu_length);
 			clog("mcu_y = %d", mcu_y);
 			clog("mcu_x = %d", mcu_x);
@@ -63,16 +67,17 @@ namespace BJpeg {
 			size_t dc_count_0 = mcu_count *  sampling_factors[0].y * sampling_factors[0].x;
 			size_t dc_count_1 = mcu_count * (sampling_factors[1].y * sampling_factors[1].x + sampling_factors[2].y * sampling_factors[2].x);
 			
-			if (!cl.initBuffers1(height, width, unit_count, max_sf, mcu_length, dc_count_0, dc_count_1)) { clog("bbx eee 4") return {}; }
+			if (!cl.initBuffers1(height, width, y_required, x_required, unit_count, max_sf, mcu_length, dc_count_0, dc_count_1)) { clog("bbx eee 4") return {}; }
 			defer { cl.finishBuffers1(); };
 			
 			if (!cl.kernel.RGB_to_YCbCr.setArg_image(image)) { clog("bbx eee 5") return {}; }
 			if (!cl.kernel.RGB_to_YCbCr.call(cl.queue, { height, width })) { clog("bbx eee 6") return {}; }
-			#ifdef BJPEG_DEBUG_ALL
-				if (!cl.buffer.image_temp.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, BJpeg::RGBAF& t) { stream << '(' << t.r << ',' << t.g << ',' << t.b << ')'; })) { clog("bbx eee 7") return {}; }
-			#endif
 			
-			//	TODO fill missing in both de & en
+			if (!cl.kernel.fillRequiredX.call(cl.queue, { height             , x_required - width })) { clog("bbx eee 6 1") return {}; }
+			if (!cl.kernel.fillRequiredY.call(cl.queue, { y_required - height, x_required         })) { clog("bbx eee 6 2") return {}; }
+			
+			BJPEG_IF_DEBUG_ALL(if (!cl.buffer.image_temp.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, BJpeg::RGBAF& t) { stream << '(' << t.r << ',' << t.g << ',' << t.b << ')'; })) { clog("bbx eee 7") return {}; })
+			
 			if (!cl.kernel.interleave_downsample.call(cl.queue, { mcu_y, mcu_x })) { clog("bbx eee 8") return {}; }
 			BJPEG_IF_DEBUG_ALL(if (!debugPrintCoefficients<f32>(cl)) { clog("bbx eee 9") return {}; })
 			

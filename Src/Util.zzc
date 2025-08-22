@@ -1,13 +1,15 @@
-#pragma region zzc cpp
-	#if 0
+#if 0
+	#pragma region zzc cpp zzc
 		#define BJPEG_DEBUG_ALL
 		#define BJPEG_IF_DEBUG_ALL(...) __VA_ARGS__
 		#define BJPEG_IF_NOT_DEBUG_ALL(...) 
-	#else
+	#pragma endregion zzc
+#else
+	#pragma region zzc cpp zzc
 		#define BJPEG_IF_DEBUG_ALL(...) 
 		#define BJPEG_IF_NOT_DEBUG_ALL(...) __VA_ARGS__
-	#endif
-#pragma endregion zzc
+	#pragma endregion zzc
+#endif
 
 #include <concepts>
 #include <cstdint>
@@ -95,6 +97,7 @@ namespace BJpeg {
 			return self.array != nullptr && self.length > 0;
 		}
 	};
+	template <typename T> fun T roundUpPow2(T x, u8 r) { return (x + r - 1) & ~(r - 1); }
 }
 
 

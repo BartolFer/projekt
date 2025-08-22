@@ -163,18 +163,24 @@ namespace BJpeg {
 			}
 			u32 job_size = payload_length * 8;
 			
+			context.size.y_required = roundUpPow2(context.Y, 8 * max_sf.s[1]);
+			context.size.x_required = roundUpPow2(context.X, 8 * max_sf.s[0]);
 			context.size.payload_length = payload_length;
 			context.size.lane_width = job_size;
 			context.size.mcu_length = lanes_count;
-			context.size.mcu_count = context.size.x_minor / max_sf.s[0] * context.size.y_minor / max_sf.s[1];
+			context.size.mcu_count = context.size.y_required / 8 / max_sf.s[1] * context.size.x_required / 8 / max_sf.s[0];
 			context.size.unit_count = context.size.mcu_count * lanes_count;
 			context.size.lane_depth = std :: bit_width(context.size.unit_count) + 1;
+			clog("max_sf_y       = %zu", max_sf.s[1]                );
+			clog("max_sf_x       = %zu", max_sf.s[0]                );
+			clog("y_required     = %zu", context.size.y_required    );
+			clog("x_required     = %zu", context.size.x_required    );
 			clog("payload_length = %zu", context.size.payload_length);
 			clog("lane_width     = %zu", context.size.lane_width    );
-			clog("unit_count     = %zu", context.size.unit_count    );
-			clog("mcu_count      = %zu", context.size.mcu_count     );
-			clog("lane_depth     = %zu", context.size.lane_depth    );
 			clog("mcu_length     = %zu", context.size.mcu_length    );
+			clog("mcu_count      = %zu", context.size.mcu_count     );
+			clog("unit_count     = %zu", context.size.unit_count    );
+			clog("lane_depth     = %zu", context.size.lane_depth    );
 			
 			// init buffers
 			if (!context.initBuffers2()) { clog("bbx sss 6"); return DECODE_RESULT_ERR; }
@@ -261,9 +267,9 @@ namespace BJpeg {
 			if (!cl.kernel.unzigzag_quantization_dct.call(cl.queue, &unit_count)) { clog("bbx sss 32"); return DECODE_RESULT_ERR; }
 			BJPEG_IF_DEBUG_ALL(if (!debugPrintCoefficients<f32>(cl)) { return DECODE_RESULT_ERR; })
 			
-			size_t uninterleave_upsample_dim[2] = {context.size.y_minor / max_sf.s[1], context.size.x_minor / max_sf.s[0], };
-			u32x2 image_size = {(u32) context.size.x_mayor, (u32) context.size.y_mayor};
-			u32 mcu_per_line = context.size.x_minor / max_sf.s[0];
+			size_t uninterleave_upsample_dim[2] = {context.size.y_required / 8 / max_sf.s[1], context.size.x_required / 8 / max_sf.s[0], };
+			u32x2 image_size = {(u32) context.size.x_required, (u32) context.size.y_required};
+			u32 mcu_per_line = context.size.x_required / 8 / max_sf.s[0];
 			if (!cl.kernel.uninterleave_upsample.setArg_max_sf(max_sf)) { clog("bbx sss 33"); return DECODE_RESULT_ERR; }
 			if (!cl.kernel.uninterleave_upsample.setArg_image_size(image_size)) { clog("bbx sss 34"); return DECODE_RESULT_ERR; }
 			if (!cl.kernel.uninterleave_upsample.setArg_mcu_length(lanes_count)) { clog("bbx sss 35"); return DECODE_RESULT_ERR; }
@@ -274,7 +280,7 @@ namespace BJpeg {
 			
 			
 			size_t YCbCr_to_RGB_dim[2] = {context.size.y_mayor, context.size.x_mayor};
-			if (!cl.kernel.YCbCr_to_RGB.setArg_image_width(context.size.x_mayor)) { clog("bbx sss 39"); return DECODE_RESULT_ERR; }
+			if (!cl.kernel.YCbCr_to_RGB.setArg_image_width(context.size.x_required)) { clog("bbx sss 39"); return DECODE_RESULT_ERR; }
 			if (!cl.kernel.YCbCr_to_RGB.call(cl.queue, YCbCr_to_RGB_dim)) { clog("bbx sss 40"); return DECODE_RESULT_ERR; }
 			BJPEG_IF_DEBUG_ALL(if (!cl.buffer.image.debugWrite(cl.queue, std :: cout, [](std::ostream& stream, BJpeg::RGBA& t) { stream << '(' << t.r << ',' << t.g << ',' << t.b << ')'; })) { return DECODE_RESULT_ERR; })
 			

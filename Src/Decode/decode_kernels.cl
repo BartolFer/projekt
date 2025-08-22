@@ -489,6 +489,7 @@ kernel void YCbCr_to_RGB/* 2 */(
 ) {
 	int y = get_global_id(0);
 	int x = get_global_id(1);
+	size_t actual_image_width = get_global_size(1);
 	RGBAF YCbCr_temp = image_temp[y * image_width + x];
 	float3 YCbCr = (float3) (YCbCr_temp.r, YCbCr_temp.g, YCbCr_temp.b);
 	//	YCbCr += (float3)(128, 128, 128);
@@ -500,7 +501,7 @@ kernel void YCbCr_to_RGB/* 2 */(
 	result.g = dot((float3) (1.164f, -0.392f, -0.813f), YCbCr); if (result.g < 0) { result.g = 0; } else if (result.g > 255) { result.g = 255; }
 	result.b = dot((float3) (1.164f,  2.017f,  0.000f), YCbCr); if (result.b < 0) { result.b = 0; } else if (result.b > 255) { result.b = 255; }
 	result.a = 255; //	TODO
-	image[y * image_width + x] = (RGBA) {result.r, result.g, result.b, result.a};
+	image[y * actual_image_width + x] = (RGBA) {result.r, result.g, result.b, result.a};
 }
 
 kernel void initializeBufferU32(__global u32 buffer[], u32 value) {
