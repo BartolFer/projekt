@@ -4,7 +4,7 @@
 		"tmp": "./Build/Tmp",
 		"cpp": "./Build/Cpp",
 		"obj": "./Build/Obj",
-		"exe": "./Build/BJpegTest.exe"
+		"exe": "./Build/BJpegDecode.exe"
 	},
 	"compiler": {
 		"preprocess": ["gcc", {"var":"CPPFLAGS"}, "-E", "-o", {"arg":"out"}, {"arg":"in"}],
@@ -13,11 +13,12 @@
 	},
 	"vars": {
 		"CFLAGS": [],
-		"CPPFLAGS": ["-DTESTING", "-DMAIN_TARGET_DECODE", "-DMAIN_TARGET_ENCODE", "-DCL_TARGET_OPENCL_VERSION=300", "-Dself=(*this)", "-Dpack=struct __attribute__((packed))", {"var": "OpenCL_include"}],
+		"CPPFLAGS": ["-DMAIN_TARGET_DECODE", "-DCL_TARGET_OPENCL_VERSION=300", "-Dself=(*this)", "-Dpack=struct __attribute__((packed))", {"var": "OpenCL_include"}],
 		"CXXFLAGS": ["-Werror", "-pedantic", "-std=c++23", "-fmodules-ts"],
 		"LDFLAGS": [{"var": "OpenCL_link"}],
-		"OpenCL_include": "-IC:/Programs/Cuda/include/",
-		"OpenCL_link": ["-LC:/Programs/Cuda/lib/x64/", "-lOpenCl"]
+		"OpenCL_include": "-I$$cl_include$$",
+		"OpenCL_link": ["-L$$cl_lib$$", "-lOpenCl"]
 	},
-	"nocompile": true
+	"nocompile": false,
+	"noinc": true
 }
