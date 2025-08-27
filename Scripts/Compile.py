@@ -13,6 +13,15 @@ pass
 import json;
 import subprocess;
 import shutil;
+import typing;
+
+if TYPE_CHECKING:
+	from ..ZZC.process_group import *;
+pass
+
+with open(__actual_dir__ + "/" + "../ZZC/process_group.py") as f:
+	exec(f.read(), globals(), locals());
+pass
 
 serial = False;
 SERIAL_FLAG = "-bjpeg-compile-serial";
@@ -77,29 +86,16 @@ pass
 
 subprocess.run(["make"], cwd = __actual_dir__ + "/" + "./RgbDisplay/").check_returncode();
 
-def waitAll(processes: list[subprocess.Popen]):
-	failed = False;
-	for p in processes:
-		if p.wait() != 0:
-			failed = True;
-			for pp in processes: pp.terminate();
-			break;
-		pass
-	pass
-	if failed:
-		raise Exception(str(p.args));
-	pass
-pass
-processes = [
+processes1 = ProcessGroup(
 	build(__actual_dir__ + "/" + "../Targets/Test/"),
 	build(__actual_dir__ + "/" + "../Targets/Library/Static/"),
-];
-waitAll(processes);
-processes = [
+);
+processes1.waitAllCheck();
+processes2 = ProcessGroup(
 	build(__actual_dir__ + "/" + "../Targets/Examples/Decode/"),
 	build(__actual_dir__ + "/" + "../Targets/Examples/Encode/"),
-];
-waitAll(processes);
+);
+processes2.waitAllCheck();
 
 
 #	for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Targets/"):

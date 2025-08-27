@@ -11,6 +11,7 @@ from file_names import *;
 from config import config;
 from cache import *;
 import tokenizer, macro_processor, semantic, file_composer;
+from process_group import *;
 
 class Timer:
 	def __init__(self):
@@ -31,11 +32,13 @@ pass
 def compile(command: ConfigCommand, input: str, output: str):
 	cmd = command({"in": input, "out": output});
 	#	print(cmd);
-	result = subprocess.run(cmd, stderr=subprocess.PIPE, text=True);
-	if result.returncode != 0:
-		sys.stderr.write(result.stderr);
+	return subprocess.Popen(cmd, stderr = subprocess.PIPE, text = True);
+pass
+def handleCommandResult(failed_command: subprocess.Popen | None):
+	if failed_command and failed_command.wait() != 0:
+		sys.stderr.write(failed_command.stderr);
 		sys.stderr.write("\n" + "=" * 80 + "\n");
-		raise ParseError(cmd);
+		raise ParseError(failed_command.args);
 	pass
 pass
 
@@ -119,9 +122,11 @@ print("Dependant:", [file for file in outdated if file not in dirty]);
 
 for file in outdated: step1(file);
 if timing: print("1st  :", timer, flush = True);
-for file in outdated:
-	compile(config.compiler.cpp.preprocess, file.abs_file.macro_temp_1, file.abs_file.macro_temp_2);
-pass
+group_preprocess = ProcessGroup(
+	compile(config.compiler.cpp.preprocess, file.abs_file.macro_temp_1, file.abs_file.macro_temp_2)
+	for file in outdated
+);
+handleCommandResult(group_preprocess.waitAll());
 if timing: print("pp   :", timer, flush = True);
 for file in outdated:
 	with open(file.abs_file.macro_temp_2) as f: raw = f.read();
@@ -187,11 +192,13 @@ if config.nocompile:
 	print("nocompile:", total);
 	sys.exit();
 pass
-for file in outdated:
-	compile(config.compiler.cpp.obj, file.abs_file.src, file.abs_file.obj);
-pass
+group_obj = ProcessGroup(
+	compile(config.compiler.cpp.obj, file.abs_file.src, file.abs_file.obj)
+	for file in outdated
+);
+handleCommandResult(group_obj.waitAll());
 if timing: print("obj  :", timer, flush = True);
-compile(config.compiler.target, [file.abs_file.obj for file in zzc_files], config.paths.exe);
+handleCommandResult(compile(config.compiler.target, [file.abs_file.obj for file in zzc_files], config.paths.exe));
 
 if timing: print("exe  :", timer, flush = True);
 if timing: print("total:", total, flush = True);
