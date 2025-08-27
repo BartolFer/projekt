@@ -28,12 +28,13 @@ using rref = T&&;
 
 #pragma region zzc hdr_decl
 	#define MAX_COMPONENTS 4
-	#define RECOMMENDED_SPACE (1 << recomended_space_pow)
+	#define RECOMMENDED_SPACE_POW 26 // 64 MiB
+	#define RECOMMENDED_SPACE (1 << RECOMMENDED_SPACE_POW)
 
 	#define MAX_MCU_LENGTH 10
 	#define MAX_LANE_WIDTH (8 * RECOMMENDED_SPACE)
 	#define MAX_LANE_ROW_WIDTH (MAX_MCU_LENGTH * MAX_LANE_WIDTH)
-	#define MAX_LANE_SIZE (MAX_LANE_ROW_WIDTH * recomended_space_pow)
+	#define MAX_LANE_SIZE (MAX_LANE_ROW_WIDTH * RECOMMENDED_SPACE_POW)
 	#define MAX_UNITS_IN_RECOMMENDED_SPACE (4 * RECOMMENDED_SPACE) // min unit size = 1 dc + EOB = 2 bits
 	
 	#define ROUND_UP_8(x) ((x + 7) & ~7)
@@ -76,8 +77,6 @@ namespace BJpeg {
 	typedef cl_long  i64;
 	typedef cl_int2  i32x2;
 	typedef cl_float f32;
-	
-	extern u8 recomended_space_pow;
 	
 	template <typename T> struct ArrayWithLength {
 		size_t length = 0; T* array = nullptr;

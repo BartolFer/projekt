@@ -2,10 +2,10 @@
 [
 	["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/Clean.py"],
 	["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/Compile.py"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs\\b01.jpg", "./Temp/jpgs\\b01.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs\\b01.rgba"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/jpgs\\b01.jpg", "./Temp/jpgs\\b01.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs\\b01.rgba"],
 	["C:\\Programs\\Python\\Python_3.12\\python.exe", "./Scripts/JPG_to_JPGDEF.py", "./Temp/jpgs\\b01.jpg", "./Temp/jpgs\\b01.def.jpg"],
-	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs\\b01.rgba", "./Temp/jpgs\\b01.def.jpg", "./Temp/jpgs\\b01.out.jpg", ""],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs\\b01.out.jpg", "./Temp/jpgs\\b01.out.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs\\b01.out.rgba"]
+	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/jpgs\\b01.rgba", "./Temp/jpgs\\b01.def.jpg", "./Temp/jpgs\\b01.out.jpg", ""],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/jpgs\\b01.out.jpg", "./Temp/jpgs\\b01.out.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs\\b01.out.rgba"]
 ]

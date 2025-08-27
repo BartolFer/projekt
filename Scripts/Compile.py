@@ -22,6 +22,7 @@ if SERIAL_FLAG in sys.argv[1 : ]:
 	sys.argv[i : i + 1] = [];
 pass
 
+
 def cl_to_zzc(filename: str):
 	filename = filename.replace("\\", "/");
 	endex_slash = filename.rindex("/") + 1 if "/" in filename else 0;
@@ -46,21 +47,8 @@ def cl_to_zzc(filename: str):
 	pass
 pass
 
-for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src"):
-	for filename in files:
-		if filename.endswith(".cl"): cl_to_zzc(base + "/" + filename);
-	pass
-pass
-
-subprocess.run(["make"], cwd = __actual_dir__ + "/" + "./ClValidate/", stdout = subprocess.DEVNULL).check_returncode();
-for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src"):
-	for filename in files:
-		if filename.endswith(".cl"): subprocess.run([__actual_dir__ + "/" + "./ClValidate/a.exe", base + "/" + filename]).check_returncode();
-	pass
-pass
-
 def build(base, files = None):
-	if files is None: files = [path for path in os.listdir(base) if os.path.isfile(path)];
+	if files is None: files = [path for path in os.listdir(base) if os.path.isfile(base + "/" + path)];
 	print("Building", base);
 	if "Build.py" in files:
 		p = subprocess.Popen([sys.executable, base + "/Build.py", *sys.argv[1 : ]]);
@@ -71,25 +59,56 @@ def build(base, files = None):
 	return p;
 pass
 
-processes: list[subprocess.Popen] = [];
-for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Targets/"):
-	if ".zzc.config.json" not in files: continue;
-	if base.endswith("Ide") or base.endswith("Ide/"): continue;
-	processes.append(build(base, files));
-pass
-failed = False;
-for p in processes:
-	if p.wait() != 0:
-		failed = True;
-		for pp in processes: pp.terminate();
-		break;
+if subprocess.run([sys.executable, __actual_dir__ + "./SetupVars.py"]).returncode != 0: print("Could not SetupVars");
+
+for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src"):
+	for filename in files:
+		if filename.endswith(".cl"): cl_to_zzc(base + "/" + filename);
 	pass
-pass
-if failed:
-	raise Exception(str(p.args));
 pass
 
 if build(__actual_dir__ + "/" + "./../Targets/Ide/").wait() != 0: raise Exception;
+subprocess.run(["make"], cwd = __actual_dir__ + "/" + "./ClValidate/", stdout = subprocess.DEVNULL).check_returncode();
+for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src"):
+	for filename in files:
+		if filename.endswith(".cl"): subprocess.run([__actual_dir__ + "/" + "./ClValidate/ClValidate.exe", base + "/" + filename]).check_returncode();
+	pass
+pass
+
+subprocess.run(["make"], cwd = __actual_dir__ + "/" + "./RgbDisplay/").check_returncode();
+
+def waitAll(processes: list[subprocess.Popen]):
+	failed = False;
+	for p in processes:
+		if p.wait() != 0:
+			failed = True;
+			for pp in processes: pp.terminate();
+			break;
+		pass
+	pass
+	if failed:
+		raise Exception(str(p.args));
+	pass
+pass
+processes = [
+	build(__actual_dir__ + "/" + "../Targets/Test/"),
+	build(__actual_dir__ + "/" + "../Targets/Library/Static/"),
+];
+waitAll(processes);
+processes = [
+	build(__actual_dir__ + "/" + "../Targets/Examples/Decode/"),
+	build(__actual_dir__ + "/" + "../Targets/Examples/Encode/"),
+];
+waitAll(processes);
+
+
+#	for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Targets/"):
+#		if ".zzc.config.json" in files or "Build.py" in files:
+#			if base.endswith("Ide") or base.endswith("Ide/"): continue;
+#			processes.append(build(base, files));
+#		pass
+#	pass
+
 
 try: import winsound;
 except ImportError: pass;

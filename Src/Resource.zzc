@@ -3,7 +3,7 @@
 
 
 
-#pragma region zzc hdr_decl
+#pragma region zzc hdr_decl zzc
 namespace BJpeg {
 	template <typename>
 	struct FunctionTraits;

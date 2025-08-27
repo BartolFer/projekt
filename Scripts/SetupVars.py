@@ -10,6 +10,9 @@ if __name__ == '__main__' and not __package__:
 	__package__ = os.path.split(__actual_dir__)[1];
 pass
 
+for arg in sys.argv[1 : ]:
+	assert arg in ["clean"], arg;
+pass
 
 
 cl_include = "C:/Programs/Cuda/include/";
@@ -45,7 +48,7 @@ pass
 
 def fillClFile(path: str, dst_path: str):
 	if "clean" in sys.argv[1 : ]:
-		os.remove(dst_path);
+		if os.path.exists(dst_path): os.remove(dst_path);
 		return;
 	pass
 	with open(path) as template, open(dst_path, "w") as dst:
@@ -56,7 +59,7 @@ def fillClFile(path: str, dst_path: str):
 pass
 def fillGlFile(path: str, dst_path: str):
 	if "clean" in sys.argv[1 : ]:
-		os.remove(dst_path);
+		if os.path.exists(dst_path): os.remove(dst_path);
 		return;
 	pass
 	with open(path) as template, open(dst_path, "w") as dst:
@@ -67,7 +70,7 @@ def fillGlFile(path: str, dst_path: str):
 pass
 def fillClGlFile(path: str, dst_path: str):
 	if "clean" in sys.argv[1 : ]:
-		os.remove(dst_path);
+		if os.path.exists(dst_path): os.remove(dst_path);
 		return;
 	pass
 	with open(path) as template, open(dst_path, "w") as dst:
@@ -78,13 +81,24 @@ def fillClGlFile(path: str, dst_path: str):
 	pass
 pass
 
-fillClFile(__actual_dir__ + "/" + "./ClValidate/.template.Makefile", __actual_dir__ + "/" + "./ClValidate/Makefile");
-fillGlFile(__actual_dir__ + "/" + "./RgbDisplay/.template.Makefile", __actual_dir__ + "/" + "./RgbDisplay/Makefile");
-for (base, folders, files) in os.walk(__actual_dir__ + "/" + "../Targets/"):
-	filename     = ".template.zzc.config.json";
-	dst_filename = ".zzc.config.json";
-	if filename in files:
-		fillClFile(base + "/" + filename, base + "/" + dst_filename);
+#	fillClFile(__actual_dir__ + "/" + "./ClValidate/.template.Makefile", __actual_dir__ + "/" + "./ClValidate/Makefile");
+#	fillGlFile(__actual_dir__ + "/" + "./RgbDisplay/.template.Makefile", __actual_dir__ + "/" + "./RgbDisplay/Makefile");
+#	for (base, folders, files) in os.walk(__actual_dir__ + "/" + "../Targets/"):
+#		filename     = ".template.zzc.config.json";
+#		dst_filename = ".zzc.config.json";
+#		if filename in files:
+#			fillClFile(base + "/" + filename, base + "/" + dst_filename);
+#		pass
+#	pass
+for (base, folders, files) in os.walk(__actual_dir__ + "/" + "../"):
+	for filename in files:
+		if filename in ("template.", ".template"): continue;
+		
+		if filename.startswith("template."): dst_filename = filename.replace( "template.", "" , 1);
+		elif ".template." in filename:       dst_filename = filename.replace(".template.", ".", 1);
+		elif filename.endswith(".template"): dst_filename = filename.replace(".template" , "" , 1);
+		else: continue;
+		fillClGlFile(base + "/" + filename, base + "/" + dst_filename);
 	pass
 pass
 

@@ -1,11 +1,11 @@
 [
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/16x64_block16.jpg", "./Temp/jpgs/16x64_block16.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/16x64_block16.rgba"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/16x64_block16.jpg", "./Temp/jpgs/16x64_block16.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs/16x64_block16.rgba"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "./Temp/jpgs/16x64_block16.jpg", "./Temp/jpgs/16x64_block16.def.jpg"],
-	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/16x64_block16.rgba", "./Temp/jpgs/16x64_block16.def.jpg", "./Temp/jpgs/16x64_block16.out.jpg", "22"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/16x64_block16.out.jpg", "./Temp/jpgs/16x64_block16.out.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/16x64_block16.out.rgba"],
+	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/16x64_block16.rgba", "./Temp/jpgs/16x64_block16.def.jpg", "./Temp/jpgs/16x64_block16.out.jpg", "22"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/16x64_block16.out.jpg", "./Temp/jpgs/16x64_block16.out.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs/16x64_block16.out.rgba"],
 	["./Temp/JPEGsnoop.exe"]
 ]

@@ -345,12 +345,12 @@ def setSmartDefault():
 	config = [
 		["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"          ],                                   
 		["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"        ],                                   
-		["./Targets/Decode/Build/BJpegDecode.exe",                                  jpg,  rgba  ],                                   
-		["./Scripts/RgbDisplay/a.exe",                                              rgba  ],                                   
+		["./Targets/Examples/Decode/Build/BJpegDecode.exe",                                  jpg,  rgba  ],                                   
+		["./Scripts/RgbDisplay/RgbDisplay.exe",                                              rgba  ],                                   
 		["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", jpg,  defj  ],                                   
-		["./Targets/Encode/Build/BJpegEncode.exe",                                  rgba, defj, ojpg, "11" ],                                   
-		["./Targets/Decode/Build/BJpegDecode.exe",                                  ojpg, orgb  ],                                   
-		["./Scripts/RgbDisplay/a.exe",                                              orgb  ],                                   
+		["./Targets/Examples/Encode/Build/BJpegEncode.exe",                                  rgba, defj, ojpg, "11" ],                                   
+		["./Targets/Examples/Decode/Build/BJpegDecode.exe",                                  ojpg, orgb  ],                                   
+		["./Scripts/RgbDisplay/RgbDisplay.exe",                                              orgb  ],                                   
 		["./Temp/JPEGsnoop.exe"                                                     ],                     
 	];
 	proposed_path = id + ".json";
@@ -360,7 +360,7 @@ def setSmartDefault():
 	setGUI(config);
 pass
 def smartRun():
-	for i in [2, 5, 6]:
+	for i in [2, 4, 5, 6]:
 		cmd = commands[i];
 		cmd.run();
 		window.update(); window.update_idletasks();
@@ -398,10 +398,10 @@ os.chdir(cwd);
 initial = [
 	[sys.executable, "./Scripts/Clean.py"],
 	[sys.executable, "./Scripts/Compile.py"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.rgba", ],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/Zugpsitze_mountain.rgba", ],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.rgba", ],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/Zugpsitze_mountain.rgba", ],
 	[sys.executable, "./Scripts/JPG_to_JPGDEF.py", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.def.jpg", ],
-	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain.rgba", "./Temp/Zugpsitze_mountain.def.jpg", "./Temp/Zugpsitze_mountain.out.jpg", "122"],
+	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain.rgba", "./Temp/Zugpsitze_mountain.def.jpg", "./Temp/Zugpsitze_mountain.out.jpg", "122"],
 ];
 
 if len(sys.argv) == 1:

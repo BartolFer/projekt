@@ -1,11 +1,11 @@
 [
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain_scaled.jpg", "./Temp/Zugpsitze_mountain_scaled.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/Zugpsitze_mountain_scaled.rgba"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain_scaled.jpg", "./Temp/Zugpsitze_mountain_scaled.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/Zugpsitze_mountain_scaled.rgba"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "D:/Personal/nastava/projekt/Temp/Zugpsitze_mountain_scaled.jpg", "./Temp/Zugpsitze_mountain_scaled.def.jpg"],
-	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain_scaled.rgba", "./Temp/Zugpsitze_mountain_scaled.def.jpg", "./Temp/Zugpsitze_mountain_scaled.out.jpg", "11"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain_scaled.out.jpg", "./Temp/Zugpsitze_mountain_scaled.out.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/Zugpsitze_mountain_scaled.out.rgba"],
+	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain_scaled.rgba", "./Temp/Zugpsitze_mountain_scaled.def.jpg", "./Temp/Zugpsitze_mountain_scaled.out.jpg", "11"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain_scaled.out.jpg", "./Temp/Zugpsitze_mountain_scaled.out.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/Zugpsitze_mountain_scaled.out.rgba"],
 	["./Temp/JPEGsnoop.exe"]
 ]

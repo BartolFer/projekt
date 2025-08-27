@@ -1,11 +1,11 @@
 [
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/jpgs/8x40_color.jpg", "./Temp/jpgs/8x40_color.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/8x40_color.rgba"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/jpgs/8x40_color.jpg", "./Temp/jpgs/8x40_color.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs/8x40_color.rgba"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "D:/Personal/nastava/projekt/Temp/jpgs/8x40_color.jpg", "./Temp/jpgs/8x40_color.def.jpg"],
-	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/8x40_color.rgba", "./Temp/jpgs/8x40_color.def.jpg", "./Temp/jpgs/8x40_color.out.jpg", "11"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/8x40_color.out.jpg", "./Temp/jpgs/8x40_color.out.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/8x40_color.out.rgba"],
+	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/8x40_color.rgba", "./Temp/jpgs/8x40_color.def.jpg", "./Temp/jpgs/8x40_color.out.jpg", "11"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/8x40_color.out.jpg", "./Temp/jpgs/8x40_color.out.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs/8x40_color.out.rgba"],
 	["./Temp/JPEGsnoop.exe"]
 ]

@@ -15,6 +15,8 @@ pass
 import os, shutil;
 import subprocess;
 
+
+
 def rmdir(path):
 	if os.path.exists(path) and os.path.isdir(path): shutil.rmtree(path);
 pass
@@ -31,10 +33,9 @@ for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src/"):
 	pass
 pass
 for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Targets/"):
-	if ".zzc.config.json" not in files: continue;
 	if "Clean.py" in files:
 		if subprocess.run([sys.executable, base + "/Clean.py"]).returncode != 0: print("Could not Clean", base);
-	else:
+	elif ".zzc.config.json" in files:
 		if "PreClean.py" in files:
 			if subprocess.run([sys.executable, base + "/PreClean.py"]).returncode != 0: print("Could not Pre-Clean", base);
 		pass
@@ -45,3 +46,7 @@ for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Targets/"):
 		pass
 	pass
 pass
+
+if subprocess.run([sys.executable, __actual_dir__ + "./SetupVars.py", "clean"]).returncode != 0: print("Could not SetupVars clean");
+rmfile(__actual_dir__ + "./ClValidate/ClValidate.exe");
+rmfile(__actual_dir__ + "./RgbDisplay/RgbDisplay.exe");

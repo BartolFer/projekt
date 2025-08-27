@@ -11,6 +11,8 @@ namespace BJpeg {
 		u32 image(Context& context, InputFileBuffer& file, u32 index);
 	}
 	namespace Encode {
-		ArrayWithLength<u8> image(MyOpenCL :: Buffer<RGBA> image, CLContext cl, size_t height, size_t width, QuantizationTable qtables[4], HuffmanTable htables[2][4], SamplingFactor sampling_factors[MAX_COMPONENTS]);
+		ArrayWithLength<u8> image(MyOpenCL :: Buffer<RGBA> image, CLContext cl, size_t height, size_t width, QuantizationTable qtables[4], SamplingFactor sampling_factors[MAX_COMPONENTS]);
+		bool ReadJpegDef(std :: string& path, QuantizationTable qtables[4]);
+		
 	}
 }

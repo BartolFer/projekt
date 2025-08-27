@@ -1,11 +1,11 @@
 [
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/jpgs/320x280_colors_dc.jpg", "./Temp/jpgs/320x280_colors_dc.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/320x280_colors_dc.rgba"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "D:/Personal/nastava/projekt/Temp/jpgs/320x280_colors_dc.jpg", "./Temp/jpgs/320x280_colors_dc.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs/320x280_colors_dc.rgba"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "D:/Personal/nastava/projekt/Temp/jpgs/320x280_colors_dc.jpg", "./Temp/jpgs/320x280_colors_dc.def.jpg"],
-	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/320x280_colors_dc.rgba", "./Temp/jpgs/320x280_colors_dc.def.jpg", "./Temp/jpgs/320x280_colors_dc.out.jpg", "11"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/320x280_colors_dc.out.jpg", "./Temp/jpgs/320x280_colors_dc.out.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/320x280_colors_dc.out.rgba"],
+	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/320x280_colors_dc.rgba", "./Temp/jpgs/320x280_colors_dc.def.jpg", "./Temp/jpgs/320x280_colors_dc.out.jpg", "11"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/320x280_colors_dc.out.jpg", "./Temp/jpgs/320x280_colors_dc.out.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs/320x280_colors_dc.out.rgba"],
 	["./Temp/JPEGsnoop.exe"]
 ]

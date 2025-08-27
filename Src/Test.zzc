@@ -7,8 +7,8 @@
 	#include <fstream>
 #pragma endregion zzc
 
-namespace BJpeg {
-	#ifdef TESTING
+#ifdef TESTING
+	namespace BJpeg {
 		static std :: ofstream output = std :: ofstream("./log.txt");
 		//	static std :: ostream& output = std :: cout;
 		static std :: ostream& error = std :: cerr;
@@ -53,5 +53,9 @@ namespace BJpeg {
 		private:
 			static std :: vector<Test*> tests;
 		};
-	#endif
-}
+		
+	}
+	fun int main() {
+		if (!BJpeg :: Test :: runTests()) { return EXIT_FAILURE; }
+	}
+#endif

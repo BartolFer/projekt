@@ -1,11 +1,11 @@
 [
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Clean.py"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/Compile.py"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/7x7_random_block4.jpg", "./Temp/jpgs/7x7_random_block4.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/7x7_random_block4.rgba"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/7x7_random_block4.jpg", "./Temp/jpgs/7x7_random_block4.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs/7x7_random_block4.rgba"],
 	["C:/Programs/Python/Python_3.12/python.exe", "./Scripts/JPG_to_JPGDEF.py", "./Temp/jpgs/7x7_random_block4.jpg", "./Temp/jpgs/7x7_random_block4.def.jpg"],
-	["./Targets/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/7x7_random_block4.rgba", "./Temp/jpgs/7x7_random_block4.def.jpg", "./Temp/jpgs/7x7_random_block4.out.jpg", "11"],
-	["./Targets/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/7x7_random_block4.out.jpg", "./Temp/jpgs/7x7_random_block4.out.rgba"],
-	["./Scripts/RgbDisplay/a.exe", "./Temp/jpgs/7x7_random_block4.out.rgba"],
+	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/jpgs/7x7_random_block4.rgba", "./Temp/jpgs/7x7_random_block4.def.jpg", "./Temp/jpgs/7x7_random_block4.out.jpg", "11"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/jpgs/7x7_random_block4.out.jpg", "./Temp/jpgs/7x7_random_block4.out.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/jpgs/7x7_random_block4.out.rgba"],
 	["./Temp/JPEGsnoop.exe"]
 ]

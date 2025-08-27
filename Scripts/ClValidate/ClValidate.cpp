@@ -7,7 +7,7 @@ namespace MyOpenCL {
 }
 //	#include "../Src/Util.zzc"
 #include "../../Src/MyOpenCL.zzc"
-
+	
 fun int main(int argc, char* argv[]) {
 	if (argc != 2) {
 		printf("Usage: <exe> path/to/x.cl\n");
