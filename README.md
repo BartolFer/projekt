@@ -187,7 +187,7 @@ Macro that defers execution of a block of code to the end of a function.
 Syntax is `defer { any code };`.  
 ```c++
 void f() {
-    defer { printf("This will be printed last"); }
+    defer { printf("This will be printed last"); };
     printf("This will be printed 1st");
 }
 ```
