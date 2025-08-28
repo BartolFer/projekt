@@ -3,7 +3,7 @@ from __future__ import annotations;
 cl_include = "C:/Programs/Cuda/include/";
 cl_lib     = "C:/Programs/Cuda/lib/x64/";
 
-use_RgbDisplay = False;
+use_RgbDisplay = True;
 if use_RgbDisplay:
 	glad_include = "./OpenGlDep/glad/include/";   #	relative to ./Scripts/RgbDisplay/
 	glad_c       = "./OpenGlDep/glad/src/glad.c"; #	relative to ./Scripts/RgbDisplay/
