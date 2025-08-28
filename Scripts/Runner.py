@@ -383,7 +383,7 @@ load_button.place(x = 120, width = 100, rely = 1, anchor = tk.SW);
 store_button = ttk.Button(window, text = "Store", command = storeConfig);
 store_button.place(x = 230, width = 100, rely = 1, anchor = tk.SW);
 
-smart_default_button = ttk.Button(window, text = "Smart default", command = setSmartDefault);
+smart_default_button = ttk.Button(window, text = "Smart Default", command = setSmartDefault);
 smart_default_button.place(x = 340, width = 100, rely = 1, anchor = tk.SW);
 
 smart_run_button = ttk.Button(window, text = "Smart Run", command = smartRun);
@@ -398,10 +398,12 @@ os.chdir(cwd);
 initial = [
 	[sys.executable, "./Scripts/Clean.py"],
 	[sys.executable, "./Scripts/Compile.py"],
-	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.rgba", ],
-	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/Zugpsitze_mountain.rgba", ],
-	[sys.executable, "./Scripts/JPG_to_JPGDEF.py", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.def.jpg", ],
-	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain.rgba", "./Temp/Zugpsitze_mountain.def.jpg", "./Temp/Zugpsitze_mountain.out.jpg", "122"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/Zugpsitze_mountain.rgba"],
+	[sys.executable, "./Scripts/JPG_to_JPGDEF.py", "./Temp/Zugpsitze_mountain.jpg", "./Temp/Zugpsitze_mountain.def.jpg"],
+	["./Targets/Examples/Encode/Build/BJpegEncode.exe", "./Temp/Zugpsitze_mountain.rgba", "./Temp/Zugpsitze_mountain.def.jpg", "./Temp/Zugpsitze_mountain.out.jpg", "22"],
+	["./Targets/Examples/Decode/Build/BJpegDecode.exe", "./Temp/Zugpsitze_mountain.out.jpg", "./Temp/Zugpsitze_mountain.out.rgba"],
+	["./Scripts/RgbDisplay/RgbDisplay.exe", "./Temp/Zugpsitze_mountain.out.rgba"]
 ];
 
 if len(sys.argv) == 1:

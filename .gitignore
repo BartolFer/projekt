@@ -12,3 +12,5 @@ __pycache__
 .zzc.cache.json
 Targets/**/include/inner/
 *.zip
+Makefile
+.zzc.config.json

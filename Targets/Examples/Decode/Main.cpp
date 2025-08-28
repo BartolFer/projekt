@@ -22,6 +22,7 @@ int main(int argc, char* argv[]) {
 	if (!context) { std :: cerr << "!context" << std :: endl; return 1; }
 	
 	auto res = Decode :: image(context, file, 0);
+	defer { context.cl.buffer.image.finish(); };
 	std :: cout << "res = " << res << std :: endl;
 	
 	if (res == 0) { return EXIT_FAILURE; }

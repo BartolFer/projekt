@@ -12,13 +12,10 @@ pass
 
 import json;
 import subprocess;
-import shutil;
-import typing;
 
 if TYPE_CHECKING:
 	from ..ZZC.process_group import *;
 pass
-
 with open(__actual_dir__ + "/" + "../ZZC/process_group.py") as f:
 	exec(f.read(), globals(), locals());
 pass
@@ -68,7 +65,8 @@ def build(base, files = None):
 	return p;
 pass
 
-if subprocess.run([sys.executable, __actual_dir__ + "./SetupVars.py"]).returncode != 0: print("Could not SetupVars");
+import SetupVars; #	run code from it and import needed variable
+#	if subprocess.run([sys.executable, __actual_dir__ + "./SetupVars.py"]).returncode != 0: print("Could not SetupVars");
 
 for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src"):
 	for filename in files:
@@ -84,7 +82,7 @@ for (base, folders, files) in os.walk(__actual_dir__ + "/" + "./../Src"):
 	pass
 pass
 
-subprocess.run(["make"], cwd = __actual_dir__ + "/" + "./RgbDisplay/").check_returncode();
+if SetupVars.use_RgbDisplay: subprocess.run(["make"], cwd = __actual_dir__ + "/" + "./RgbDisplay/").check_returncode();
 
 processes1 = ProcessGroup(
 	build(__actual_dir__ + "/" + "../Targets/Test/"),

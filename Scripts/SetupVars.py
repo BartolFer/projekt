@@ -1,4 +1,17 @@
 from __future__ import annotations;
+
+cl_include = "C:/Programs/Cuda/include/";
+cl_lib     = "C:/Programs/Cuda/lib/x64/";
+
+use_RgbDisplay = False;
+if use_RgbDisplay:
+	glad_include = "./OpenGlDep/glad/include/";   #	relative to ./Scripts/RgbDisplay/
+	glad_c       = "./OpenGlDep/glad/src/glad.c"; #	relative to ./Scripts/RgbDisplay/
+	gl_dll       = "C:/Windows/System32/opengl32.dll";
+	glfw_lib     = "./OpenGlDep/glfw-3.4.bin.WIN64/lib-mingw-w64/"; #	relative to ./Scripts/RgbDisplay/
+pass
+
+
 from typing import *;
 import inspect as ins;
 import sys, os, pathlib;
@@ -10,21 +23,14 @@ if __name__ == '__main__' and not __package__:
 	__package__ = os.path.split(__actual_dir__)[1];
 pass
 
-for arg in sys.argv[1 : ]:
-	assert arg in ["clean"], arg;
+
+
+if __name__ == "__main__":
+	for arg in sys.argv[1 : ]:
+		assert arg in ["clean"], arg;
+	pass
 pass
 
-
-cl_include = "C:/Programs/Cuda/include/";
-cl_lib = "C:/Programs/Cuda/lib/x64/";
-
-use_RgbDisplay = True;
-if use_RgbDisplay:
-	glad_include = "./OpenGlDep/glad/include/";   #	relative to ./Scripts/RgbDisplay/
-	glad_c       = "./OpenGlDep/glad/src/glad.c"; #	relative to ./Scripts/RgbDisplay/
-	gl_dll       = "C:/Windows/System32/opengl32.dll";
-	glfw_lib     = "./OpenGlDep/glfw-3.4.bin.WIN64/lib-mingw-w64/"; #	relative to ./Scripts/RgbDisplay/
-pass
 
 #	def getDstPath(path: str) -> str:
 #		i = path.rindex(".template");
@@ -39,6 +45,7 @@ def getClReplacement(text: str) -> str:
 	return text;
 pass
 def getGlReplacement(text: str) -> str:
+	if not use_RgbDisplay: return text;
 	text = text.replace("$$glad_include$$", str(glad_include));
 	text = text.replace("$$glad_c$$"      , str(glad_c      ));
 	text = text.replace("$$gl_dll$$"      , str(gl_dll      ));
